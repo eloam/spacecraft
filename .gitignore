@@ -1,0 +1,46 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+artifacts/
+[Tt]est[Rr]esults/
+*.coverage
+*.trx
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env & secrets — never commit these
+.env
+.env.*
+!.env.example
+appsettings.Development.local.json
+secrets.json
+*.pem
+*.key
+
+# Per-developer tool settings; .claude/launch.json is shared on purpose.
+.claude/settings.local.json
+
+# Editors
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local scratch
+/tmp/
+/.scratch/

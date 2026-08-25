@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/SpaceCraft.Domain/SpaceCraft.Domain.csproj" />
+    <ProjectReference Include="../../src/SpaceCraft.Pipeline/SpaceCraft.Pipeline.csproj" />
+    <ProjectReference Include="../../src/SpaceCraft.Runner/SpaceCraft.Runner.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+  </ItemGroup>
+</Project>

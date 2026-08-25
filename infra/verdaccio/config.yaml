@@ -1,0 +1,43 @@
+# Verdaccio configuration for local development.
+#
+# Wide open on purpose: this registry only ever runs on a developer machine and holds
+# throwaway packages. Do not reuse this file anywhere reachable from a network.
+
+storage: /verdaccio/storage
+listen: 0.0.0.0:4873
+
+auth:
+  htpasswd:
+    file: /verdaccio/storage/htpasswd
+    # Any developer can self-register a publishing account.
+    max_users: 1000
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+    timeout: 30s
+    cache: true
+
+packages:
+  # Kiota's runtime packages are proxied from npmjs and cached locally.
+  "@microsoft/*":
+    access: $all
+    publish: $authenticated
+    proxy: npmjs
+
+  "@*/*":
+    access: $all
+    publish: $anonymous
+    unpublish: $anonymous
+    proxy: npmjs
+
+  "**":
+    access: $all
+    publish: $anonymous
+    unpublish: $anonymous
+    proxy: npmjs
+
+log:
+  type: stdout
+  format: pretty
+  level: warn

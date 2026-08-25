@@ -1,0 +1,6 @@
+# EF Core writes these files; they are not hand-maintained source.
+# `generated_code` tells the Roslyn analysers to leave them alone, which keeps
+# TreatWarningsAsErrors meaningful for the code we actually own.
+[*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none

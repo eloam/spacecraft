@@ -1,0 +1,79 @@
+# Development infrastructure only.
+#
+# The API and the worker deliberately run on the host (`dotnet run`) rather than in
+# containers here: the worker launches Docker containers of its own for every pipeline
+# step, and running it inside a container would mean docker-in-docker or mounting the
+# host socket into it — a large amount of privilege for no development benefit.
+
+name: spacecraft
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: spacecraft
+      POSTGRES_PASSWORD: spacecraft
+      POSTGRES_DB: spacecraft
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spacecraft -d spacecraft"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # S3-compatible object storage for specs, build artifacts and logs.
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: spacecraft
+      MINIO_ROOT_PASSWORD: spacecraft-dev-secret
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Creates the bucket once MinIO is up, then exits.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 spacecraft spacecraft-dev-secret &&
+      mc mb --ignore-existing local/spacecraft &&
+      echo 'bucket ready'
+      "
+
+  # A local npm registry, so the publish step can be exercised end to end without
+  # pushing anything to npmjs.org. Publishing to a real registry is irreversible;
+  # having a throwaway one is what makes this pipeline safe to develop against.
+  verdaccio:
+    image: verdaccio/verdaccio:6
+    ports:
+      - "4873:4873"
+    volumes:
+      - verdaccio-storage:/verdaccio/storage
+      - ./infra/verdaccio/config.yaml:/verdaccio/conf/config.yaml:ro
+    healthcheck:
+      # 127.0.0.1, not localhost: verdaccio binds IPv4 only, and the image resolves
+      # localhost to ::1 first, which makes the probe fail against a healthy server.
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:4873/-/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  minio-data:
+  verdaccio-storage:

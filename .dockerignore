@@ -1,0 +1,16 @@
+# Build output must never be copied into an image: the local obj/ directories carry
+# project.assets.json files with absolute paths from the host, which overwrite the ones
+# restore just produced inside the container and break the publish.
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+
+.git/
+.vs/
+.vscode/
+.idea/
+
+**/.env
+**/*.user
+**/TestResults/

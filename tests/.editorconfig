@@ -1,0 +1,4 @@
+# Test method names read as sentences — underscores are the point, not an oversight.
+# Scoped to tests/ so production code keeps the rule.
+[*.cs]
+dotnet_diagnostic.CA1707.severity = none

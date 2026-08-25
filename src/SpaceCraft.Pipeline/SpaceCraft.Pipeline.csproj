@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../SpaceCraft.Domain/SpaceCraft.Domain.csproj" />
+    <ProjectReference Include="../SpaceCraft.Infrastructure/SpaceCraft.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.OpenApi" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" />
+  </ItemGroup>
+  <!-- Internal helpers are unit-tested directly rather than being made public
+       just to satisfy the test project. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="SpaceCraft.UnitTests" />
+  </ItemGroup>
+</Project>
