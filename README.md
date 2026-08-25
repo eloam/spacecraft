@@ -140,11 +140,11 @@ dotnet ef database update --project src/SpaceCraft.Infrastructure --startup-proj
 Then, in three terminals:
 
 ```bash
-ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/SpaceCraft.Api
+dotnet run --project src/SpaceCraft.Api
 ```
 
 ```bash
-DOTNET_ENVIRONMENT=Development dotnet run --project src/SpaceCraft.Worker
+dotnet run --project src/SpaceCraft.Worker
 ```
 
 ```bash
@@ -159,6 +159,24 @@ npm run dev --prefix src/web
 The API and worker run on the host rather than in containers: the worker launches Docker
 containers of its own for every pipeline step, and containerising it would mean
 docker-in-docker or mounting the host socket, which is a lot of privilege for no benefit.
+
+## Secrets in development
+
+`appsettings.json` carries structure and empty placeholders; `appsettings.Development.json`
+carries local-only values that are safe in the repository. Anything real — a Scaleway API
+key, a production connection string — goes in user secrets, which live outside the working
+tree:
+
+```bash
+dotnet user-secrets set "Email:Scaleway:ApiKey" "<secret key>" --project src/SpaceCraft.Api
+```
+
+A `pre-commit` hook refuses any commit that puts a non-empty `ApiKey`, `SecretKey`,
+`SigningKey` or `Password` into a tracked settings file. Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
 
 ## Tests
 

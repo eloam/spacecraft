@@ -1,0 +1,20 @@
+#!/bin/sh
+# Blocks a commit that would put real credentials into a tracked settings file.
+# appsettings.json is meant to carry structure and empty placeholders only; real values
+# belong in user secrets locally and in the environment when deployed.
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep 'appsettings.*\.json$')
+[ -z "$staged" ] && exit 0
+
+for file in $staged; do
+  # Any non-empty ApiKey / SecretKey / SigningKey / password in a staged settings file.
+  if git show ":$file" | grep -qE '"(ApiKey|SecretKey|AccessKey|SigningKey|Password)"[[:space:]]*:[[:space:]]*"[^"]+"'; then
+    case "$file" in
+      *Development.json) continue ;;   # local-only defaults, deliberately committed
+    esac
+    echo "pre-commit: $file has a non-empty credential field."
+    echo "  Move it to user secrets:  dotnet user-secrets set \"Email:Scaleway:ApiKey\" \"<value>\" --project src/SpaceCraft.Api"
+    echo "  Then blank it in the file. Use --no-verify only if you are certain it is a placeholder."
+    exit 1
+  fi
+done
+exit 0

@@ -1,4 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <UserSecretsId>spacecraft-worker</UserSecretsId>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SpaceCraft.Domain/SpaceCraft.Domain.csproj" />
     <ProjectReference Include="../SpaceCraft.Infrastructure/SpaceCraft.Infrastructure.csproj" />
