@@ -220,7 +220,7 @@ public static class AuthEndpoints
 
     private static IResult ForgotPasswordAsync(
         [FromBody] ForgotPasswordRequest request,
-        PasswordResetRequests resetRequests)
+        BackgroundWorkQueue<PasswordResetRequest> resetRequests)
     {
         var address = (request.Email ?? string.Empty).Trim();
 
@@ -232,7 +232,7 @@ public static class AuthEndpoints
         // Everything past this point — looking the account up, issuing a token, sending the
         // mail — happens on a background worker. The handler must not branch on whether the
         // address is registered, because the time it takes to do so is itself an answer.
-        resetRequests.Enqueue(address);
+        resetRequests.Enqueue(new PasswordResetRequest(address));
 
         return TypedResults.Accepted(
             (string?)null,

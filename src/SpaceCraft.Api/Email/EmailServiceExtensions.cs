@@ -66,12 +66,14 @@ public static class EmailServiceExtensions
                 + "Email:Scaleway:ProjectId, or run in Development to log messages instead.");
         }
 
-        services.AddSingleton<PasswordResetRequests>();
-        services.AddHostedService<PasswordResetDispatcher>();
+        // One queue type, three uses. Each endpoint enqueues unconditionally and a
+        // dispatcher does the work, so response time never depends on what was found.
+        services.AddSingleton(typeof(BackgroundWorkQueue<>));
 
-        services.AddSingleton<QueuedEmailSender>();
-        services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<QueuedEmailSender>());
+        services.AddSingleton<IEmailSender, QueuedEmailSender>();
         services.AddHostedService<EmailDispatcher>();
+        services.AddHostedService<PasswordResetDispatcher>();
+        services.AddHostedService<WaitlistDispatcher>();
 
         return services;
     }

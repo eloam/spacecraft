@@ -1,6 +1,6 @@
 using SpaceCraft.Domain.Common;
 
-namespace SpaceCraft.Domain.Organizations;
+namespace SpaceCraft.Domain.Waitlist;
 
 /// <summary>
 /// An email captured by the "Notify me" form while the product is pre-launch.

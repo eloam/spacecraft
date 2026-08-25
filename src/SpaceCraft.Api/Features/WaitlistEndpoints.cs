@@ -1,6 +1,5 @@
-using System.Security.Cryptography;
-using System.Text;
 using SpaceCraft.Api.Common;
+using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Extensions;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
@@ -36,13 +35,10 @@ public static class WaitlistEndpoints
         return api;
     }
 
-    private static async Task<IResult> SignUpAsync(
+    private static IResult SignUpAsync(
         [FromBody] WaitlistSignupRequest request,
         HttpContext http,
-        SpaceCraftDbContext db,
-        IEmailSender email,
-        IConfiguration configuration,
-        CancellationToken ct)
+        BackgroundWorkQueue<WaitlistSignup> signups)
     {
         var address = request.Email?.Trim().ToLowerInvariant();
 
@@ -51,47 +47,17 @@ public static class WaitlistEndpoints
             return ApiResults.Invalid(nameof(request.Email), "Enter a valid email address.");
         }
 
-        // Always the same response, whether this address is new, already pending, or already
-        // confirmed. Otherwise the endpoint becomes a way to test who has signed up.
-        const string Acknowledgement = "Check your inbox — we've sent you a confirmation link.";
-
-        var token = GenerateToken();
-        var existing = await db.WaitlistEntries.FirstOrDefaultAsync(w => w.Email == address, ct);
-
-        if (existing is not null)
-        {
-            if (existing.IsConfirmed)
-            {
-                return TypedResults.Ok(new WaitlistSignupResponse(Acknowledgement));
-            }
-
-            existing.ReissueToken(Hash(token));
-        }
-        else
-        {
-            db.WaitlistEntries.Add(new WaitlistEntry(
-                address,
-                Hash(token),
-                request.Source,
-                HashIp(http.Connection.RemoteIpAddress?.ToString())));
-        }
-
-        await db.SaveChangesAsync(ct);
-
-        var baseUrl = configuration["PublicUrls:Api"] ?? "https://spacecraft.dev";
-        await email.SendAsync(new EmailMessage(
+        // Enqueued unconditionally. Returning the same acknowledgement for a new, pending and
+        // confirmed address is not enough on its own: doing the database work inline made the
+        // already-confirmed case measurably faster, which answered the question the identical
+        // response was there to refuse.
+        signups.Enqueue(new WaitlistSignup(
             address,
-            "Confirm your SpaceCraft waitlist signup",
-            $"""
-            Thanks for your interest in SpaceCraft.
+            request.Source,
+            WaitlistTokens.HashIp(http.Connection.RemoteIpAddress?.ToString())));
 
-            Confirm your email to join the waitlist:
-            {baseUrl}/api/v1/waitlist/confirm?token={token}
-
-            If you didn't request this, ignore this message — no account is created.
-            """), ct);
-
-        return TypedResults.Ok(new WaitlistSignupResponse(Acknowledgement));
+        return TypedResults.Ok(new WaitlistSignupResponse(
+            "Check your inbox — we've sent you a confirmation link."));
     }
 
     private static async Task<IResult> ConfirmAsync(
@@ -104,7 +70,7 @@ public static class WaitlistEndpoints
             return ApiResults.Invalid(nameof(token), "A confirmation token is required.");
         }
 
-        var hash = Hash(token);
+        var hash = WaitlistTokens.Hash(token);
         var entry = await db.WaitlistEntries.FirstOrDefaultAsync(w => w.ConfirmationTokenHash == hash, ct);
 
         if (entry is null)
@@ -136,16 +102,4 @@ public static class WaitlistEndpoints
             && !value.Contains(' ', StringComparison.Ordinal);
     }
 
-    private static string GenerateToken() =>
-        Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
-
-    private static string Hash(string value) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
-
-    /// <summary>
-    /// Stores a hash rather than the address itself: enough to rate-limit repeat abuse,
-    /// without retaining a personal identifier for everyone who visits the landing page.
-    /// </summary>
-    private static string? HashIp(string? ip) =>
-        string.IsNullOrWhiteSpace(ip) ? null : Hash(ip);
 }

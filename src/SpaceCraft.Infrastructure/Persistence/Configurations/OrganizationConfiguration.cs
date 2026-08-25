@@ -1,3 +1,4 @@
+using SpaceCraft.Domain.Waitlist;
 using SpaceCraft.Domain.Common;
 using SpaceCraft.Domain.Organizations;
 using Microsoft.EntityFrameworkCore;

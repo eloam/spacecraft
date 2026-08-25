@@ -88,7 +88,10 @@ Two properties matter more than the token itself:
   is rolled by going through `ResetPasswordAsync` rather than writing the hash directly.
 
 **The endpoint does no work of its own.** `forgot-password` validates the address shape,
-puts it on a queue, and returns. Looking the account up and issuing a token happen on a
+puts it on a queue, and returns. The waitlist signup endpoint works the same way, and for the
+same reason — it had the identical flaw, measured at 3.5 ms for an already-confirmed address
+against 7.5 ms for a new one, which answered "is this address already signed up?" despite the
+deliberately identical response. Looking the account up and issuing a token happen on a
 background worker. Identical responses are only half the defence: when the registered branch
 also read the database and wrote a token while the unregistered branch returned immediately,
 the two took 21.5 ms and 4.6 ms — a reliable account oracle in spite of identical bodies.

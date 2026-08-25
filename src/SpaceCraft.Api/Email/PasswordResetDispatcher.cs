@@ -15,7 +15,7 @@ namespace SpaceCraft.Api.Email;
 /// why none of this happens inline.
 /// </summary>
 public sealed class PasswordResetDispatcher(
-    PasswordResetRequests requests,
+    BackgroundWorkQueue<PasswordResetRequest> requests,
     IServiceScopeFactory scopeFactory,
     IEmailSender email,
     IConfiguration configuration,
@@ -30,11 +30,11 @@ public sealed class PasswordResetDispatcher(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await foreach (var address in requests.Reader.ReadAllAsync(stoppingToken))
+        await foreach (var request in requests.Reader.ReadAllAsync(stoppingToken))
         {
             try
             {
-                await HandleAsync(address, stoppingToken);
+                await HandleAsync(request.EmailAddress, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

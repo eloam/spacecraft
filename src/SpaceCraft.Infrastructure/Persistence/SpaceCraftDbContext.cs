@@ -1,3 +1,4 @@
+using SpaceCraft.Domain.Waitlist;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Domain.Projects;
