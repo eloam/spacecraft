@@ -67,8 +67,17 @@ public static class ApiServiceExtensions
         return services;
     }
 
-    public static IServiceCollection AddSpaceCraftRateLimiting(this IServiceCollection services)
+    public static IServiceCollection AddSpaceCraftRateLimiting(
+        this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        // Configurable so a load test or a staging soak is not throttled into meaninglessness,
+        // and so the limits can be tightened in production without a rebuild.
+        var globalPermits = configuration.GetValue("RateLimits:GlobalPermitsPerMinute", 300);
+        var strictPermits = configuration.GetValue("RateLimits:CredentialPermitsPerWindow", 10);
+        var strictWindow = configuration.GetValue("RateLimits:CredentialWindow", TimeSpan.FromMinutes(15));
+
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -82,7 +91,7 @@ public static class ApiServiceExtensions
                         : context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                     _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 300,
+                        PermitLimit = globalPermits,
                         Window = TimeSpan.FromMinutes(1),
                     }));
 
@@ -100,8 +109,8 @@ public static class ApiServiceExtensions
                     $"{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}|{context.Request.Path}",
                     _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 10,
-                        Window = TimeSpan.FromMinutes(15),
+                        PermitLimit = strictPermits,
+                        Window = strictWindow,
                     }));
         });
 

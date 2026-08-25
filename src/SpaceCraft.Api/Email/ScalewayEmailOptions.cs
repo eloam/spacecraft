@@ -1,0 +1,45 @@
+namespace SpaceCraft.Api.Email;
+
+public sealed class ScalewayEmailOptions
+{
+    public const string SectionName = "Email:Scaleway";
+
+    /// <summary>
+    /// Secret key of an IAM API key with Transactional Email write permission. When this is
+    /// empty the application falls back to writing emails to the log, which is what keeps a
+    /// developer checkout working without credentials.
+    /// </summary>
+    public string? ApiKey { get; set; }
+
+    /// <summary>Scaleway Project the sending domain belongs to.</summary>
+    public string? ProjectId { get; set; }
+
+    /// <summary>Transactional Email is Paris-only today, but the API is region-scoped.</summary>
+    public string Region { get; set; } = "fr-par";
+
+    /// <summary>
+    /// Sender address. Scaleway rejects anything outside a domain verified in the console
+    /// (SPF, DKIM and MX records), so this is not free-form.
+    /// </summary>
+    public string FromEmail { get; set; } = "noreply@spacecraft.dev";
+
+    public string FromName { get; set; } = "SpaceCraft";
+
+    /// <summary>
+    /// API root. Overridable so the transport can be pointed at a local stub in tests, and
+    /// so a deployment behind an egress proxy has somewhere to point.
+    /// </summary>
+    public string BaseUrl { get; set; } = "https://api.scaleway.com";
+
+    /// <summary>Ceiling for one delivery including every retry.</summary>
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>Ceiling for a single attempt, before the pipeline retries it.</summary>
+    public TimeSpan AttemptTimeout { get; set; } = TimeSpan.FromSeconds(8);
+
+    /// <summary>Retries after the first attempt.</summary>
+    public int MaxRetries { get; set; } = 3;
+
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(ProjectId);
+}

@@ -87,18 +87,47 @@ Two properties matter more than the token itself:
   outstanding refresh tokens are revoked as part of the change, and Identity's security stamp
   is rolled by going through `ResetPasswordAsync` rather than writing the hash directly.
 
+**The endpoint does no work of its own.** `forgot-password` validates the address shape,
+puts it on a queue, and returns. Looking the account up and issuing a token happen on a
+background worker. Identical responses are only half the defence: when the registered branch
+also read the database and wrote a token while the unregistered branch returned immediately,
+the two took 21.5 ms and 4.6 ms — a reliable account oracle in spite of identical bodies.
+Measured again after the work moved off the request thread, medians were 0.71 ms and 0.81 ms
+over 30 samples each, with the unregistered case sometimes the slower of the two.
+
 Every unauthenticated credential endpoint — register, login, forgot-password, reset-password —
 is rate limited per IP **and per endpoint**. A single shared budget was tried first and was
 wrong: two mistyped sign-ins followed by a reset request exhausted it, and an office behind
 one NAT address exhausted it faster. Separate windows still stop spraying a single endpoint.
 
+## Mail delivery
+
+Scaleway Transactional Email, called at
+`POST /transactional-email/v1alpha1/regions/{region}/emails` with the API key in
+`X-Auth-Token`. Two deployment prerequisites are not optional: the sending domain must be
+verified in the Scaleway console (SPF, DKIM and MX records) or every send is rejected, and
+`Email:Scaleway:ApiKey`/`ProjectId` must be set — startup fails without them rather than
+quietly writing reset links to the log.
+
+Message bodies are never logged by this transport. A reset link is a bearer credential, and
+an error path that dumped the request body would put it in the log store anyway, which is
+precisely what moving off the logging transport was meant to prevent. Recipients are masked
+to `y***@domain` so a delivery can still be correlated with a complaint.
+
+Retries, exponential backoff with jitter, per-attempt timeouts and a circuit breaker come
+from `Microsoft.Extensions.Http.Resilience`. The jitter matters more than it looks: without
+it, every message queued during an outage stampedes the provider the moment it recovers.
+
 ## Known gaps
 
 - Refresh tokens are stored in `localStorage`, which is readable by any script running on the
   origin. An httpOnly `SameSite=Strict` cookie is stronger and needs CSRF handling.
-- Password reset emails go through `LoggingEmailSender`, which writes them to the log. Until
-  a real transport is wired in, reset links are visible to anyone who can read application
-  logs — acceptable in development, not beyond it.
+- Mail queues are in memory. A process that stops with messages pending drops them; a user
+  who receives no link asks again. A durable outbox is the upgrade if delivery ever has to be
+  guaranteed rather than merely likely.
+- In Development, with no transport configured, messages are written to the log **in full**,
+  reset links included. That is how a developer follows the flow without a mail provider, and
+  it is why startup refuses to fall back to it outside Development.
 - The GitHub webhook receiver is not built. When it is, it must verify the
   `X-Hub-Signature-256` HMAC and use a GitHub App installation token, not an OAuth token.
 - There is no per-organization quota on pipeline runs; a tenant can currently occupy every

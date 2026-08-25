@@ -1,4 +1,5 @@
 using SpaceCraft.Api.Common;
+using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Extensions;
 using SpaceCraft.Api.Features;
 using SpaceCraft.Infrastructure;
@@ -23,10 +24,10 @@ builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
 builder.Services.AddSpaceCraftIdentity();
 builder.Services.AddSpaceCraftAuth(builder.Configuration);
 builder.Services.AddSpaceCraftCors(builder.Configuration);
-builder.Services.AddSpaceCraftRateLimiting();
+builder.Services.AddSpaceCraftRateLimiting(builder.Configuration);
 builder.Services.AddSpaceCraftPipeline(builder.Configuration, builder.Environment.IsDevelopment());
 
-builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
+builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.IsDevelopment());
 
 // Data Protection encrypts registry tokens at rest. The default key ring is per-machine and
 // ephemeral in a container, which would make every stored token unreadable after a restart —

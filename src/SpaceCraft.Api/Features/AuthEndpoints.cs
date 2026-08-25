@@ -3,6 +3,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
 using SpaceCraft.Api.Auth;
 using SpaceCraft.Api.Common;
+using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Extensions;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
@@ -217,22 +218,9 @@ public static class AuthEndpoints
         return TypedResults.Ok(ToResponse(pair, user));
     }
 
-    /// <summary>
-    /// How long an emailed reset link stays usable. Short, because the token is a bearer
-    /// credential sitting in a mailbox: long enough to walk away from the keyboard, not long
-    /// enough for an old forwarded email to matter.
-    /// </summary>
-    private static readonly TimeSpan ResetTokenLifetime = TimeSpan.FromHours(1);
-
-    private static async Task<IResult> ForgotPasswordAsync(
+    private static IResult ForgotPasswordAsync(
         [FromBody] ForgotPasswordRequest request,
-        UserManager<SpaceCraftUser> userManager,
-        SpaceCraftDbContext db,
-        ITokenService tokens,
-        IEmailSender email,
-        IConfiguration configuration,
-        ILoggerFactory loggerFactory,
-        CancellationToken ct)
+        PasswordResetRequests resetRequests)
     {
         var address = (request.Email ?? string.Empty).Trim();
 
@@ -241,56 +229,15 @@ public static class AuthEndpoints
             return ApiResults.Invalid(nameof(request.Email), "Enter a valid email address.");
         }
 
-        // The same acknowledgement whether or not the address has an account. Anything that
-        // varies — body, status, or timing — turns this into an account oracle.
-        var acknowledgement = TypedResults.Accepted(
+        // Everything past this point — looking the account up, issuing a token, sending the
+        // mail — happens on a background worker. The handler must not branch on whether the
+        // address is registered, because the time it takes to do so is itself an answer.
+        resetRequests.Enqueue(address);
+
+        return TypedResults.Accepted(
             (string?)null,
             new AcknowledgementResponse(
                 "If that address has an account, a reset link is on its way."));
-
-        var user = await userManager.FindByEmailAsync(address);
-        if (user is null)
-        {
-            return acknowledgement;
-        }
-
-        var now = DateTimeOffset.UtcNow;
-
-        // Supersede anything still outstanding, so only the newest link works.
-        var outstanding = await db.PasswordResetTokens
-            .Where(t => t.UserId == user.Id && t.UsedAt == null && t.InvalidatedAt == null)
-            .ToListAsync(ct);
-
-        foreach (var token in outstanding)
-        {
-            token.Invalidate(now);
-        }
-
-        var raw = GenerateResetToken();
-        db.PasswordResetTokens.Add(
-            new PasswordResetToken(user.Id, tokens.HashToken(raw), now.Add(ResetTokenLifetime)));
-
-        await db.SaveChangesAsync(ct);
-
-        // The link points at the front end, which collects the new password and posts it back.
-        var appUrl = (configuration["PublicUrls:App"] ?? "https://app.spacecraft.dev").TrimEnd('/');
-        var link = $"{appUrl}/reset-password?token={Uri.EscapeDataString(raw)}";
-
-        await email.SendAsync(
-            new EmailMessage(
-                address,
-                "Reset your SpaceCraft password",
-                $"""
-                 Someone asked to reset the password for this account.
-
-                 {link}
-
-                 The link works once and expires in {ResetTokenLifetime.TotalHours:0} hour(s).
-                 If this wasn't you, ignore this email — your password has not changed.
-                 """),
-            ct);
-
-        return acknowledgement;
     }
 
     private static async Task<IResult> ResetPasswordAsync(

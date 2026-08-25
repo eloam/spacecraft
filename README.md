@@ -21,8 +21,8 @@ installs and type-checks in a consumer project under `strict`.
 | npm build + publish, idempotent | Working |
 | Pipeline runs, steps, logs, artifacts | Working |
 | Organizations, roles, JWT auth | Working |
-| Password reset by email | Working (needs a real mail transport) |
-| Waitlist with double opt-in | Working (needs a real mail transport) |
+| Password reset by email | Working |
+| Waitlist with double opt-in | Working |
 | C#, Java, Python, PHP, Go | Modelled; rejected at the API until wired |
 | NuGet, Maven, PyPI, Packagist | Modelled; no publisher yet |
 | GitHub Auto-Sync | Modelled on the project; webhook receiver not built |
@@ -192,5 +192,6 @@ These are known and deliberate, not oversights:
   registry tokens, so it resolves the same key ring as the API. In a serverless job that
   means a persisted, KMS-wrapped store both can reach — a container-local key ring makes
   every stored token unreadable to it.
-- **No mail transport.** `LoggingEmailSender` writes to the log; waitlist double opt-in is
-  inert until a real provider is wired in.
+- **The mail sending domain must be verified with Scaleway** (SPF, DKIM, MX) before anything
+  is delivered, and `Email:Scaleway:ApiKey`/`ProjectId` must be set — the API refuses to start
+  without them outside Development.
