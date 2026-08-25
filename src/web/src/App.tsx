@@ -3,6 +3,8 @@ import { useAuthStore } from "@/stores/auth";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoginPage } from "@/routes/LoginPage";
 import { RegisterPage } from "@/routes/RegisterPage";
+import { ForgotPasswordPage } from "@/routes/ForgotPasswordPage";
+import { ResetPasswordPage } from "@/routes/ResetPasswordPage";
 import { OrganizationsPage } from "@/routes/OrganizationsPage";
 import { ProjectsPage } from "@/routes/ProjectsPage";
 import { ProjectPage } from "@/routes/ProjectPage";
@@ -22,6 +24,10 @@ export default function App() {
     <Routes>
       <Route path="/login" element={accessToken ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route path="/register" element={accessToken ? <Navigate to="/" replace /> : <RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      {/* Reachable while signed in too: a reset link is often opened on a device that
+          still has a session, and bouncing to the dashboard would strand the user. */}
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route
         element={

@@ -21,6 +21,7 @@ installs and type-checks in a consumer project under `strict`.
 | npm build + publish, idempotent | Working |
 | Pipeline runs, steps, logs, artifacts | Working |
 | Organizations, roles, JWT auth | Working |
+| Password reset by email | Working (needs a real mail transport) |
 | Waitlist with double opt-in | Working (needs a real mail transport) |
 | C#, Java, Python, PHP, Go | Modelled; rejected at the API until wired |
 | NuGet, Maven, PyPI, Packagist | Modelled; no publisher yet |

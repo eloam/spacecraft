@@ -14,8 +14,8 @@ public interface ITokenService
 {
     TokenPair Issue(SpaceCraftUser user);
 
-    /// <summary>SHA-256 of a refresh token, for storage. Raw tokens are never persisted.</summary>
-    string HashRefreshToken(string refreshToken);
+    /// <summary>SHA-256 of a bearer-style token, for storage. Raw tokens are never persisted.</summary>
+    string HashToken(string token);
 }
 
 public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
@@ -58,10 +58,10 @@ public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
             expiresAt);
     }
 
-    public string HashRefreshToken(string refreshToken)
+    public string HashToken(string token)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(refreshToken);
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken))).ToLowerInvariant();
+        ArgumentException.ThrowIfNullOrWhiteSpace(token);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
     }
 
     private static string GenerateRefreshToken() =>

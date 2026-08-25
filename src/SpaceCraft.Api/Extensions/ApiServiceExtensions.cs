@@ -86,10 +86,18 @@ public static class ApiServiceExtensions
                         Window = TimeSpan.FromMinutes(1),
                     }));
 
-            // Login, registration and waitlist signup: per-IP and deliberately tight.
+            // Unauthenticated credential endpoints — login, registration, password reset,
+            // waitlist signup: per-IP and deliberately tight. Identity's per-account lockout
+            // stops brute force against one account; this is what stops the same weak
+            // password being sprayed across many.
+            // Partitioned per endpoint as well as per IP. Sharing one budget across every
+            // credential endpoint sounds stricter, but it punishes the ordinary case: two
+            // failed sign-ins followed by a password reset would exhaust it, and an office
+            // behind one NAT address exhausts it faster still. Each endpoint gets its own
+            // window; spraying one of them still hits the wall just as hard.
             options.AddPolicy(StrictLimiter, context =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    $"{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}|{context.Request.Path}",
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 10,

@@ -50,6 +50,20 @@ export function useLogin() {
   });
 }
 
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (input: { email: string }) =>
+      api.post<{ message: string }>("/auth/forgot-password", input),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (input: { token: string; newPassword: string }) =>
+      api.post<{ message: string }>("/auth/reset-password", input),
+  });
+}
+
 export function useRegister() {
   const setSession = useAuthStore((s) => s.setSession);
   const queryClient = useQueryClient();

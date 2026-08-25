@@ -22,6 +22,7 @@ public sealed class SpaceCraftDbContext(DbContextOptions<SpaceCraftDbContext> op
     public DbSet<Publication> Publications => Set<Publication>();
     public DbSet<WaitlistEntry> WaitlistEntries => Set<WaitlistEntry>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
