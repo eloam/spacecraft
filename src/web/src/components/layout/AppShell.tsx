@@ -40,9 +40,12 @@ export function AppShell() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:inline">
+            <Link
+              to="/account"
+              className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
+            >
               {user?.displayName || user?.email}
-            </span>
+            </Link>
             <ThemeToggle />
             <Button
               variant="ghost"

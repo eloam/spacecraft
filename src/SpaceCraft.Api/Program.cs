@@ -94,7 +94,8 @@ api.MapAuthEndpoints()
    .MapProjectEndpoints()
    .MapSpecEndpoints()
    .MapRunEndpoints()
-   .MapCredentialEndpoints();
+   .MapCredentialEndpoints()
+   .MapAccountEndpoints();
 
 // Applying migrations at startup is convenient for a single-instance dev setup. In
 // production this belongs in a deployment step: concurrent instances racing on the same

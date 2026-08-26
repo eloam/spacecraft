@@ -3,6 +3,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
 using SpaceCraft.Api.Auth;
 using SpaceCraft.Api.Common;
+using SpaceCraft.Domain.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Extensions;
 using SpaceCraft.Infrastructure.Identity;
@@ -371,13 +372,16 @@ public static class AuthEndpoints
         Guid? familyId,
         CancellationToken ct)
     {
-        var pair = tokens.Issue(user);
+        // A login starts a family; a refresh continues one. Either way the access token
+        // carries the family id, so the session it belongs to is identifiable later.
+        var session = familyId ?? Ids.New();
+        var pair = tokens.Issue(user, session);
 
         db.RefreshTokens.Add(new RefreshToken(
             user.Id,
             tokens.HashToken(pair.RefreshToken),
             DateTimeOffset.UtcNow.Add(options.RefreshTokenLifetime),
-            familyId));
+            session));
 
         await db.SaveChangesAsync(ct);
         return pair;

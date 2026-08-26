@@ -1218,10 +1218,313 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the signed-in user's account. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Permanently deletes the account. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeleteAccountRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Updates the display name. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateProfileRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/account/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Changes the password, ending every other session. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChangePasswordRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists active sessions. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SessionResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Signs out every session except this one. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Signs out one session. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    sessionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/deletion-blockers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists what currently prevents deleting the account. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeletionBlocker"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccountResponse: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            displayName: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastLoginAt: null | string;
+            /** Format: int32 */
+            organizationCount: number;
+        };
         AcknowledgementResponse: {
             message: string;
         };
@@ -1242,6 +1545,10 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
             user: components["schemas"]["UserResponse"];
+        };
+        ChangePasswordRequest: {
+            currentPassword: string;
+            newPassword: string;
         };
         CreateCredentialRequest: {
             registry: components["schemas"]["RegistryKind"];
@@ -1278,6 +1585,13 @@ export interface components {
             lastUsedAt: null | string;
             /** Format: date-time */
             createdAt: string;
+        };
+        DeleteAccountRequest: {
+            password: string;
+        };
+        DeletionBlocker: {
+            organizationName: string;
+            reason: string;
         };
         DiagnosticSeverity: number;
         ForgotPasswordRequest: {
@@ -1376,6 +1690,17 @@ export interface components {
         RunStatus: number;
         RunTrigger: number;
         SdkLanguage: number;
+        SessionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            lastUsedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            isCurrent: boolean;
+        };
         SpecDiagnostic: {
             severity: components["schemas"]["DiagnosticSeverity"];
             message: string;
@@ -1430,6 +1755,9 @@ export interface components {
             lastPublishedVersion: null | string;
             /** Format: date-time */
             lastPublishedAt: null | string;
+        };
+        UpdateProfileRequest: {
+            displayName: null | string;
         };
         UserResponse: {
             /** Format: uuid */

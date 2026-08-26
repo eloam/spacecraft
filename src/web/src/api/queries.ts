@@ -50,6 +50,108 @@ export function useLogin() {
   });
 }
 
+export type Account = {
+  id: string;
+  email: string;
+  displayName: string | null;
+  createdAt: string;
+  lastLoginAt: string | null;
+  organizationCount: number;
+};
+
+export type Session = {
+  id: string;
+  startedAt: string;
+  lastUsedAt: string;
+  expiresAt: string;
+  isCurrent: boolean;
+};
+
+export type DeletionBlocker = { organizationName: string; reason: string };
+
+export function useAccount() {
+  return useQuery({
+    queryKey: ["account"],
+    queryFn: () => api.get<Account>("/account"),
+  });
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  const setSession = useAuthStore((s) => s.setSession);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const refreshToken = useAuthStore((s) => s.refreshToken);
+
+  return useMutation({
+    mutationFn: (input: { displayName: string | null }) =>
+      api.patch<Account>("/account", input),
+    onSuccess: (account) => {
+      queryClient.setQueryData(["account"], account);
+      // The header reads the name from the auth store, so it has to hear about this too.
+      if (accessToken && refreshToken) {
+        setSession(accessToken, refreshToken, {
+          id: account.id,
+          email: account.email,
+          displayName: account.displayName,
+        });
+      }
+    },
+  });
+}
+
+export function useChangePassword() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { currentPassword: string; newPassword: string }) =>
+      api.post<void>("/account/password", input),
+    // Changing the password revokes other sessions, so the list is now stale.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions"] }),
+  });
+}
+
+export function useSessions() {
+  return useQuery({
+    queryKey: ["sessions"],
+    queryFn: () => api.get<Session[]>("/account/sessions"),
+  });
+}
+
+export function useRevokeSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sessionId: string) => api.delete<void>(`/account/sessions/${sessionId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions"] }),
+  });
+}
+
+export function useRevokeOtherSessions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.delete<void>("/account/sessions"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions"] }),
+  });
+}
+
+export function useDeletionBlockers() {
+  return useQuery({
+    queryKey: ["deletion-blockers"],
+    queryFn: () => api.get<DeletionBlocker[]>("/account/deletion-blockers"),
+  });
+}
+
+export function useDeleteAccount() {
+  const clear = useAuthStore((s) => s.clear);
+
+  return useMutation({
+    mutationFn: (input: { password: string }) =>
+      api.delete<void>("/account", input),
+    onSuccess: () => clear(),
+  });
+}
+
 export function useForgotPassword() {
   return useMutation({
     mutationFn: (input: { email: string }) =>

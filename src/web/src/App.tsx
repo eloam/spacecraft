@@ -3,6 +3,7 @@ import { useAuthStore } from "@/stores/auth";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoginPage } from "@/routes/LoginPage";
 import { RegisterPage } from "@/routes/RegisterPage";
+import { AccountPage } from "@/routes/AccountPage";
 import { ForgotPasswordPage } from "@/routes/ForgotPasswordPage";
 import { ResetPasswordPage } from "@/routes/ResetPasswordPage";
 import { OrganizationsPage } from "@/routes/OrganizationsPage";
@@ -37,6 +38,7 @@ export default function App() {
         }
       >
         <Route path="/" element={<OrganizationsPage />} />
+        <Route path="/account" element={<AccountPage />} />
         <Route path="/orgs/:orgId" element={<ProjectsPage />} />
         <Route path="/orgs/:orgId/credentials" element={<CredentialsPage />} />
         <Route path="/orgs/:orgId/projects/:projectId" element={<ProjectPage />} />
