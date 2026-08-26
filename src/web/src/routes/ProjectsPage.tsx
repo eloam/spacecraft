@@ -19,6 +19,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { useCreateProject, useOrganization, useProjects } from "@/api/queries";
 import { languageLabel } from "@/api/types";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
+import { NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
@@ -138,22 +139,42 @@ function CreateProjectDialog({
             <DialogDescription>Name it after the API it describes.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2 py-4">
-            <Label htmlFor="project-name">Name</Label>
-            <Input
-              id="project-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Billing API"
-              autoFocus
-            />
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="project-name">Name</Label>
+              <Input
+                id="project-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Billing API"
+                autoFocus
+              />
+              {name.trim() && !isValidResourceName(name) && (
+                <p className="text-sm text-destructive">{NAME_RULE}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="project-slug">Address</Label>
+              <Input
+                id="project-slug"
+                value={slugPreview(name)}
+                readOnly
+                disabled
+                placeholder="billing-api"
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Derived from the name, and unique within this organization.
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!name.trim() || create.isPending}>
+            <Button type="submit" disabled={!isValidResourceName(name) || create.isPending}>
               {create.isPending ? "Creating…" : "Create"}
             </Button>
           </DialogFooter>

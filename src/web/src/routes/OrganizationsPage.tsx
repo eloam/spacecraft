@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { useCreateOrganization, useOrganizations } from "@/api/queries";
 import { roleLabel } from "@/api/types";
+import { NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
@@ -128,26 +129,49 @@ function CreateOrganizationDialog({
           <DialogHeader>
             <DialogTitle>New organization</DialogTitle>
             <DialogDescription>
-              The slug is derived from the name and must be unique across SpaceCraft.
+              The address is derived from the name and must be unique across SpaceCraft.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2 py-4">
-            <Label htmlFor="org-name">Name</Label>
-            <Input
-              id="org-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Acme Corp"
-              autoFocus
-            />
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="org-name">Name</Label>
+              <Input
+                id="org-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Acme Corp"
+                autoFocus
+              />
+              {name.trim() && !isValidResourceName(name) && (
+                <p className="text-sm text-destructive">{NAME_RULE}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="org-slug">Address</Label>
+              {/* Shown while typing rather than after creating: the address is what ends up
+                  in every link to this organization, and seeing it is the only way to know
+                  whether the name gives the one you wanted. */}
+              <Input
+                id="org-slug"
+                value={slugPreview(name)}
+                readOnly
+                disabled
+                placeholder="acme-corp"
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Derived from the name. It can be changed later by renaming.
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!name.trim() || create.isPending}>
+            <Button type="submit" disabled={!isValidResourceName(name) || create.isPending}>
               {create.isPending ? "Creating…" : "Create"}
             </Button>
           </DialogFooter>
