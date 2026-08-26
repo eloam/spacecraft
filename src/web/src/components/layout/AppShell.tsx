@@ -1,10 +1,11 @@
 import { Link, Outlet, useParams } from "react-router-dom";
 import { LogOut, Orbit, Settings } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth";
 import { useLogout } from "@/api/queries";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { OrganizationNav } from "@/components/layout/OrganizationNav";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +22,7 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b sticky top-0 z-30 bg-background/85 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:gap-4">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
           <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight">
             <Orbit className="size-5" aria-hidden />
             {/* The wordmark is the first thing to go on a narrow screen: keeping it pushed
@@ -30,43 +31,6 @@ export function AppShell() {
                 link keeps a name for assistive tech at every width. */}
             <span className="sr-only sm:not-sr-only">SpaceCraft</span>
           </Link>
-
-          <nav className="flex min-w-0 items-center gap-1 text-sm">
-            {/* shadcn's Button is built on Base UI, which composes via a `render` prop
-                rather than Radix's `asChild`. Applying the variants to the link directly
-                is simpler here and keeps router semantics intact. */}
-            {orgId && (
-              <>
-                <Link to={`/orgs/${orgId}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                  Projects
-                </Link>
-                <Link
-                  to={`/orgs/${orgId}/publications`}
-                  className={buttonVariants({ variant: "ghost", size: "sm" })}
-                >
-                  Published
-                </Link>
-                <Link
-                  to={`/orgs/${orgId}/credentials`}
-                  className={buttonVariants({ variant: "ghost", size: "sm" })}
-                >
-                  Credentials
-                </Link>
-                <Link
-                  to={`/orgs/${orgId}/members`}
-                  className={buttonVariants({ variant: "ghost", size: "sm" })}
-                >
-                  Members
-                </Link>
-                <Link
-                  to={`/orgs/${orgId}/settings`}
-                  className={buttonVariants({ variant: "ghost", size: "sm" })}
-                >
-                  Settings
-                </Link>
-              </>
-            )}
-          </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <ThemeToggle />
@@ -103,6 +67,10 @@ export function AppShell() {
           </div>
         </div>
       </header>
+
+      {/* Organization sections live under the organization's name rather than in the bar
+          above, so which organization they act on is never in question. */}
+      {orgId && <OrganizationNav />}
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         <Outlet />

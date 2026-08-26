@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { DangerSection, SettingsSection } from "@/components/SettingsSections";
 import { NAME_MAX_LENGTH, NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
@@ -71,16 +70,7 @@ export function OrganizationSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageBreadcrumb
-        crumbs={[
-          { label: "Organizations", to: "/" },
-          { label: organization.data?.name ?? "Organization", to: `/orgs/${orgId}` },
-          { label: "Settings" },
-        ]}
-      />
-
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Organization settings</h1>
         <p className="text-sm text-muted-foreground">
           Naming and removal for this organization.
         </p>

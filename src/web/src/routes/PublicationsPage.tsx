@@ -4,8 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
-import { useOrganization, usePublications } from "@/api/queries";
+import { usePublications } from "@/api/queries";
 import { registryLabel } from "@/api/types";
 
 /** Mirrors SpaceCraft.Domain.Registries.PublicationStatus. */
@@ -32,21 +31,11 @@ function StatusBadge({ status }: { status: number }) {
 
 export function PublicationsPage() {
   const { orgId = "" } = useParams();
-  const organization = useOrganization(orgId);
   const publications = usePublications(orgId);
 
   return (
     <div className="space-y-6">
-      <PageBreadcrumb
-        crumbs={[
-          { label: "Organizations", to: "/" },
-          { label: organization.data?.name ?? "Organization", to: `/orgs/${orgId}` },
-          { label: "Published SDKs" },
-        ]}
-      />
-
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Published SDKs</h1>
         <p className="text-sm text-muted-foreground">
           Every version this organization has pushed to a registry.
         </p>

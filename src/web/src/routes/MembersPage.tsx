@@ -16,11 +16,10 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { ApiError } from "@/api/client";
 import {
-  useAddMember, useChangeMemberRole, useMembers, useOrganization, useRemoveMember,
+  useAddMember, useChangeMemberRole, useMembers, useRemoveMember,
 } from "@/api/queries";
 
 /** Mirrors SpaceCraft.Domain.Organizations.OrganizationRole. */
@@ -47,7 +46,6 @@ const schema = z.object({
 
 export function MembersPage() {
   const { orgId = "" } = useParams();
-  const organization = useOrganization(orgId);
   const members = useMembers(orgId);
   const changeRole = useChangeMemberRole(orgId);
   const remove = useRemoveMember(orgId);
@@ -55,17 +53,8 @@ export function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <PageBreadcrumb
-        crumbs={[
-          { label: "Organizations", to: "/" },
-          { label: organization.data?.name ?? "Organization", to: `/orgs/${orgId}` },
-          { label: "Members" },
-        ]}
-      />
-
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
           <p className="text-sm text-muted-foreground">
             Who can reach this organization's projects, credentials and packages.
           </p>

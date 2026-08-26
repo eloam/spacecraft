@@ -20,34 +20,22 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import {
   useCreateCredential,
   useCredentials,
-  useOrganization,
   useRevokeCredential,
 } from "@/api/queries";
 import { RegistryKind, registryLabel } from "@/api/types";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
 export function CredentialsPage() {
   const { orgId = "" } = useParams();
   const { data, isLoading, error } = useCredentials(orgId);
-  const organization = useOrganization(orgId);
   const revoke = useRevokeCredential(orgId);
   const [open, setOpen] = useState(false);
 
   return (
     <div className="space-y-6">
-      <PageBreadcrumb
-        crumbs={[
-          { label: "Organizations", to: "/" },
-          { label: organization.data?.name ?? "Organization", to: `/orgs/${orgId}` },
-          { label: "Credentials" },
-        ]}
-      />
-
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Registry credentials</h1>
           <p className="text-sm text-muted-foreground">
             Tokens used to publish generated SDKs. Encrypted at rest and never shown again.
           </p>

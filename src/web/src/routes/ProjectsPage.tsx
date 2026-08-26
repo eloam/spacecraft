@@ -16,50 +16,29 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
-import { useCreateProject, useOrganization, useProjects } from "@/api/queries";
+import { useCreateProject, useProjects } from "@/api/queries";
 import { languageLabel } from "@/api/types";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
 export function ProjectsPage() {
   const { orgId = "" } = useParams();
-  const organization = useOrganization(orgId);
   const { data, isLoading, error } = useProjects(orgId);
   const [open, setOpen] = useState(false);
 
   return (
     <div className="space-y-6">
-      <PageBreadcrumb
-        crumbs={[
-          { label: "Organizations", to: "/" },
-          { label: organization.data?.name ?? "Organization" },
-        ]}
-      />
-
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {organization.data?.name ?? "Projects"}
-          </h1>
           <p className="text-sm text-muted-foreground">
             One project per API. Each keeps its spec history and the SDKs generated from it.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            to={`/orgs/${orgId}/settings`}
-            className={buttonVariants({ variant: "ghost", size: "sm" })}
-          >
-            <Settings className="size-4" aria-hidden />
-            <span className="sr-only">Organization settings</span>
-          </Link>
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="size-4" aria-hidden />
-            New project
-          </Button>
-        </div>
+        <Button onClick={() => setOpen(true)}>
+          <Plus className="size-4" aria-hidden />
+          New project
+        </Button>
       </div>
 
       <QueryBoundary isLoading={isLoading} error={error}>
