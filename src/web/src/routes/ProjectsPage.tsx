@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { FolderGit2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FolderGit2, Plus, Settings } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,39 +47,64 @@ export function ProjectsPage() {
             One project per API. Each keeps its spec history and the SDKs generated from it.
           </p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="size-4" aria-hidden />
-          New project
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/orgs/${orgId}/settings`}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+          >
+            <Settings className="size-4" aria-hidden />
+            <span className="sr-only">Organization settings</span>
+          </Link>
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="size-4" aria-hidden />
+            New project
+          </Button>
+        </div>
       </div>
 
       <QueryBoundary isLoading={isLoading} error={error}>
         {data?.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((project) => (
-              <Link key={project.id} to={`/orgs/${orgId}/projects/${project.slug}`} className="group">
-                <Card className="h-full transition-colors group-hover:border-foreground/20">
-                  <CardHeader>
-                    <CardTitle className="truncate">{project.name}</CardTitle>
-                    <CardDescription className="font-mono text-xs">{project.slug}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
+              <Card
+                key={project.id}
+                className="relative h-full transition-colors hover:border-foreground/20"
+              >
+                <Link
+                  to={`/orgs/${orgId}/projects/${project.slug}`}
+                  className="absolute inset-0"
+                  aria-label={project.name}
+                />
+                <CardHeader>
+                  <CardTitle className="truncate">{project.name}</CardTitle>
+                  <CardDescription className="font-mono text-xs">{project.slug}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
                     <p className="text-sm text-muted-foreground">
                       {project.specVersionCount}{" "}
                       {project.specVersionCount === 1 ? "spec version" : "spec versions"}
                     </p>
-                    {project.targets.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {project.targets.map((target) => (
-                          <Badge key={target.id} variant="outline">
-                            {languageLabel[target.language]}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </Link>
+                    <Link
+                      to={`/orgs/${orgId}/projects/${project.slug}/settings`}
+                      // Above the card-wide link, so it wins the click.
+                      className={`relative z-10 ${buttonVariants({ variant: "ghost", size: "sm" })}`}
+                    >
+                      <Settings className="size-4" aria-hidden />
+                      <span className="sr-only">{project.name} settings</span>
+                    </Link>
+                  </div>
+                  {project.targets.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.targets.map((target) => (
+                        <Badge key={target.id} variant="outline">
+                          {languageLabel[target.language]}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             ))}
           </div>
         ) : (
