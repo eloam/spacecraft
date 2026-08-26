@@ -24,7 +24,10 @@ export function ProjectNav() {
   ];
 
   return (
-    <nav aria-label="Project sections" className="-mb-px flex gap-1 overflow-x-auto border-b">
+    // No negative bottom margin here: the border belongs to this element, not a parent it
+    // needs to overlap, and -mb-px would cancel the spacing the layout puts after it —
+    // Tailwind v4 spaces children with margin-block-end, which that overrides.
+    <nav aria-label="Project sections" className="flex gap-1 overflow-x-auto border-b">
       {tabs.map((tab) => {
         const active = tab.exact ? pathname === tab.to : pathname.startsWith(tab.to);
 
