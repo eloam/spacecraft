@@ -1,4 +1,5 @@
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Pipeline.Execution;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -50,6 +51,7 @@ public sealed class RunExecutor(
             RunnerMode.OneRun => await ExecuteSingleAsync(command.RunId!.Value, ct),
             RunnerMode.Drain => await DrainAsync(ct),
             RunnerMode.Reap => await ReapAsync(ct),
+            RunnerMode.Migrate => await MigrateAsync(ct),
             _ => RunnerOutcome.Faulted,
         };
     }
@@ -190,6 +192,36 @@ public sealed class RunExecutor(
         }
 
         logger.LogWarning("Recovered {Count} abandoned run(s)", requeued);
+        return RunnerOutcome.Completed;
+    }
+
+    /// <summary>
+    /// Applies pending migrations, as a deployment step rather than at application startup.
+    /// <para>
+    /// Startup migration is convenient with one instance and dangerous with several: two
+    /// containers coming up together race on the same migration. Running it as its own job,
+    /// to completion, before the new revision is rolled out, removes the race entirely.
+    /// </para>
+    /// </summary>
+    private async Task<RunnerOutcome> MigrateAsync(CancellationToken ct)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
+
+        var pending = (await db.Database.GetPendingMigrationsAsync(ct)).ToList();
+
+        if (pending.Count == 0)
+        {
+            logger.LogInformation("Database is already up to date");
+            return RunnerOutcome.NothingToDo;
+        }
+
+        logger.LogInformation("Applying {Count} migration(s): {Migrations}",
+            pending.Count, string.Join(", ", pending));
+
+        await db.Database.MigrateAsync(ct);
+
+        logger.LogInformation("Migrations applied");
         return RunnerOutcome.Completed;
     }
 

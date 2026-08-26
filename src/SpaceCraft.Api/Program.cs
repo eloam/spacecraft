@@ -13,6 +13,16 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Serverless container platforms inject the port to listen on and route to it. Binding to
+// 0.0.0.0 rather than localhost is not optional there: the startup probe connects from
+// outside the container, and a loopback-only listener fails it and the deploy with it.
+// ASPNETCORE_URLS still wins when set, so local runs and launch profiles are unaffected.
+if (Environment.GetEnvironmentVariable("PORT") is { Length: > 0 } port
+    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
     .ReadFrom.Services(services)

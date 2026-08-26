@@ -56,8 +56,16 @@ public class RunnerCommandTests
     [Theory]
     [InlineData("--drain", RunnerMode.Drain)]
     [InlineData("--reap", RunnerMode.Reap)]
+    [InlineData("--migrate", RunnerMode.Migrate)]
     public void Each_mode_has_a_flag(string flag, RunnerMode expected) =>
         RunnerCommand.Parse([flag], NoEnvironment).Mode.ShouldBe(expected);
+
+    [Fact]
+    public void Migrate_ignores_a_run_id_left_in_the_environment() =>
+        // A deployment step must never be turned into a pipeline run by a stale variable.
+        RunnerCommand.Parse(
+            ["--migrate"], Environment("SPACECRAFT_RUN_ID", Guid.CreateVersion7().ToString()))
+            .Mode.ShouldBe(RunnerMode.Migrate);
 
     [Fact]
     public void A_run_flag_with_no_id_is_rejected()

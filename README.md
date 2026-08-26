@@ -178,6 +178,12 @@ A `pre-commit` hook refuses any commit that puts a non-empty `ApiKey`, `SecretKe
 git config core.hooksPath .githooks
 ```
 
+## Deploying
+
+See [docs/deployment.md](docs/deployment.md). In short: the API is a Serverless Container, and
+the runner, reaper and migration step are Serverless Jobs sharing one image — Scaleway's
+Functions runtimes do not include .NET, and jobs allow far longer executions anyway.
+
 ## Tests
 
 ```bash

@@ -21,7 +21,6 @@ pnpm-debug.log*
 # Env & secrets — never commit these
 .env
 .env.*
-!.env.example
 appsettings.Development.local.json
 secrets.json
 *.pem

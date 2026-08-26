@@ -1,0 +1,135 @@
+# Deploying on Scaleway
+
+Scaleway Serverless **Functions** support Python, Node, Go, PHP and Rust — not .NET. Every
+component here is therefore a **Serverless Container** (for anything serving HTTP) or a
+**Serverless Job** (for anything that runs and exits). That is not a workaround: containers
+and jobs take any OCI image, and jobs allow up to 24 hours per execution, against the 15
+minutes a function-style platform typically permits.
+
+## What runs where
+
+| Component | Scaleway product | Image | Invocation |
+|---|---|---|---|
+| API | Serverless Container | `src/SpaceCraft.Api/Dockerfile` | HTTP, scale-to-zero |
+| Pipeline runner | Serverless Job | `src/SpaceCraft.Runner/Dockerfile` | `--run <id>` from the API, or `--drain` |
+| Lease reaper | Serverless Job | same image | `--reap`, cron `* * * * *` |
+| Migrations | Serverless Job | same image | `--migrate`, once per release |
+| Database | Managed Database for PostgreSQL | — | — |
+| Specs, artifacts, logs | Object Storage | — | S3-compatible |
+| Email | Transactional Email | — | API |
+
+One image serves the runner, the reaper and the migration step; they differ only by argument.
+
+## The API container
+
+The platform injects `PORT` and routes to it. `Program.cs` binds `0.0.0.0` on that port —
+binding loopback instead makes the startup probe fail, and with it the deployment.
+
+Scale-to-zero is safe here: the API holds no state between requests, and the queues it writes
+to live in Postgres.
+
+## Sizing the runner job
+
+`/tmp` is backed by memory in the container sandbox, and the build step writes there. Measured
+on the Keycloak Admin API — 382 KB of spec, 11,000 lines of generated models:
+
+```
+178 MiB   peak process (npm install + tsc)
+ 28 MB    node_modules, in RAM because /tmp is tmpfs
+  3 MB    compiled output
+```
+
+Allocate **1 GiB** for the runner job. 512 MiB fits the measurement but leaves nothing for a
+larger spec, and the failure mode is an OOM kill mid-build rather than a clear error.
+
+`SandboxMode.PlatformIsolated` is set in the runner image: nested containers are unavailable,
+so pipeline steps run in-process and the toolchains are baked in. See
+[security.md](security.md) for exactly which controls that gives up — the loss of
+`--network none` during generation matters most, and it matters much more the day a language
+whose build system executes code (Gradle, Maven, `setup.py`) is added.
+
+## Order of operations for a release
+
+1. Build and push both images.
+2. Run the migration job to completion — **not** at container startup. Two API containers
+   coming up together would race on the same migration.
+3. Deploy the API container and the job definitions.
+
+`Database:MigrateOnStartup` stays `false` outside Development, so nothing migrates implicitly.
+
+## Configuration
+
+.NET reads configuration from `appsettings.json`, `appsettings.{Environment}.json`, user
+secrets (Development only) and **environment variables** — in that order, each overriding the
+last. It does *not* read `.env` files, and neither does anything else here, so the settings
+below are supplied as environment variables in the container and job definitions.
+
+Nested keys use a double underscore: `ConnectionStrings__Postgres` maps to
+`ConnectionStrings:Postgres`.
+
+```
+# Database
+ConnectionStrings__Postgres=Host=…;Port=5432;Database=spacecraft;Username=…;Password=…
+
+# Auth — validated at startup, at least 32 bytes
+Jwt__SigningKey=…
+Jwt__Issuer=spacecraft
+Jwt__Audience=spacecraft-api
+
+# Object storage
+ObjectStorage__BucketName=spacecraft
+ObjectStorage__ServiceUrl=https://s3.fr-par.scw.cloud
+ObjectStorage__Region=fr-par
+ObjectStorage__AccessKey=…
+ObjectStorage__SecretKey=…
+ObjectStorage__ForcePathStyle=false
+
+# Email — startup fails without these outside Development
+Email__Scaleway__ApiKey=…
+Email__Scaleway__ProjectId=…
+Email__Scaleway__Region=fr-par
+Email__Scaleway__FromEmail=noreply@yourdomain
+Email__Scaleway__FromName=SpaceCraft
+
+# Pipeline — baked into the runner image, override only to change it
+Pipeline__Sandbox=PlatformIsolated
+Pipeline__NpmRegistry=https://registry.npmjs.org
+
+# Public URLs and CORS
+PublicUrls__Api=https://api.yourdomain
+PublicUrls__App=https://app.yourdomain
+Cors__AllowedOrigins__0=https://app.yourdomain
+
+# Rate limits (optional; these are the defaults)
+RateLimits__GlobalPermitsPerMinute=300
+RateLimits__CredentialPermitsPerWindow=10
+RateLimits__CredentialWindow=00:15:00
+```
+
+Startup fails fast on a missing signing key, missing email credentials, an unpinned generator
+image, or `Pipeline:Sandbox=None`, rather than running degraded.
+
+**In local development** none of this is needed: `appsettings.Development.json` covers it, and
+anything genuinely secret goes in user secrets:
+
+```bash
+dotnet user-secrets set "Email:Scaleway:ApiKey" "<secret key>" --project src/SpaceCraft.Api
+```
+
+Two prerequisites are not configuration and cannot be worked around:
+
+- **The sending domain must be verified** in the Scaleway console (SPF, DKIM, MX) or every
+  email is rejected.
+- **The Data Protection key ring must be persisted and shared** between the API and the
+  runner. The API encrypts registry tokens; the runner decrypts them to publish. A key ring
+  local to each container means the runner cannot read what the API wrote — and losing it
+  makes every stored token permanently unreadable. This is the one piece of the deployment
+  still to build.
+
+## Latency to expect
+
+Serverless Jobs are guaranteed to reach *Running* within ten minutes of being triggered.
+Typical start is far quicker, but the SLA is the number to design against: the UI must
+distinguish "queued" from "running", or a slow start looks like a failure. Anything needing an
+immediate answer — spec validation on upload — stays in the API, synchronously, where it
+already is.

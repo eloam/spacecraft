@@ -11,6 +11,9 @@ public enum RunnerMode
 
     /// <summary>Return abandoned runs to the queue and exit. The shape a cron trigger uses.</summary>
     Reap,
+
+    /// <summary>Apply pending database migrations and exit. Runs as a deployment step.</summary>
+    Migrate,
 }
 
 /// <summary>
@@ -29,6 +32,7 @@ public sealed record RunnerCommand(RunnerMode Mode, Guid? RunId = null, string? 
           --run <guid>   execute one specific queued run
           --drain        execute queued runs until the queue is empty (default)
           --reap         requeue runs abandoned by a dead executor, then exit
+          --migrate      apply pending database migrations, then exit
 
         The run id may also be supplied as SPACECRAFT_RUN_ID, which is how most schedulers
         pass per-invocation input.
@@ -49,6 +53,7 @@ public sealed record RunnerCommand(RunnerMode Mode, Guid? RunId = null, string? 
         return args[0] switch
         {
             "--reap" => new RunnerCommand(RunnerMode.Reap),
+            "--migrate" => new RunnerCommand(RunnerMode.Migrate),
             "--drain" => new RunnerCommand(RunnerMode.Drain),
             "--run" when args.Length < 2 => Invalid("--run requires a run id."),
             "--run" => Guid.TryParse(args[1], out var id)
