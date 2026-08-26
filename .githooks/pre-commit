@@ -1,20 +1,41 @@
 #!/bin/sh
-# Blocks a commit that would put real credentials into a tracked settings file.
-# appsettings.json is meant to carry structure and empty placeholders only; real values
-# belong in user secrets locally and in the environment when deployed.
+# Blocks a commit that would put a real credential into a tracked settings file.
+#
+# Distinguishes placeholders from secrets rather than flagging any non-empty value: a rule
+# that cries wolf on "[REQUIRED]" gets bypassed with --no-verify, and then it protects
+# nothing. Development files are exempt — their values are local-only by design.
 staged=$(git diff --cached --name-only --diff-filter=ACM | grep 'appsettings.*\.json$')
 [ -z "$staged" ] && exit 0
 
+# Values that are obviously not secrets: empty, or a marker telling a human to fill it in.
+placeholder='^$|^\[.*\]$|^<.*>$|^(CHANGE_ME|REQUIRED|TODO|xxx+|\.\.\.)$|^\$\{.*\}$'
+
+# Shapes that are almost certainly real: a UUID, a long random-looking string, or a token
+# carrying a known vendor prefix.
+looks_real='^[0-9a-fA-F-]{32,}$|^[A-Za-z0-9+/=_-]{24,}$|^(npm_|ghp_|github_pat_|SCW|sk-|xox)'
+
+fail=0
 for file in $staged; do
-  # Any non-empty ApiKey / SecretKey / SigningKey / password in a staged settings file.
-  if git show ":$file" | grep -qE '"(ApiKey|SecretKey|AccessKey|SigningKey|Password)"[[:space:]]*:[[:space:]]*"[^"]+"'; then
-    case "$file" in
-      *Development.json) continue ;;   # local-only defaults, deliberately committed
-    esac
-    echo "pre-commit: $file has a non-empty credential field."
-    echo "  Move it to user secrets:  dotnet user-secrets set \"Email:Scaleway:ApiKey\" \"<value>\" --project src/SpaceCraft.Api"
-    echo "  Then blank it in the file. Use --no-verify only if you are certain it is a placeholder."
-    exit 1
-  fi
+  case "$file" in
+    *Development.json) continue ;;
+  esac
+
+  # One "key": "value" pair per line, for the fields worth guarding.
+  git show ":$file" \
+    | grep -oE '"(ApiKey|SecretKey|AccessKey|SigningKey|Password|Token|ClientSecret)"[[:space:]]*:[[:space:]]*"[^"]*"' \
+    | while IFS= read -r pair; do
+        key=$(printf '%s' "$pair" | sed -E 's/^"([^"]+)".*/\1/')
+        value=$(printf '%s' "$pair" | sed -E 's/.*:[[:space:]]*"([^"]*)"$/\1/')
+
+        printf '%s' "$value" | grep -qE "$placeholder" && continue
+        printf '%s' "$value" | grep -qE "$looks_real" || continue
+
+        echo "pre-commit: $file — '$key' looks like a real credential."
+        echo "  Move it out of the tracked file:"
+        echo "    dotnet user-secrets set \"<Section>:$key\" \"<value>\" --project src/SpaceCraft.Api"
+        echo "  Then restore the placeholder. Override with --no-verify only if you are certain."
+        exit 1
+      done || fail=1
 done
-exit 0
+
+exit $fail
