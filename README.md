@@ -20,7 +20,9 @@ installs and type-checks in a consumer project under `strict`.
 | TypeScript SDK generation (Kiota) | Working |
 | npm build + publish, idempotent | Working |
 | Pipeline runs, steps, logs, artifacts | Working |
-| Organizations, roles, JWT auth | Working |
+| Organizations, members and roles | Working |
+| Published SDK history | Working |
+| Spec validation findings | Working |
 | Account management: profile, password, sessions, deletion | Working |
 | Password reset by email | Working |
 | Waitlist with double opt-in | Working |

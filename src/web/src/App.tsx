@@ -4,6 +4,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { LoginPage } from "@/routes/LoginPage";
 import { RegisterPage } from "@/routes/RegisterPage";
 import { AccountPage } from "@/routes/AccountPage";
+import { PublicationsPage } from "@/routes/PublicationsPage";
+import { MembersPage } from "@/routes/MembersPage";
 import { ForgotPasswordPage } from "@/routes/ForgotPasswordPage";
 import { ResetPasswordPage } from "@/routes/ResetPasswordPage";
 import { OrganizationsPage } from "@/routes/OrganizationsPage";
@@ -41,6 +43,8 @@ export default function App() {
         <Route path="/account" element={<AccountPage />} />
         <Route path="/orgs/:orgId" element={<ProjectsPage />} />
         <Route path="/orgs/:orgId/credentials" element={<CredentialsPage />} />
+        <Route path="/orgs/:orgId/publications" element={<PublicationsPage />} />
+        <Route path="/orgs/:orgId/members" element={<MembersPage />} />
         <Route path="/orgs/:orgId/projects/:projectId" element={<ProjectPage />} />
         <Route path="/orgs/:orgId/runs/:runId" element={<RunPage />} />
       </Route>

@@ -41,10 +41,22 @@ export function AppShell() {
                   Projects
                 </Link>
                 <Link
+                  to={`/orgs/${orgId}/publications`}
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
+                >
+                  Published
+                </Link>
+                <Link
                   to={`/orgs/${orgId}/credentials`}
                   className={buttonVariants({ variant: "ghost", size: "sm" })}
                 >
                   Credentials
+                </Link>
+                <Link
+                  to={`/orgs/${orgId}/members`}
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
+                >
+                  Members
                 </Link>
               </>
             )}

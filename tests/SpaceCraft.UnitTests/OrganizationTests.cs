@@ -52,6 +52,45 @@ public class OrganizationTests
     }
 
     [Fact]
+    public void The_only_owner_cannot_be_demoted()
+    {
+        // Demoting the last owner strands the organization exactly as removing them would,
+        // so both routes to that state have to be closed.
+        var org = NewOrg(out var ownerId);
+        org.AddMember(Guid.CreateVersion7(), OrganizationRole.Admin);
+
+        Should.Throw<InvalidOperationException>(
+            () => org.ChangeMemberRole(ownerId, OrganizationRole.Admin));
+    }
+
+    [Fact]
+    public void An_owner_can_be_demoted_once_another_owner_exists()
+    {
+        var org = NewOrg(out var ownerId);
+        org.AddMember(Guid.CreateVersion7(), OrganizationRole.Owner);
+
+        org.ChangeMemberRole(ownerId, OrganizationRole.Member);
+
+        org.Members.Single(m => m.UserId == ownerId).Role.ShouldBe(OrganizationRole.Member);
+    }
+
+    [Fact]
+    public void Promoting_someone_is_always_allowed()
+    {
+        var org = NewOrg(out _);
+        var member = org.AddMember(Guid.CreateVersion7(), OrganizationRole.Viewer);
+
+        org.ChangeMemberRole(member.UserId, OrganizationRole.Admin);
+
+        member.Role.ShouldBe(OrganizationRole.Admin);
+    }
+
+    [Fact]
+    public void Changing_the_role_of_a_non_member_is_refused() =>
+        Should.Throw<InvalidOperationException>(
+            () => NewOrg(out _).ChangeMemberRole(Guid.CreateVersion7(), OrganizationRole.Admin));
+
+    [Fact]
     public void Project_slugs_are_unique_within_an_organization()
     {
         var org = NewOrg(out _);

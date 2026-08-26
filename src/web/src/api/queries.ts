@@ -69,6 +69,93 @@ export type Session = {
 
 export type DeletionBlocker = { organizationName: string; reason: string };
 
+export type Publication = {
+  id: string;
+  pipelineRunId: string;
+  apiProjectId: string | null;
+  projectName: string | null;
+  registry: number;
+  packageName: string;
+  version: string;
+  status: number;
+  registryUrl: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+export type Member = {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  role: number;
+  isYou: boolean;
+  joinedAt: string;
+};
+
+export type SpecDiagnostic = {
+  severity: number;
+  message: string;
+  pointer: string | null;
+};
+
+export function usePublications(orgId: string, projectId?: string) {
+  return useQuery({
+    queryKey: ["publications", orgId, projectId ?? "all"],
+    queryFn: () =>
+      api.get<Publication[]>(
+        `/organizations/${orgId}/publications${projectId ? `?projectId=${projectId}` : ""}`,
+      ),
+    enabled: Boolean(orgId),
+  });
+}
+
+export function useSpecDiagnostics(orgId: string, projectId: string, specId: string | null) {
+  return useQuery({
+    queryKey: ["diagnostics", orgId, projectId, specId],
+    queryFn: () =>
+      api.get<SpecDiagnostic[]>(
+        `/organizations/${orgId}/projects/${projectId}/specs/${specId}/diagnostics`,
+      ),
+    // Only fetched when a spec is actually open: 413 findings is not a payload to prefetch.
+    enabled: Boolean(orgId && projectId && specId),
+  });
+}
+
+export function useMembers(orgId: string) {
+  return useQuery({
+    queryKey: ["members", orgId],
+    queryFn: () => api.get<Member[]>(`/organizations/${orgId}/members`),
+    enabled: Boolean(orgId),
+  });
+}
+
+export function useAddMember(orgId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { email: string; role: number }) =>
+      api.post<Member>(`/organizations/${orgId}/members`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["members", orgId] }),
+  });
+}
+
+export function useChangeMemberRole(orgId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { userId: string; role: number }) =>
+      api.patch<Member>(`/organizations/${orgId}/members/${input.userId}`, { role: input.role }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["members", orgId] }),
+  });
+}
+
+export function useRemoveMember(orgId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => api.delete<void>(`/organizations/${orgId}/members/${userId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["members", orgId] }),
+  });
+}
+
 export function useAccount() {
   return useQuery({
     queryKey: ["account"],

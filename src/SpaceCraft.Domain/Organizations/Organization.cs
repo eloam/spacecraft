@@ -54,6 +54,31 @@ public sealed class Organization : Entity
     }
 
     /// <summary>Refuses to strip the last owner, which would orphan the organization.</summary>
+    /// <summary>
+    /// Changes a member's role, refusing to leave the organization without an owner.
+    /// <para>
+    /// The same invariant <see cref="RemoveMember"/> enforces: demoting the last owner
+    /// strands the organization just as surely as removing them, so both routes to that
+    /// state are closed here rather than in one caller.
+    /// </para>
+    /// </summary>
+    public void ChangeMemberRole(Guid userId, OrganizationRole role)
+    {
+        var member = _members.SingleOrDefault(m => m.UserId == userId)
+            ?? throw new InvalidOperationException("User is not a member of this organization.");
+
+        if (member.Role == OrganizationRole.Owner
+            && role != OrganizationRole.Owner
+            && _members.Count(m => m.Role == OrganizationRole.Owner) == 1)
+        {
+            throw new InvalidOperationException(
+                "This is the only owner. Promote someone else before changing this role.");
+        }
+
+        member.ChangeRole(role);
+        Touch();
+    }
+
     public void RemoveMember(Guid userId)
     {
         var member = _members.SingleOrDefault(m => m.UserId == userId)

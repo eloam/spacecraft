@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { FileCode2, History, Package, Play, Plus } from "lucide-react";
+import { FileCode2, History, Package, Play, Plus, TriangleAlert, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
@@ -20,7 +21,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge } from "@/components/StatusBadge";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
 import { useAddTarget, useCreateRun, useOrganization,
-  useProject, useRuns, useSpecs } from "@/api/queries";
+  useProject, useRuns, useSpecDiagnostics, useSpecs } from "@/api/queries";
 import {
   SdkLanguage,
   SpecValidationStatus,
@@ -45,6 +46,7 @@ export function ProjectPage() {
   const runs = useRuns(orgId, projectId);
 
   const [targetOpen, setTargetOpen] = useState(false);
+  const [diagnosticsFor, setDiagnosticsFor] = useState<string | null>(null);
   const [generateOpen, setGenerateOpen] = useState(false);
 
   const canGenerate =
@@ -114,11 +116,28 @@ export function ProjectPage() {
                       <TableCell>{spec.apiTitle ?? "—"}</TableCell>
                       <TableCell className="font-mono text-xs">{spec.apiVersion ?? "—"}</TableCell>
                       <TableCell>
-                        <SpecValidationBadge
-                          status={spec.validationStatus}
-                          warnings={spec.warningCount}
-                          errors={spec.errorCount}
-                        />
+                        {spec.warningCount + spec.errorCount > 0 ? (
+                          // The count was a dead end: it told you something was wrong
+                          // without any way to find out what.
+                          <button
+                            type="button"
+                            onClick={() => setDiagnosticsFor(spec.id)}
+                            className="cursor-pointer rounded-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                            aria-label={`Show ${spec.errorCount + spec.warningCount} validation findings`}
+                          >
+                            <SpecValidationBadge
+                              status={spec.validationStatus}
+                              warnings={spec.warningCount}
+                              errors={spec.errorCount}
+                            />
+                          </button>
+                        ) : (
+                          <SpecValidationBadge
+                            status={spec.validationStatus}
+                            warnings={spec.warningCount}
+                            errors={spec.errorCount}
+                          />
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-xs text-muted-foreground">
                         {new Date(spec.createdAt).toLocaleString()}
@@ -250,6 +269,13 @@ export function ProjectPage() {
         open={targetOpen}
         onOpenChange={setTargetOpen}
       />
+      <DiagnosticsDialog
+        orgId={orgId}
+        projectId={projectId}
+        specId={diagnosticsFor}
+        onClose={() => setDiagnosticsFor(null)}
+      />
+
       <GenerateDialog
         orgId={orgId}
         projectId={projectId}
@@ -479,6 +505,76 @@ function GenerateDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * The findings behind a spec's warning count.
+ *
+ * A large document produces a lot of them — the Keycloak Admin API yields 413 — so the list
+ * is virtualised by nothing more than a scroll container, and only fetched once opened.
+ */
+function DiagnosticsDialog({
+  orgId,
+  projectId,
+  specId,
+  onClose,
+}: {
+  orgId: string;
+  projectId: string;
+  specId: string | null;
+  onClose: () => void;
+}) {
+  const diagnostics = useSpecDiagnostics(orgId, projectId, specId);
+
+  return (
+    <Dialog open={specId !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Validation findings</DialogTitle>
+          <DialogDescription>
+            {diagnostics.data
+              ? `${diagnostics.data.length} finding${diagnostics.data.length === 1 ? "" : "s"} recorded when this spec was uploaded.`
+              : "Loading…"}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="max-h-96 overflow-y-auto rounded-lg border">
+          {diagnostics.isPending ? (
+            <div className="space-y-2 p-3">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          ) : (
+            <ul className="divide-y text-sm">
+              {diagnostics.data?.map((finding, index) => (
+                <li key={index} className="flex gap-2 p-3">
+                  {finding.severity === 2 ? (
+                    <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+                  ) : (
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  )}
+                  <div className="min-w-0">
+                    <p>{finding.message}</p>
+                    {finding.pointer && (
+                      <p className="mt-0.5 font-mono text-xs break-all text-muted-foreground">
+                        {finding.pointer}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

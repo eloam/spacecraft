@@ -46,6 +46,11 @@ public static class SpecEndpoints
             .Produces<List<SpecVersionResponse>>()
             .WithSummary("Lists the project's spec versions, newest first.");
 
+        group.MapGet("/{specVersionId:guid}/diagnostics", GetDiagnosticsAsync)
+            .Produces<List<SpecDiagnostic>>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Returns the validation findings recorded when the spec was uploaded.");
+
         group.MapPost("/", UploadAsync)
             .Produces<SpecUploadResponse>(StatusCodes.Status201Created)
             // A re-upload of identical bytes returns 200 with the existing version.
@@ -82,6 +87,41 @@ public static class SpecEndpoints
             .ToListAsync(ct);
 
         return TypedResults.Ok(versions.Select(ToResponse).ToList());
+    }
+
+    /// <summary>
+    /// Validation findings were only ever returned in the upload response, so reloading the
+    /// page lost them: a spec could say "413 warnings" with no way to read one. They are
+    /// stored as JSON on the row, so serving them is a matter of handing that back.
+    /// </summary>
+    private static async Task<IResult> GetDiagnosticsAsync(
+        Guid organizationId,
+        Guid projectId,
+        Guid specVersionId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        CancellationToken ct)
+    {
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var stored = await db.SpecVersions
+            .AsNoTracking()
+            .Where(s => s.Id == specVersionId && s.ApiProjectId == projectId)
+            .Select(s => s.Diagnostics)
+            .FirstOrDefaultAsync(ct);
+
+        if (stored is null)
+        {
+            return ApiResults.NotFound("The specification version");
+        }
+
+        var diagnostics = System.Text.Json.JsonSerializer.Deserialize<List<SpecDiagnostic>>(stored) ?? [];
+
+        return TypedResults.Ok(diagnostics);
     }
 
     private static async Task<IResult> UploadAsync(
