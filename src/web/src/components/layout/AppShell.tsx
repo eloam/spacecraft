@@ -1,9 +1,10 @@
 import { Link, Outlet, useParams } from "react-router-dom";
-import { KeyRound, LogOut, Orbit, Settings, UserRound } from "lucide-react";
+import { KeyRound, LogOut, Orbit, Settings } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth";
 import { useLogout } from "@/api/queries";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AccountAvatar } from "@/components/AccountAvatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +54,7 @@ export function AppShell() {
               <DropdownMenuTrigger
                 render={
                   <Button variant="ghost" size="sm">
-                    <UserRound className="size-4" aria-hidden />
+                    <AccountAvatar displayName={user?.displayName} email={user?.email} />
                     {/* The name is the label on wider screens; on a phone the icon alone
                         carries it, so the accessible name comes from aria-label. */}
                     <span className="hidden max-w-40 truncate sm:inline">
