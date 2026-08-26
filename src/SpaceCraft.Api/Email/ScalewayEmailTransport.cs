@@ -35,6 +35,7 @@ public sealed class ScalewayEmailTransport(
             [new Address(message.To, null)],
             message.Subject,
             message.TextBody,
+            message.HtmlBody,
             _options.ProjectId!);
 
         // Retries, backoff with jitter, per-attempt timeouts and the circuit breaker all live
@@ -110,5 +111,7 @@ public sealed class ScalewayEmailTransport(
         [property: JsonPropertyName("to")] Address[] To,
         [property: JsonPropertyName("subject")] string Subject,
         [property: JsonPropertyName("text")] string Text,
+        [property: JsonPropertyName("html")]
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Html,
         [property: JsonPropertyName("project_id")] string ProjectId);
 }

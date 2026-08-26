@@ -75,16 +75,8 @@ public sealed class WaitlistDispatcher(
 
         var baseUrl = configuration["PublicUrls:Api"] ?? "https://spacecraft.dev";
 
-        await email.SendAsync(new EmailMessage(
-            address,
-            "Confirm your SpaceCraft waitlist signup",
-            $"""
-             Thanks for your interest in SpaceCraft.
+        var confirmUrl = $"{baseUrl}/api/v1/waitlist/confirm?token={token}";
 
-             Confirm your email to join the waitlist:
-             {baseUrl}/api/v1/waitlist/confirm?token={token}
-
-             If you didn't request this, ignore this message — no account is created.
-             """), ct);
+        await email.SendAsync(Emails.WaitlistConfirmation(address, confirmUrl), ct);
     }
 }

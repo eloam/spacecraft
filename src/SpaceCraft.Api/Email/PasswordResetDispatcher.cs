@@ -84,18 +84,6 @@ public sealed class PasswordResetDispatcher(
         var appUrl = (configuration["PublicUrls:App"] ?? "https://app.spacecraft.dev").TrimEnd('/');
         var link = $"{appUrl}/reset-password?token={Uri.EscapeDataString(raw)}";
 
-        await email.SendAsync(
-            new EmailMessage(
-                address,
-                "Reset your SpaceCraft password",
-                $"""
-                 Someone asked to reset the password for this account.
-
-                 {link}
-
-                 The link works once and expires in {TokenLifetime.TotalHours:0} hour(s).
-                 If this wasn't you, ignore this email — your password has not changed.
-                 """),
-            ct);
+        await email.SendAsync(Emails.PasswordReset(address, link, TokenLifetime), ct);
     }
 }

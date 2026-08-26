@@ -102,6 +102,8 @@ public static class AuthEndpoints
         SpaceCraftDbContext db,
         ITokenService tokens,
         IOptions<JwtOptions> jwtOptions,
+        IEmailSender email,
+        IConfiguration configuration,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
@@ -123,6 +125,11 @@ public static class AuthEndpoints
                 .GroupBy(e => MapErrorField(e.Code))
                 .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray(), StringComparer.Ordinal));
         }
+
+        // Queued, not awaited: the account exists and the caller has their tokens, so a slow
+        // or failing mail provider must not turn a successful registration into an error.
+        var appUrl = (configuration["PublicUrls:App"] ?? "https://app.spacecraft.dev").TrimEnd('/');
+        await email.SendAsync(Emails.Welcome(user.Email!, appUrl, user.DisplayName), ct);
 
         var pair = await IssueAndStoreAsync(user, db, tokens, jwtOptions.Value, familyId: null, ct);
         return TypedResults.Ok(ToResponse(pair, user));
