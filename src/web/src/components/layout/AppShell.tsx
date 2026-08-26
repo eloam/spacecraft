@@ -1,9 +1,16 @@
 import { Link, Outlet, useParams } from "react-router-dom";
-import { KeyRound, LogOut, Orbit } from "lucide-react";
+import { KeyRound, LogOut, Orbit, Settings, UserRound } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth";
 import { useLogout } from "@/api/queries";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function AppShell() {
   const user = useAuthStore((s) => s.user);
@@ -39,23 +46,38 @@ export function AppShell() {
             )}
           </nav>
 
-          <div className="ml-auto flex items-center gap-3">
-            <Link
-              to="/account"
-              className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-            >
-              {user?.displayName || user?.email}
-            </Link>
+          <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => logout.mutate()}
-              disabled={logout.isPending}
-            >
-              <LogOut className="size-4" aria-hidden />
-              <span className="sr-only sm:not-sr-only">Sign out</span>
-            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="ghost" size="sm">
+                    <UserRound className="size-4" aria-hidden />
+                    {/* The name is the label on wider screens; on a phone the icon alone
+                        carries it, so the accessible name comes from aria-label. */}
+                    <span className="hidden max-w-40 truncate sm:inline">
+                      {user?.displayName || user?.email}
+                    </span>
+                  </Button>
+                }
+                aria-label="Account menu"
+              />
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem render={<Link to="/account" />}>
+                  <Settings className="size-4" aria-hidden />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => logout.mutate()}
+                  disabled={logout.isPending}
+                >
+                  <LogOut className="size-4" aria-hidden />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

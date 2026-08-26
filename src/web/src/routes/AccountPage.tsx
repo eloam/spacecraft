@@ -25,7 +25,7 @@ export function AccountPage() {
   const account = useAccount();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
         <p className="text-sm text-muted-foreground">
@@ -82,7 +82,7 @@ function ProfileCard({
         <CardDescription>How you appear across SpaceCraft.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
           <div className="space-y-2">
             <Label htmlFor="displayName">Display name</Label>
             <Input id="displayName" placeholder="Not set" {...form.register("displayName")} />
@@ -174,7 +174,7 @@ function PasswordCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
           {(["currentPassword", "newPassword", "confirmPassword"] as const).map((field) => (
             <div key={field} className="space-y-2">
               <Label htmlFor={field}>
