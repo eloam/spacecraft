@@ -38,6 +38,18 @@ public sealed class ApiProject : Entity
 
     public Guid OrganizationId { get; private set; }
     public string Name { get; private set; } = null!;
+
+    /// <summary>
+    /// Changes the display name. The slug is left alone on purpose: it is the stable handle
+    /// people put in scripts and links, and silently repointing it would break them.
+    /// </summary>
+    public void Rename(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        Name = name.Trim();
+        Touch();
+    }
     public string Slug { get; private set; } = null!;
     public SpecSource Source { get; private set; } = SpecSource.Upload;
 

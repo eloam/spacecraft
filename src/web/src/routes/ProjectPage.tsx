@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { FileCode2, History, Package, Play, Plus, Trash2, TriangleAlert, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FileCode2, History, Package, Play, Plus, Settings, Trash2, TriangleAlert, XCircle } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge } from "@/components/StatusBadge";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
 import { useAddTarget, useCreateRun, useOrganization,
-  useDeleteProject, useDeleteTarget,
+  useDeleteTarget,
   useProject, useRuns, useSpecDiagnostics, useSpecs } from "@/api/queries";
 import {
   SdkLanguage,
@@ -49,9 +49,7 @@ export function ProjectPage() {
 
   const [targetOpen, setTargetOpen] = useState(false);
   const [diagnosticsFor, setDiagnosticsFor] = useState<string | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const deleteProject = useDeleteProject(orgId);
   const [targetToDelete, setTargetToDelete] = useState<string | null>(null);
   const deleteTarget = useDeleteTarget(orgId, projectId);
   const [generateOpen, setGenerateOpen] = useState(false);
@@ -79,10 +77,13 @@ export function ProjectPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="size-4" aria-hidden />
-            <span className="sr-only">Delete project</span>
-          </Button>
+          <Link
+            to={`/orgs/${orgId}/projects/${projectId}/settings`}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+          >
+            <Settings className="size-4" aria-hidden />
+            <span className="sr-only">Project settings</span>
+          </Link>
           <Button onClick={() => setGenerateOpen(true)} disabled={!canGenerate}>
           <Play className="size-4" aria-hidden />
           Generate SDK
@@ -319,36 +320,6 @@ export function ProjectPage() {
             onError: (error) =>
               setDeleteError(
                 error instanceof ApiError ? error.detail : "Could not delete the target.",
-              ),
-          })
-        }
-      />
-
-      <ConfirmDeleteDialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          setDeleteOpen(open);
-          if (!open) setDeleteError(null);
-        }}
-        title={`Delete ${project.data?.name ?? "this project"}?`}
-        description="This removes the project and everything recorded under it."
-        consequences={[
-          `${project.data?.specVersionCount ?? 0} uploaded spec version(s)`,
-          `${project.data?.targets.length ?? 0} SDK target(s)`,
-          "Its entire run history, with artifacts and logs",
-          "Packages already published stay in their registries",
-        ]}
-        isPending={deleteProject.isPending}
-        error={deleteError}
-        onConfirm={() =>
-          deleteProject.mutate(projectId, {
-            onSuccess: () => {
-              toast.success("Project deleted.");
-              navigate(`/orgs/${orgId}`);
-            },
-            onError: (error) =>
-              setDeleteError(
-                error instanceof ApiError ? error.detail : "Could not delete the project.",
               ),
           })
         }

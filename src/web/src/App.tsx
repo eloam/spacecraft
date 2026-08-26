@@ -6,6 +6,8 @@ import { RegisterPage } from "@/routes/RegisterPage";
 import { AccountPage } from "@/routes/AccountPage";
 import { PublicationsPage } from "@/routes/PublicationsPage";
 import { MembersPage } from "@/routes/MembersPage";
+import { OrganizationSettingsPage } from "@/routes/OrganizationSettingsPage";
+import { ProjectSettingsPage } from "@/routes/ProjectSettingsPage";
 import { ForgotPasswordPage } from "@/routes/ForgotPasswordPage";
 import { ResetPasswordPage } from "@/routes/ResetPasswordPage";
 import { OrganizationsPage } from "@/routes/OrganizationsPage";
@@ -45,6 +47,8 @@ export default function App() {
         <Route path="/orgs/:orgId/credentials" element={<CredentialsPage />} />
         <Route path="/orgs/:orgId/publications" element={<PublicationsPage />} />
         <Route path="/orgs/:orgId/members" element={<MembersPage />} />
+        <Route path="/orgs/:orgId/settings" element={<OrganizationSettingsPage />} />
+        <Route path="/orgs/:orgId/projects/:projectId/settings" element={<ProjectSettingsPage />} />
         <Route path="/orgs/:orgId/projects/:projectId" element={<ProjectPage />} />
         <Route path="/orgs/:orgId/runs/:runId" element={<RunPage />} />
       </Route>

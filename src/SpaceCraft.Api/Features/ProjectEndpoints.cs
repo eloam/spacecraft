@@ -34,6 +34,8 @@ public sealed record ProjectResponse(
     IReadOnlyList<TargetResponse> Targets,
     DateTimeOffset CreatedAt);
 
+public sealed record RenameProjectRequest(string Name);
+
 public static class ProjectEndpoints
 {
     public static RouteGroupBuilder MapProjectEndpoints(this RouteGroupBuilder api)
@@ -63,6 +65,11 @@ public static class ProjectEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Adds an SDK target to a project.");
 
+        group.MapPatch("/{projectId:guid}", RenameAsync)
+            .Produces<ProjectResponse>()
+            .ProducesValidationProblem()
+            .WithSummary("Renames a project. The slug is left unchanged.");
+
         group.MapDelete("/{projectId:guid}", DeleteAsync)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status409Conflict)
@@ -74,6 +81,45 @@ public static class ProjectEndpoints
             .WithSummary("Deletes an SDK target and the runs that produced it.");
 
         return api;
+    }
+
+    private static async Task<IResult> RenameAsync(
+        Guid organizationId,
+        Guid projectId,
+        [FromBody] RenameProjectRequest request,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        CancellationToken ct)
+    {
+        // Member, not Admin: renaming is reversible and does not touch anything published.
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var name = request.Name?.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return ApiResults.Invalid(nameof(request.Name), "A name is required.");
+        }
+
+        var project = await db.ApiProjects
+            .Include(p => p.Targets)
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
+
+        if (project is null)
+        {
+            return ApiResults.NotFound("The project");
+        }
+
+        project.Rename(name);
+        await db.SaveChangesAsync(ct);
+
+        var specCount = await db.SpecVersions.CountAsync(s => s.ApiProjectId == projectId, ct);
+
+        return TypedResults.Ok(ToResponse(project, specCount));
     }
 
     private static async Task<IResult> DeleteAsync(

@@ -19,6 +19,8 @@ public sealed record OrganizationResponse(
     int ProjectCount,
     DateTimeOffset CreatedAt);
 
+public sealed record RenameRequest(string Name);
+
 public sealed record DeleteOrganizationRequest(string Name);
 
 public static class OrganizationEndpoints
@@ -42,6 +44,11 @@ public static class OrganizationEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Returns one organization.");
 
+        group.MapPatch("/{organizationId:guid}", RenameAsync)
+            .Produces<OrganizationResponse>()
+            .ProducesValidationProblem()
+            .WithSummary("Renames an organization. The slug is left unchanged.");
+
         group.MapDelete("/{organizationId:guid}", DeleteAsync)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status409Conflict)
@@ -49,6 +56,45 @@ public static class OrganizationEndpoints
             .WithSummary("Permanently deletes an organization and everything in it.");
 
         return api;
+    }
+
+    private static async Task<IResult> RenameAsync(
+        Guid organizationId,
+        [FromBody] RenameRequest request,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        CancellationToken ct)
+    {
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var name = request.Name?.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return ApiResults.Invalid(nameof(request.Name), "A name is required.");
+        }
+
+        var organization = await db.Organizations
+            .Include(o => o.Members)
+            .FirstOrDefaultAsync(o => o.Id == organizationId, ct);
+
+        if (organization is null)
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        organization.Rename(name);
+        await db.SaveChangesAsync(ct);
+
+        var role = organization.Members.First(m => m.UserId == principal.Id()).Role;
+        var projects = await db.ApiProjects.CountAsync(p => p.OrganizationId == organizationId, ct);
+
+        return TypedResults.Ok(new OrganizationResponse(
+            organization.Id, organization.Name, organization.Slug, role, projects, organization.CreatedAt));
     }
 
     private static async Task<IResult> DeleteAsync(

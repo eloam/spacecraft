@@ -583,7 +583,42 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /** Renames an organization. The slug is left unchanged. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RenameRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OrganizationResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/v1/organizations/{organizationId}/projects": {
@@ -743,7 +778,43 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /** Renames a project. The slug is left unchanged. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizationId: string;
+                    projectId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RenameProjectRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProjectResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/v1/organizations/{organizationId}/projects/{projectId}/targets": {
@@ -2073,6 +2144,12 @@ export interface components {
             displayName: null | string;
         };
         RegistryKind: number;
+        RenameProjectRequest: {
+            name: string;
+        };
+        RenameRequest: {
+            name: string;
+        };
         ResetPasswordRequest: {
             token: string;
             newPassword: string;

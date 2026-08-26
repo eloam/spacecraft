@@ -52,6 +52,23 @@ public class OrganizationTests
     }
 
     [Fact]
+    public void Renaming_leaves_the_slug_alone()
+    {
+        // The slug is the stable handle people put in links and scripts; repointing it on a
+        // rename would break them silently.
+        var org = NewOrg(out _);
+
+        org.Rename("Acme Corporation");
+
+        org.Name.ShouldBe("Acme Corporation");
+        org.Slug.ShouldBe("acme-corp");
+    }
+
+    [Fact]
+    public void A_blank_name_is_refused() =>
+        Should.Throw<ArgumentException>(() => NewOrg(out _).Rename("   "));
+
+    [Fact]
     public void The_only_owner_cannot_be_demoted()
     {
         // Demoting the last owner strands the organization exactly as removing them would,
@@ -142,6 +159,17 @@ public class ApiProjectTests
         var spec = project.AddSpecVersion(id => $"specs/{id:N}.yaml", "hash", 100, SpecSource.Upload);
 
         spec.StorageKey.ShouldBe($"specs/{spec.Id:N}.yaml");
+    }
+
+    [Fact]
+    public void Renaming_a_project_leaves_its_slug_alone()
+    {
+        var project = NewOrg().AddProject("Billing", "billing");
+
+        project.Rename("  Billing API  ");
+
+        project.Name.ShouldBe("Billing API");
+        project.Slug.ShouldBe("billing");
     }
 
     [Fact]

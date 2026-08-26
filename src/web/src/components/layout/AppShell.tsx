@@ -58,6 +58,12 @@ export function AppShell() {
                 >
                   Members
                 </Link>
+                <Link
+                  to={`/orgs/${orgId}/settings`}
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
+                >
+                  Settings
+                </Link>
               </>
             )}
           </nav>

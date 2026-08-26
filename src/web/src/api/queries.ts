@@ -156,6 +156,29 @@ export function useRemoveMember(orgId: string) {
   });
 }
 
+export function useRenameOrganization(orgId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.patch<Organization>(`/organizations/${orgId}`, { name }),
+    onSuccess: (organization) => {
+      queryClient.setQueryData(keys.organization(orgId), organization);
+      queryClient.invalidateQueries({ queryKey: keys.organizations });
+    },
+  });
+}
+
+export function useRenameProject(orgId: string, projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      api.patch<Project>(`/organizations/${orgId}/projects/${projectId}`, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.project(orgId, projectId) });
+      queryClient.invalidateQueries({ queryKey: keys.projects(orgId) });
+    },
+  });
+}
+
 export function useDeleteOrganization() {
   const queryClient = useQueryClient();
   return useMutation({
