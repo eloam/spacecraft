@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
+using SpaceCraft.Api.Features.Deletion;
 using SpaceCraft.Domain.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
@@ -17,6 +18,8 @@ public sealed record OrganizationResponse(
     OrganizationRole Role,
     int ProjectCount,
     DateTimeOffset CreatedAt);
+
+public sealed record DeleteOrganizationRequest(string Name);
 
 public static class OrganizationEndpoints
 {
@@ -39,7 +42,53 @@ public static class OrganizationEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Returns one organization.");
 
+        group.MapDelete("/{organizationId:guid}", DeleteAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesValidationProblem()
+            .WithSummary("Permanently deletes an organization and everything in it.");
+
         return api;
+    }
+
+    private static async Task<IResult> DeleteAsync(
+        Guid organizationId,
+        [FromBody] DeleteOrganizationRequest request,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        ResourceDeleter deleter,
+        CancellationToken ct)
+    {
+        // Owner, not Admin: this removes every project, run and credential the organization
+        // has, and an admin was added by someone else.
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Owner, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var organization = await db.Organizations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == organizationId, ct);
+
+        if (organization is null)
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        // Typing the name is the only friction between a stray click and losing everything.
+        if (!string.Equals(request.Name?.Trim(), organization.Name, StringComparison.Ordinal))
+        {
+            return ApiResults.Invalid(
+                nameof(request.Name), $"Type the organization's name exactly: {organization.Name}");
+        }
+
+        if (await deleter.DeleteOrganizationAsync(organizationId, ct) is { } refusal)
+        {
+            return ApiResults.Conflict(refusal.Reason);
+        }
+
+        return TypedResults.NoContent();
     }
 
     private static async Task<IResult> ListAsync(

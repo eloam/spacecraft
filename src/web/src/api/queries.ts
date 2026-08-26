@@ -156,6 +156,35 @@ export function useRemoveMember(orgId: string) {
   });
 }
 
+export function useDeleteOrganization() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    // The name is typed back as confirmation; the server checks it too, so a client that
+    // skipped the dialog gets the same answer.
+    mutationFn: (input: { orgId: string; name: string }) =>
+      api.delete<void>(`/organizations/${input.orgId}`, { name: input.name }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.organizations }),
+  });
+}
+
+export function useDeleteProject(orgId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (projectId: string) =>
+      api.delete<void>(`/organizations/${orgId}/projects/${projectId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.projects(orgId) }),
+  });
+}
+
+export function useDeleteTarget(orgId: string, projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (targetId: string) =>
+      api.delete<void>(`/organizations/${orgId}/projects/${projectId}/targets/${targetId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.project(orgId, projectId) }),
+  });
+}
+
 export function useAccount() {
   return useQuery({
     queryKey: ["account"],

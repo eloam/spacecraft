@@ -37,6 +37,7 @@ builder.Services.AddSpaceCraftCors(builder.Configuration);
 builder.Services.AddSpaceCraftRateLimiting(builder.Configuration);
 builder.Services.AddSpaceCraftPipeline(builder.Configuration, builder.Environment.IsDevelopment());
 
+builder.Services.AddScoped<SpaceCraft.Api.Features.Deletion.ResourceDeleter>();
 builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.IsDevelopment());
 
 // Data Protection encrypts registry tokens at rest. The default key ring is per-machine and

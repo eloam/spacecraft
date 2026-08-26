@@ -121,6 +121,25 @@ Retries, exponential backoff with jitter, per-attempt timeouts and a circuit bre
 from `Microsoft.Extensions.Http.Resilience`. The jitter matters more than it looks: without
 it, every message queued during an outage stampedes the provider the moment it recovers.
 
+## Deleting things
+
+Deletion is scoped by role: an SDK target or a project takes Admin, an organization takes
+Owner. An organization also requires its name typed back, because that one act removes every
+project, run, credential and publication record it holds.
+
+Cascade constraints cover only part of the graph — projects, members, targets and specs hang
+off their parent, but pipeline runs, registry credentials and publications carry an
+organization id with no foreign key behind it. Deletion therefore removes those explicitly.
+Leaving them would strand **encrypted registry tokens belonging to an organization that no
+longer exists**, which is the leftover that actually matters.
+
+Stored objects go too: specs, build artifacts and step logs are blobs whose only reference is
+the row being deleted. A blob that cannot be removed is logged and the delete continues — a
+wasted object is better than a half-deleted organization.
+
+A delete is refused while any run in scope is queued or running, since a worker holding a
+lease would carry on against rows that no longer exist and report its failure nowhere.
+
 ## Known gaps
 
 - Refresh tokens are stored in `localStorage`, which is readable by any script running on the

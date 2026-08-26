@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
+using SpaceCraft.Api.Features.Deletion;
 using SpaceCraft.Domain.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Projects;
@@ -62,7 +63,80 @@ public static class ProjectEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Adds an SDK target to a project.");
 
+        group.MapDelete("/{projectId:guid}", DeleteAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Deletes a project with its specs, targets and run history.");
+
+        group.MapDelete("/{projectId:guid}/targets/{targetId:guid}", DeleteTargetAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Deletes an SDK target and the runs that produced it.");
+
         return api;
+    }
+
+    private static async Task<IResult> DeleteAsync(
+        Guid organizationId,
+        Guid projectId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        ResourceDeleter deleter,
+        CancellationToken ct)
+    {
+        // Admin: destroying a project's history is not the same kind of act as uploading a
+        // spec, which any member may do.
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var exists = await db.ApiProjects
+            .AnyAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
+
+        if (!exists)
+        {
+            return ApiResults.NotFound("The project");
+        }
+
+        if (await deleter.DeleteProjectAsync(projectId, ct) is { } refusal)
+        {
+            return ApiResults.Conflict(refusal.Reason);
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> DeleteTargetAsync(
+        Guid organizationId,
+        Guid projectId,
+        Guid targetId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        ResourceDeleter deleter,
+        CancellationToken ct)
+    {
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var exists = await db.SdkTargets
+            .AnyAsync(t => t.Id == targetId && t.ApiProjectId == projectId, ct);
+
+        if (!exists)
+        {
+            return ApiResults.NotFound("The SDK target");
+        }
+
+        if (await deleter.DeleteTargetAsync(targetId, ct) is { } refusal)
+        {
+            return ApiResults.Conflict(refusal.Reason);
+        }
+
+        return TypedResults.NoContent();
     }
 
     private static async Task<IResult> ListAsync(

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { FileCode2, History, Package, Play, Plus, TriangleAlert, XCircle } from "lucide-react";
+import { FileCode2, History, Package, Play, Plus, Trash2, TriangleAlert, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge } from "@/components/StatusBadge";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
 import { useAddTarget, useCreateRun, useOrganization,
+  useDeleteProject, useDeleteTarget,
   useProject, useRuns, useSpecDiagnostics, useSpecs } from "@/api/queries";
 import {
   SdkLanguage,
@@ -34,6 +35,7 @@ import {
   describeRunProgress,
 } from "@/api/types";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
@@ -47,6 +49,11 @@ export function ProjectPage() {
 
   const [targetOpen, setTargetOpen] = useState(false);
   const [diagnosticsFor, setDiagnosticsFor] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteProject = useDeleteProject(orgId);
+  const [targetToDelete, setTargetToDelete] = useState<string | null>(null);
+  const deleteTarget = useDeleteTarget(orgId, projectId);
   const [generateOpen, setGenerateOpen] = useState(false);
 
   const canGenerate =
@@ -71,10 +78,16 @@ export function ProjectPage() {
           <p className="font-mono text-xs text-muted-foreground">{project.data?.slug}</p>
         </div>
 
-        <Button onClick={() => setGenerateOpen(true)} disabled={!canGenerate}>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="size-4" aria-hidden />
+            <span className="sr-only">Delete project</span>
+          </Button>
+          <Button onClick={() => setGenerateOpen(true)} disabled={!canGenerate}>
           <Play className="size-4" aria-hidden />
           Generate SDK
-        </Button>
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="specs">
@@ -168,6 +181,7 @@ export function ProjectPage() {
                     <TableHead>Registry</TableHead>
                     <TableHead>Auto-publish</TableHead>
                     <TableHead className="text-right">Last published</TableHead>
+                    <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -183,6 +197,16 @@ export function ProjectPage() {
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
                         {target.lastPublishedVersion ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setTargetToDelete(target.id)}
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                          <span className="sr-only">Delete {target.packageName}</span>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -269,6 +293,67 @@ export function ProjectPage() {
         open={targetOpen}
         onOpenChange={setTargetOpen}
       />
+      <ConfirmDeleteDialog
+        open={targetToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTargetToDelete(null);
+            setDeleteError(null);
+          }
+        }}
+        title="Delete this SDK target?"
+        description="The target and the runs that produced it are removed."
+        consequences={[
+          "Runs for this target, with their artifacts and logs",
+          "Packages already published stay in their registries",
+        ]}
+        isPending={deleteTarget.isPending}
+        error={deleteError}
+        onConfirm={() =>
+          targetToDelete &&
+          deleteTarget.mutate(targetToDelete, {
+            onSuccess: () => {
+              toast.success("SDK target deleted.");
+              setTargetToDelete(null);
+            },
+            onError: (error) =>
+              setDeleteError(
+                error instanceof ApiError ? error.detail : "Could not delete the target.",
+              ),
+          })
+        }
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) setDeleteError(null);
+        }}
+        title={`Delete ${project.data?.name ?? "this project"}?`}
+        description="This removes the project and everything recorded under it."
+        consequences={[
+          `${project.data?.specVersionCount ?? 0} uploaded spec version(s)`,
+          `${project.data?.targets.length ?? 0} SDK target(s)`,
+          "Its entire run history, with artifacts and logs",
+          "Packages already published stay in their registries",
+        ]}
+        isPending={deleteProject.isPending}
+        error={deleteError}
+        onConfirm={() =>
+          deleteProject.mutate(projectId, {
+            onSuccess: () => {
+              toast.success("Project deleted.");
+              navigate(`/orgs/${orgId}`);
+            },
+            onError: (error) =>
+              setDeleteError(
+                error instanceof ApiError ? error.detail : "Could not delete the project.",
+              ),
+          })
+        }
+      />
+
       <DiagnosticsDialog
         orgId={orgId}
         projectId={projectId}

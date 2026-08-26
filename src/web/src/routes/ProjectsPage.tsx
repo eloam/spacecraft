@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { FolderGit2, Plus } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { FolderGit2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,15 +16,22 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
-import { useCreateProject, useOrganization, useProjects } from "@/api/queries";
+import {
+  useCreateProject, useDeleteOrganization, useOrganization, useProjects,
+} from "@/api/queries";
 import { languageLabel } from "@/api/types";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
 export function ProjectsPage() {
   const { orgId = "" } = useParams();
   const organization = useOrganization(orgId);
+  const navigate = useNavigate();
+  const deleteOrganization = useDeleteOrganization();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const { data, isLoading, error } = useProjects(orgId);
   const [open, setOpen] = useState(false);
 
@@ -95,6 +102,56 @@ export function ProjectsPage() {
           />
         )}
       </QueryBoundary>
+
+      <div className="mt-10 rounded-xl border border-destructive/40 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-medium text-destructive">Delete organization</h2>
+            <p className="text-sm text-muted-foreground">
+              Removes every project, run, credential and publication record it owns.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="size-4" aria-hidden />
+            Delete
+          </Button>
+        </div>
+      </div>
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) setDeleteError(null);
+        }}
+        title={`Delete ${organization.data?.name ?? "this organization"}?`}
+        description="Everything this organization owns goes with it. This cannot be undone."
+        confirmText={organization.data?.name}
+        consequences={[
+          `${data?.length ?? 0} project(s), with their specs and run history`,
+          "Registry credentials stored for this organization",
+          "The record of what it has published",
+          "Packages already published stay in their registries",
+        ]}
+        isPending={deleteOrganization.isPending}
+        error={deleteError}
+        onConfirm={() =>
+          organization.data &&
+          deleteOrganization.mutate(
+            { orgId, name: organization.data.name },
+            {
+              onSuccess: () => {
+                toast.success("Organization deleted.");
+                navigate("/");
+              },
+              onError: (error) =>
+                setDeleteError(
+                  error instanceof ApiError ? error.detail : "Could not delete the organization.",
+                ),
+            },
+          )
+        }
+      />
 
       <CreateProjectDialog orgId={orgId} open={open} onOpenChange={setOpen} />
     </div>
