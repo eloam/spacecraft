@@ -67,12 +67,23 @@ export function ConfirmDeleteDialog({
         {confirmText && (
           <div className="space-y-2">
             <Label htmlFor="confirm-text">
-              Type <span className="font-medium text-foreground">{confirmText}</span> to confirm
+              Type{" "}
+              {/* Monospaced on a tinted ground, the way slugs and package names are shown
+                  elsewhere. A name like "Load Test 2" contains spaces, and in running text
+                  there is no telling where it starts or whether they are part of it. */}
+              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[13px] font-medium text-foreground">
+                {confirmText}
+              </code>{" "}
+              to confirm
             </Label>
             <Input
               id="confirm-text"
               value={typed}
               autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              className="font-mono text-sm"
               onChange={(e) => setTyped(e.target.value)}
             />
           </div>
