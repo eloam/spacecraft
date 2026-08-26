@@ -1,5 +1,5 @@
 import { Link, Outlet, useParams } from "react-router-dom";
-import { KeyRound, LogOut, Orbit, Settings } from "lucide-react";
+import { LogOut, Orbit, Settings } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth";
 import { useLogout } from "@/api/queries";
@@ -40,7 +40,6 @@ export function AppShell() {
                   to={`/orgs/${orgId}/credentials`}
                   className={buttonVariants({ variant: "ghost", size: "sm" })}
                 >
-                  <KeyRound className="size-4" aria-hidden />
                   Credentials
                 </Link>
               </>

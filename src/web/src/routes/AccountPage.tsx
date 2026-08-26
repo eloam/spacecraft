@@ -15,6 +15,7 @@ import {
   Dialog, DialogClose, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { ApiError } from "@/api/client";
 import {
   useAccount, useChangePassword, useDeleteAccount, useDeletionBlockers,
@@ -26,6 +27,8 @@ export function AccountPage() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: "Organizations", to: "/" }, { label: "Account" }]} />
+
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
         <p className="text-sm text-muted-foreground">

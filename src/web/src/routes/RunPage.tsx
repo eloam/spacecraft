@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Ban, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,14 +7,16 @@ import { Separator } from "@/components/ui/separator";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge, StepStatusIcon } from "@/components/StatusBadge";
 import { api } from "@/api/client";
-import { useCancelRun, useRun, useStepLog } from "@/api/queries";
+import { useCancelRun, useOrganization, useRun, useStepLog } from "@/api/queries";
 import { StepStatus, isTerminal, stepKindLabel, stepStatusLabel } from "@/api/types";
 import type { ArtifactDownload } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
+import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 
 export function RunPage() {
   const { orgId = "", runId = "" } = useParams();
+  const organization = useOrganization(orgId);
   const run = useRun(orgId, runId);
   const cancel = useCancelRun(orgId);
   const [openStep, setOpenStep] = useState<string | null>(null);
@@ -31,11 +33,24 @@ export function RunPage() {
 
   return (
     <div className="space-y-6">
+      {/* The run knows its project, so the trail can reach back through it rather than
+          jumping straight to the organization as the old back link did. */}
+      <PageBreadcrumb
+        crumbs={[
+          { label: "Organizations", to: "/" },
+          { label: organization.data?.name ?? "Organization", to: `/orgs/${orgId}` },
+          ...(run.data
+            ? [{
+                label: run.data.projectName ?? "Project",
+                to: `/orgs/${orgId}/projects/${run.data.apiProjectId}`,
+              }]
+            : []),
+          { label: "Run" },
+        ]}
+      />
+
       <div>
-        <Link to={`/orgs/${orgId}`} className="text-sm text-muted-foreground hover:underline">
-          ← Projects
-        </Link>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Pipeline run</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Pipeline run</h1>
         <p className="font-mono text-xs text-muted-foreground">{runId}</p>
       </div>
 

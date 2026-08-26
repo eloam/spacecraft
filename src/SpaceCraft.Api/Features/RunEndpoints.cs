@@ -25,6 +25,8 @@ public sealed record StepResponse(
 public sealed record RunResponse(
     Guid Id,
     Guid ApiProjectId,
+    /// <summary>Carried so a caller can name the project without a second request.</summary>
+    string? ProjectName,
     Guid SpecVersionId,
     Guid SdkTargetId,
     RunStatus Status,
@@ -103,7 +105,7 @@ public static class RunEndpoints
             .Include(r => r.Steps)
             .ToListAsync(ct);
 
-        return TypedResults.Ok(runs.Select(ToResponse).ToList());
+        return TypedResults.Ok(runs.Select(r => ToResponse(r)).ToList());
     }
 
     private static async Task<IResult> CreateAsync(
@@ -196,7 +198,19 @@ public static class RunEndpoints
             .Include(r => r.Steps)
             .FirstOrDefaultAsync(r => r.Id == runId && r.OrganizationId == organizationId, ct);
 
-        return run is null ? ApiResults.NotFound("The run") : TypedResults.Ok(ToResponse(run));
+        if (run is null)
+        {
+            return ApiResults.NotFound("The run");
+        }
+
+        // Looked up here rather than joined into the list query: only the detail view names
+        // the project, and the list would pay for it on every row.
+        var projectName = await db.ApiProjects
+            .Where(p => p.Id == run.ApiProjectId)
+            .Select(p => p.Name)
+            .FirstOrDefaultAsync(ct);
+
+        return TypedResults.Ok(ToResponse(run, projectName));
     }
 
     private static async Task<IResult> CancelAsync(
@@ -310,9 +324,10 @@ public static class RunEndpoints
         return TypedResults.Ok(new ArtifactDownloadResponse(url, (int)validFor.TotalSeconds));
     }
 
-    private static RunResponse ToResponse(PipelineRun run) =>
+    private static RunResponse ToResponse(PipelineRun run, string? projectName = null) =>
         new(run.Id,
             run.ApiProjectId,
+            projectName,
             run.SpecVersionId,
             run.SdkTargetId,
             run.Status,

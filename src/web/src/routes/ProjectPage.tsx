@@ -19,7 +19,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge } from "@/components/StatusBadge";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
-import { useAddTarget, useCreateRun, useProject, useRuns, useSpecs } from "@/api/queries";
+import { useAddTarget, useCreateRun, useOrganization,
+  useProject, useRuns, useSpecs } from "@/api/queries";
 import {
   SdkLanguage,
   SpecValidationStatus,
@@ -27,11 +28,13 @@ import {
   registryLabel,
   stepKindLabel,
 } from "@/api/types";
+import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
 export function ProjectPage() {
   const { orgId = "", projectId = "" } = useParams();
+  const organization = useOrganization(orgId);
   const project = useProject(orgId, projectId);
   const specs = useSpecs(orgId, projectId);
   const runs = useRuns(orgId, projectId);
@@ -45,12 +48,17 @@ export function ProjectPage() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb
+        crumbs={[
+          { label: "Organizations", to: "/" },
+          { label: organization.data?.name ?? "Organization", to: `/orgs/${orgId}` },
+          { label: project.data?.name ?? "Project" },
+        ]}
+      />
+
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Link to={`/orgs/${orgId}`} className="text-sm text-muted-foreground hover:underline">
-            ← Projects
-          </Link>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight">
             {project.data?.name ?? "Project"}
           </h1>
           <p className="font-mono text-xs text-muted-foreground">{project.data?.slug}</p>

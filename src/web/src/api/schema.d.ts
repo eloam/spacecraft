@@ -1667,6 +1667,7 @@ export interface components {
             id: string;
             /** Format: uuid */
             apiProjectId: string;
+            projectName: null | string;
             /** Format: uuid */
             specVersionId: string;
             /** Format: uuid */
