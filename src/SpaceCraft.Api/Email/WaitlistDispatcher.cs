@@ -77,6 +77,6 @@ public sealed class WaitlistDispatcher(
 
         var confirmUrl = $"{baseUrl}/api/v1/waitlist/confirm?token={token}";
 
-        await email.SendAsync(Emails.WaitlistConfirmation(address, confirmUrl), ct);
+        await email.SendAsync(Emails.WaitlistConfirmation(address, confirmUrl, baseUrl), ct);
     }
 }

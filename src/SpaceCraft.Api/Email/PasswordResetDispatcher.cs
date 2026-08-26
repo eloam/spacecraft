@@ -84,6 +84,10 @@ public sealed class PasswordResetDispatcher(
         var appUrl = (configuration["PublicUrls:App"] ?? "https://app.spacecraft.dev").TrimEnd('/');
         var link = $"{appUrl}/reset-password?token={Uri.EscapeDataString(raw)}";
 
-        await email.SendAsync(Emails.PasswordReset(address, link, TokenLifetime), ct);
+        await email.SendAsync(Emails.PasswordReset(address, link, TokenLifetime, ApiUrl()), ct);
     }
+
+    /// <summary>Where wwwroot is served from, for images the email references.</summary>
+    private string ApiUrl() =>
+        (configuration["PublicUrls:Api"] ?? "https://api.spacecraft.dev").TrimEnd('/');
 }

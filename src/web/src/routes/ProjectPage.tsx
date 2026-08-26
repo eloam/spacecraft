@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Package, Play, Plus } from "lucide-react";
+import { FileCode2, History, Package, Play, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -29,8 +29,8 @@ import {
   stepKindLabel,
   runStatusLabel,
   isTerminal,
-  isStepSettled,
   formatRunDuration,
+  describeRunProgress,
 } from "@/api/types";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { ApiError } from "@/api/client";
@@ -77,9 +77,19 @@ export function ProjectPage() {
 
       <Tabs defaultValue="specs">
         <TabsList>
-          <TabsTrigger value="specs">Specs</TabsTrigger>
-          <TabsTrigger value="targets">SDK targets</TabsTrigger>
-          <TabsTrigger value="runs">Runs</TabsTrigger>
+          <TabsTrigger value="specs">
+            <FileCode2 className="size-4" aria-hidden />
+            Specs
+          </TabsTrigger>
+          <TabsTrigger value="targets">
+            {/* Package, matching the icon the SDK targets list already uses for a package. */}
+            <Package className="size-4" aria-hidden />
+            SDK targets
+          </TabsTrigger>
+          <TabsTrigger value="runs">
+            <History className="size-4" aria-hidden />
+            Runs
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="specs" className="mt-6 space-y-6">
@@ -189,7 +199,6 @@ export function ProjectPage() {
                 </TableHeader>
                 <TableBody>
                   {runs.data.map((run) => {
-                    const settled = run.steps.filter((s) => isStepSettled(s.status)).length;
                     const queued = new Date(run.queuedAt);
 
                     return (
@@ -214,7 +223,7 @@ export function ProjectPage() {
                         <TableCell className="text-xs text-muted-foreground">
                           {isTerminal(run.status)
                             ? formatRunDuration(run)
-                            : `${settled}/${run.steps.length} steps`}
+                            : describeRunProgress(run)}
                         </TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
                           {queued.toLocaleString()}
@@ -368,6 +377,7 @@ function GenerateDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const navigate = useNavigate();
   const project = useProject(orgId, projectId);
   const specs = useSpecs(orgId, projectId);
   const createRun = useCreateRun(orgId);
@@ -387,9 +397,11 @@ function GenerateDialog({
     createRun.mutate(
       { specVersionId: selectedSpec, sdkTargetId: selectedTarget, publish },
       {
-        onSuccess: () => {
-          toast.success("Run queued");
+        onSuccess: (run) => {
           onOpenChange(false);
+          // Queuing a run is the point of this dialog; leaving the user on the tab they
+          // started from means the thing they asked for happens somewhere they cannot see.
+          navigate(`/orgs/${orgId}/runs/${run.id}`);
         },
         onError: (err) =>
           toast.error(err instanceof ApiError ? err.detail : "Could not queue the run."),
@@ -441,8 +453,9 @@ function GenerateDialog({
               </select>
             </div>
 
-            <label className="flex items-start gap-2 text-sm">
+            <label htmlFor="publish" className="flex items-start gap-2 text-sm">
               <input
+                id="publish"
                 type="checkbox"
                 checked={publish}
                 onChange={(e) => setPublish(e.target.checked)}

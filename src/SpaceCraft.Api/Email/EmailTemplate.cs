@@ -33,9 +33,16 @@ public static class EmailTemplate
     /// The snippet shown next to the subject in an inbox list. Left unset, clients grab the
     /// first words of the body, which is usually the greeting and tells the reader nothing.
     /// </param>
-    public static string Render(string heading, string preheader, string bodyHtml)
+    public static string Render(string heading, string preheader, string bodyHtml, string? assetBaseUrl = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(heading);
+
+        // Most clients block remote images until the reader allows them, so the mark is
+        // decoration and the wordmark beside it carries the identity. An alt of "" keeps a
+        // blocked image from announcing itself twice next to the text that follows.
+        var logo = assetBaseUrl is { Length: > 0 }
+            ? $"""<img src="{Escape(assetBaseUrl.TrimEnd('/'))}/email/logo.png" width="28" height="28" alt="" style="display:block;border:0;" />"""
+            : string.Empty;
 
         return $"""
             <!doctype html>
@@ -56,9 +63,14 @@ public static class EmailTemplate
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
                            style="max-width:520px;">
                       <tr>
-                        <td align="center" style="padding-bottom:28px;font-family:{FontStack};
-                                   font-size:17px;font-weight:600;letter-spacing:-0.01em;color:{Foreground};">
-                          SpaceCraft
+                        <td align="center" style="padding-bottom:28px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td style="padding-right:8px;">{logo}</td>
+                              <td style="font-family:{FontStack};font-size:17px;font-weight:600;
+                                         letter-spacing:-0.01em;color:{Foreground};">SpaceCraft</td>
+                            </tr>
+                          </table>
                         </td>
                       </tr>
                       <tr>
@@ -130,7 +142,7 @@ public static class EmailTemplate
     /// <summary>Builds both bodies at once, so they cannot drift apart.</summary>
     public static (string Text, string Html) Compose(
         string heading, string preheader, string[] paragraphs, (string Label, string Url)? action = null,
-        string? footnote = null)
+        string? footnote = null, string? assetBaseUrl = null)
     {
         var html = new StringBuilder();
         var text = new StringBuilder();
@@ -153,6 +165,6 @@ public static class EmailTemplate
             text.AppendLine(footnote);
         }
 
-        return (text.ToString().TrimEnd(), Render(heading, preheader, html.ToString()));
+        return (text.ToString().TrimEnd(), Render(heading, preheader, html.ToString(), assetBaseUrl));
     }
 }

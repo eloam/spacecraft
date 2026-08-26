@@ -168,4 +168,22 @@ export function formatRunDuration(run: {
   return rest === 0 ? `${minutes}m` : `${minutes}m ${rest}s`;
 }
 
+/**
+ * What a run is doing right now, as a phrase.
+ *
+ * "3/4 steps" says how far along a run is but not what it is waiting on, and the steps are
+ * not comparable: on a large spec, generating takes seconds while building takes minutes.
+ * Naming the running step is what tells someone whether to wait.
+ */
+export function describeRunProgress(run: {
+  steps: { kind: number; status: number }[];
+}): string {
+  const running = run.steps.find((s) => s.status === StepStatus.Running);
+  const settled = run.steps.filter((s) => isStepSettled(s.status)).length;
+
+  return running
+    ? `${stepKindLabel[running.kind]}… ${settled}/${run.steps.length}`
+    : `${settled}/${run.steps.length} steps`;
+}
+
 export type ArtifactDownload = Schemas["ArtifactDownloadResponse"];

@@ -7,6 +7,7 @@ namespace SpaceCraft.UnitTests;
 public class EmailTemplateTests
 {
     private const string Link = "https://app.spacecraft.sh/reset-password?token=abc123";
+    private const string Assets = "https://api.spacecraft.sh";
 
     [Fact]
     public void Every_message_carries_both_a_text_and_an_html_body()
@@ -90,6 +91,31 @@ public class EmailTemplateTests
             .TextBody.ShouldContain(expected);
 
     [Fact]
+    public void The_logo_is_an_absolute_url_with_an_empty_alt()
+    {
+        var html = Emails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann", Assets).HtmlBody!;
+
+        // Absolute, because a mail client resolves it from the reader's machine with no
+        // notion of the site it came from.
+        html.ShouldContain("https://api.spacecraft.sh/email/logo.png");
+
+        // alt="" on purpose: the wordmark sits beside it, and a described image would have
+        // a blocked-image placeholder announce the brand twice.
+        html.ShouldContain("alt=\"\"");
+    }
+
+    [Fact]
+    public void Without_an_asset_base_the_header_is_still_valid()
+    {
+        // The wordmark carries the identity, so a message composed without assets — or read
+        // with images blocked, which is the default in most clients — still looks deliberate.
+        var html = Emails.Welcome("you@example.com", "https://app.spacecraft.sh", null).HtmlBody!;
+
+        html.ShouldNotContain("<img");
+        html.ShouldContain("SpaceCraft");
+    }
+
+    [Fact]
     public void A_preheader_is_present_so_inboxes_do_not_show_the_first_sentence()
     {
         var html = Emails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1)).HtmlBody!;
@@ -107,9 +133,9 @@ public class EmailTemplateTests
 
         var samples = new (string Name, SpaceCraft.Api.Common.EmailMessage Message)[]
         {
-            ("reset", Emails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1))),
-            ("welcome", Emails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann")),
-            ("waitlist", Emails.WaitlistConfirmation("you@example.com", "https://api.spacecraft.sh/confirm?token=x")),
+            ("reset", Emails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1), Assets)),
+            ("welcome", Emails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann", Assets)),
+            ("waitlist", Emails.WaitlistConfirmation("you@example.com", "https://api.spacecraft.sh/confirm?token=x", Assets)),
         };
 
         foreach (var (name, message) in samples)

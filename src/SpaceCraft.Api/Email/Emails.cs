@@ -20,7 +20,7 @@ public static class Emails
         _ => $"{value.TotalMinutes:0} minutes",
     };
 
-    public static EmailMessage PasswordReset(string to, string link, TimeSpan lifetime)
+    public static EmailMessage PasswordReset(string to, string link, TimeSpan lifetime, string? assetBaseUrl = null)
     {
         var (text, html) = EmailTemplate.Compose(
             heading: "Reset your password",
@@ -32,12 +32,13 @@ public static class Emails
             ],
             action: ("Choose a new password", link),
             footnote: $"The link works once and expires in {Duration(lifetime)}. "
-                + "If this wasn't you, ignore this email — your password has not changed.");
+                + "If this wasn't you, ignore this email — your password has not changed.",
+            assetBaseUrl: assetBaseUrl);
 
         return new EmailMessage(to, "Reset your SpaceCraft password", text, html);
     }
 
-    public static EmailMessage Welcome(string to, string appUrl, string? displayName)
+    public static EmailMessage Welcome(string to, string appUrl, string? displayName, string? assetBaseUrl = null)
     {
         // The name is optional at registration, so the greeting has to work without it.
         var greeting = string.IsNullOrWhiteSpace(displayName)
@@ -56,12 +57,13 @@ public static class Emails
             ],
             action: ("Open SpaceCraft", appUrl),
             footnote: "You're receiving this because an account was created with this address. "
-                + "If it wasn't you, reply and let us know.");
+                + "If it wasn't you, reply and let us know.",
+            assetBaseUrl: assetBaseUrl);
 
         return new EmailMessage(to, "Welcome to SpaceCraft", text, html);
     }
 
-    public static EmailMessage WaitlistConfirmation(string to, string confirmUrl)
+    public static EmailMessage WaitlistConfirmation(string to, string confirmUrl, string? assetBaseUrl = null)
     {
         var (text, html) = EmailTemplate.Compose(
             heading: "Confirm your email",
@@ -73,7 +75,8 @@ public static class Emails
             ],
             action: ("Confirm my email", confirmUrl),
             footnote: "If you didn't request this, ignore this message — no account is created "
-                + "and we won't email you again.");
+                + "and we won't email you again.",
+            assetBaseUrl: assetBaseUrl);
 
         return new EmailMessage(to, "Confirm your SpaceCraft waitlist signup", text, html);
     }

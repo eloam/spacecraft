@@ -18,7 +18,6 @@ import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { useCreateOrganization, useOrganizations } from "@/api/queries";
 import { roleLabel } from "@/api/types";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
@@ -28,8 +27,6 @@ export function OrganizationsPage() {
 
   return (
     <div className="space-y-6">
-      <PageBreadcrumb crumbs={[{ label: "Organizations" }]} />
-
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Organizations</h1>

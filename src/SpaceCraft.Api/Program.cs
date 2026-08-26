@@ -79,6 +79,11 @@ else
 }
 
 app.UseRequestTimeouts();
+// Serves the email logo. Mail clients fetch images over plain HTTP from the recipient's
+// machine, with no session and no ability to follow a redirect to a login page, so these
+// assets have to be anonymous and static — which is all wwwroot contains.
+app.UseStaticFiles();
+
 app.UseCors(ApiServiceExtensions.SpaCorsPolicy);
 app.UseRateLimiter();
 app.UseAuthentication();
