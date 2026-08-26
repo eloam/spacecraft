@@ -115,6 +115,7 @@ export function ProjectSettingsPage() {
         }}
         title={`Delete ${project.data?.name ?? "this project"}?`}
         description="This removes the project and everything recorded under it."
+        confirmText={project.data?.name}
         consequences={[
           `${project.data?.specVersionCount ?? 0} uploaded spec version(s)`,
           `${project.data?.targets.length ?? 0} SDK target(s)`,
@@ -124,7 +125,8 @@ export function ProjectSettingsPage() {
         isPending={remove.isPending}
         error={deleteError}
         onConfirm={() =>
-          remove.mutate(projectId, {
+          project.data &&
+          remove.mutate({ projectId, name: project.data.name }, {
             onSuccess: () => {
               toast.success("Project deleted.");
               navigate(`/orgs/${orgId}`);

@@ -756,7 +756,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ConfirmByNameRequest"];
+                };
+            };
             responses: {
                 /** @description No Content */
                 204: {
@@ -900,7 +904,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ConfirmByNameRequest"];
+                };
+            };
             responses: {
                 /** @description No Content */
                 204: {
@@ -2000,6 +2008,9 @@ export interface components {
         };
         ChangeRoleRequest: {
             role: components["schemas"]["OrganizationRole"];
+        };
+        ConfirmByNameRequest: {
+            name: string;
         };
         CreateCredentialRequest: {
             registry: components["schemas"]["RegistryKind"];

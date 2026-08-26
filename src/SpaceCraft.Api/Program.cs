@@ -37,6 +37,7 @@ builder.Services.AddSpaceCraftCors(builder.Configuration);
 builder.Services.AddSpaceCraftRateLimiting(builder.Configuration);
 builder.Services.AddSpaceCraftPipeline(builder.Configuration, builder.Environment.IsDevelopment());
 
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<SpaceCraft.Api.Features.Deletion.ResourceDeleter>();
 builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.IsDevelopment());
 
@@ -84,6 +85,12 @@ app.UseRequestTimeouts();
 // machine, with no session and no ability to follow a redirect to a login page, so these
 // assets have to be anonymous and static — which is all wwwroot contains.
 app.UseStaticFiles();
+
+// Turns /organizations/acme-corp/... into its id form. UseRouting is called explicitly
+// straight after: without it the framework inserts routing at the top of the pipeline, the
+// endpoint is already chosen by the time this runs, and the rewrite changes nothing.
+app.UseMiddleware<SpaceCraft.Api.Common.SlugRouteMiddleware>();
+app.UseRouting();
 
 app.UseCors(ApiServiceExtensions.SpaCorsPolicy);
 app.UseRateLimiter();

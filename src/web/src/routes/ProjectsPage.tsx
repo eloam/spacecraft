@@ -56,7 +56,7 @@ export function ProjectsPage() {
         {data?.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((project) => (
-              <Link key={project.id} to={`/orgs/${orgId}/projects/${project.id}`} className="group">
+              <Link key={project.id} to={`/orgs/${orgId}/projects/${project.slug}`} className="group">
                 <Card className="h-full transition-colors group-hover:border-foreground/20">
                   <CardHeader>
                     <CardTitle className="truncate">{project.name}</CardTitle>

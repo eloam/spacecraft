@@ -1,3 +1,6 @@
+// Route params named orgId/projectId carry the *slug*, not the id: /orgs/acme-corp
+// reads better than a GUID and is what people paste to each other. The API accepts
+// either form, so links minted before this change still resolve.
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth";
 import { AppShell } from "@/components/layout/AppShell";

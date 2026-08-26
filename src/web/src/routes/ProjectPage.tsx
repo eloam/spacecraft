@@ -304,6 +304,9 @@ export function ProjectPage() {
         }}
         title="Delete this SDK target?"
         description="The target and the runs that produced it are removed."
+        confirmText={
+          project.data?.targets.find((t) => t.id === targetToDelete)?.packageName
+        }
         consequences={[
           "Runs for this target, with their artifacts and logs",
           "Packages already published stay in their registries",
@@ -312,7 +315,13 @@ export function ProjectPage() {
         error={deleteError}
         onConfirm={() =>
           targetToDelete &&
-          deleteTarget.mutate(targetToDelete, {
+          deleteTarget.mutate(
+            {
+              targetId: targetToDelete,
+              packageName:
+                project.data?.targets.find((t) => t.id === targetToDelete)?.packageName ?? "",
+            },
+            {
             onSuccess: () => {
               toast.success("SDK target deleted.");
               setTargetToDelete(null);

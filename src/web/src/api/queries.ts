@@ -193,8 +193,10 @@ export function useDeleteOrganization() {
 export function useDeleteProject(orgId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (projectId: string) =>
-      api.delete<void>(`/organizations/${orgId}/projects/${projectId}`),
+    // The name is typed back as confirmation and checked server-side too, so a caller that
+    // skips the dialog gets the same answer.
+    mutationFn: (input: { projectId: string; name: string }) =>
+      api.delete<void>(`/organizations/${orgId}/projects/${input.projectId}`, { name: input.name }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.projects(orgId) }),
   });
 }
@@ -202,8 +204,11 @@ export function useDeleteProject(orgId: string) {
 export function useDeleteTarget(orgId: string, projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (targetId: string) =>
-      api.delete<void>(`/organizations/${orgId}/projects/${projectId}/targets/${targetId}`),
+    mutationFn: (input: { targetId: string; packageName: string }) =>
+      api.delete<void>(
+        `/organizations/${orgId}/projects/${projectId}/targets/${input.targetId}`,
+        { name: input.packageName },
+      ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.project(orgId, projectId) }),
   });
 }

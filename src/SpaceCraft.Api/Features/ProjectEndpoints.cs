@@ -36,6 +36,12 @@ public sealed record ProjectResponse(
 
 public sealed record RenameProjectRequest(string Name);
 
+/// <summary>
+/// Typing the name back is the confirmation. Shared by project and target deletion so the
+/// two read identically, and named for what it is rather than for either one.
+/// </summary>
+public sealed record ConfirmByNameRequest(string Name);
+
 public static class ProjectEndpoints
 {
     public static RouteGroupBuilder MapProjectEndpoints(this RouteGroupBuilder api)
@@ -125,6 +131,7 @@ public static class ProjectEndpoints
     private static async Task<IResult> DeleteAsync(
         Guid organizationId,
         Guid projectId,
+        [FromBody] ConfirmByNameRequest request,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         IOrganizationAccess access,
@@ -138,12 +145,20 @@ public static class ProjectEndpoints
             return ApiResults.NotFoundOrForbidden();
         }
 
-        var exists = await db.ApiProjects
-            .AnyAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
+        var project = await db.ApiProjects
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
 
-        if (!exists)
+        if (project is null)
         {
             return ApiResults.NotFound("The project");
+        }
+
+        // Checked server-side as well as in the dialog: a confirmation the API does not
+        // enforce is decoration, and anything scripted against this endpoint skips the UI.
+        if (!string.Equals(request.Name?.Trim(), project.Name, StringComparison.Ordinal))
+        {
+            return ApiResults.Invalid(nameof(request.Name), $"Type the project's name exactly: {project.Name}");
         }
 
         if (await deleter.DeleteProjectAsync(projectId, ct) is { } refusal)
@@ -158,6 +173,7 @@ public static class ProjectEndpoints
         Guid organizationId,
         Guid projectId,
         Guid targetId,
+        [FromBody] ConfirmByNameRequest request,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         IOrganizationAccess access,
@@ -169,12 +185,19 @@ public static class ProjectEndpoints
             return ApiResults.NotFoundOrForbidden();
         }
 
-        var exists = await db.SdkTargets
-            .AnyAsync(t => t.Id == targetId && t.ApiProjectId == projectId, ct);
+        var target = await db.SdkTargets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == targetId && t.ApiProjectId == projectId, ct);
 
-        if (!exists)
+        if (target is null)
         {
             return ApiResults.NotFound("The SDK target");
+        }
+
+        if (!string.Equals(request.Name?.Trim(), target.PackageName, StringComparison.Ordinal))
+        {
+            return ApiResults.Invalid(
+                nameof(request.Name), $"Type the package name exactly: {target.PackageName}");
         }
 
         if (await deleter.DeleteTargetAsync(targetId, ct) is { } refusal)
