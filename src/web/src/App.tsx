@@ -15,7 +15,10 @@ import { ForgotPasswordPage } from "@/routes/ForgotPasswordPage";
 import { ResetPasswordPage } from "@/routes/ResetPasswordPage";
 import { OrganizationsPage } from "@/routes/OrganizationsPage";
 import { ProjectsPage } from "@/routes/ProjectsPage";
-import { ProjectPage } from "@/routes/ProjectPage";
+import { ProjectLayout } from "@/routes/project/ProjectLayout";
+import { ProjectSpecsPage } from "@/routes/project/ProjectSpecsPage";
+import { ProjectTargetsPage } from "@/routes/project/ProjectTargetsPage";
+import { ProjectRunsPage } from "@/routes/project/ProjectRunsPage";
 import { RunPage } from "@/routes/RunPage";
 import { CredentialsPage } from "@/routes/CredentialsPage";
 import type { ReactNode } from "react";
@@ -51,8 +54,12 @@ export default function App() {
         <Route path="/orgs/:orgId/publications" element={<PublicationsPage />} />
         <Route path="/orgs/:orgId/members" element={<MembersPage />} />
         <Route path="/orgs/:orgId/settings" element={<OrganizationSettingsPage />} />
-        <Route path="/orgs/:orgId/projects/:projectId/settings" element={<ProjectSettingsPage />} />
-        <Route path="/orgs/:orgId/projects/:projectId" element={<ProjectPage />} />
+        <Route path="/orgs/:orgId/projects/:projectId" element={<ProjectLayout />}>
+          <Route index element={<ProjectSpecsPage />} />
+          <Route path="targets" element={<ProjectTargetsPage />} />
+          <Route path="runs" element={<ProjectRunsPage />} />
+          <Route path="settings" element={<ProjectSettingsPage />} />
+        </Route>
         <Route path="/orgs/:orgId/runs/:runId" element={<RunPage />} />
       </Route>
 

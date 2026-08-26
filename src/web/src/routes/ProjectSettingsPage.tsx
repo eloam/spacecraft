@@ -9,13 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { DangerSection, SettingsSection } from "@/components/SettingsSections";
 import { NAME_MAX_LENGTH, NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { ApiError } from "@/api/client";
 import {
-  useDeleteProject, useOrganization, useProject, useRenameProject,
+  useDeleteProject, useProject, useRenameProject,
 } from "@/api/queries";
 
 const schema = z.object({
@@ -28,7 +27,6 @@ const schema = z.object({
 export function ProjectSettingsPage() {
   const { orgId = "", projectId = "" } = useParams();
   const navigate = useNavigate();
-  const organization = useOrganization(orgId);
   const project = useProject(orgId, projectId);
   const rename = useRenameProject(orgId, projectId);
   const remove = useDeleteProject(orgId);
@@ -66,20 +64,6 @@ export function ProjectSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageBreadcrumb
-        crumbs={[
-          { label: "Organizations", to: "/" },
-          { label: organization.data?.name ?? "Organization", to: `/orgs/${orgId}` },
-          { label: project.data?.name ?? "Project", to: `/orgs/${orgId}/projects/${projectId}` },
-          { label: "Settings" },
-        ]}
-      />
-
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Project settings</h1>
-        <p className="text-sm text-muted-foreground">Naming and removal for this project.</p>
-      </div>
-
       {project.isPending ? (
         <Skeleton className="h-48 w-full" />
       ) : (

@@ -41,9 +41,58 @@ public sealed class SlugRouteMiddleware(RequestDelegate next, IMemoryCache cache
             {
                 context.Request.Path = rewritten;
             }
+
+            await RewriteProjectQueryAsync(context, db, context.RequestAborted);
         }
 
         await next(context);
+    }
+
+    /// <summary>
+    /// Translates a ?projectId= slug the same way path segments are translated.
+    /// <para>
+    /// Endpoints that filter by project take the id as a query parameter, and a front end
+    /// routing on slugs has only the slug to hand. Without this the value fails to bind and
+    /// the request fails as a server error rather than a filter that found nothing.
+    /// </para>
+    /// </summary>
+    private async Task RewriteProjectQueryAsync(HttpContext context, SpaceCraftDbContext db, CancellationToken ct)
+    {
+        var raw = context.Request.Query["projectId"].ToString();
+
+        if (string.IsNullOrEmpty(raw) || Guid.TryParse(raw, out _))
+        {
+            return;
+        }
+
+        // The path has already been rewritten, so the organization segment is an id.
+        var segments = context.Request.Path.Value!.Split('/');
+
+        if (segments.Length < 5 || !Guid.TryParse(segments[4], out var organizationId))
+        {
+            return;
+        }
+
+        var resolved = await ResolveAsync(
+            $"proj:{organizationId}:{raw}",
+            () => db.ApiProjects
+                .AsNoTracking()
+                .Where(p => p.OrganizationId == organizationId && p.Slug == raw)
+                .Select(p => (Guid?)p.Id)
+                .FirstOrDefaultAsync(ct));
+
+        if (resolved is null)
+        {
+            return;
+        }
+
+        var query = context.Request.Query
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+
+        query["projectId"] = resolved.Value.ToString();
+
+        context.Request.QueryString = QueryString.Create(
+            query.SelectMany(pair => pair.Value.Select(v => new KeyValuePair<string, string?>(pair.Key, v))));
     }
 
     private async Task<string?> RewriteAsync(string path, SpaceCraftDbContext db, CancellationToken ct)
