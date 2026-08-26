@@ -33,10 +33,40 @@ public sealed class Organization : Entity
     public IReadOnlyCollection<OrganizationMember> Members => _members;
     public IReadOnlyCollection<ApiProject> Projects => _projects;
 
+    /// <summary>
+    /// Renames the organization and regenerates its slug to match.
+    /// <para>
+    /// The slug is the URL, so it follows the name rather than drifting away from it. The
+    /// cost is that links to the old slug stop resolving — which is why the name is
+    /// restricted to characters that slug predictably, and why the UI says so before saving.
+    /// </para>
+    /// </summary>
     public void Rename(string name)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        Name = name;
+        Name = ResourceName.Require(name);
+        Slug = Common.Slug.From(Name);
+        Touch();
+    }
+
+    /// <summary>
+    /// Renames one of this organization's projects, refusing a name that would collide with
+    /// another project's slug. Lives here because uniqueness is scoped to the organization,
+    /// and the project alone cannot see its siblings.
+    /// </summary>
+    public void RenameProject(Guid projectId, string name)
+    {
+        var project = _projects.SingleOrDefault(p => p.Id == projectId)
+            ?? throw new InvalidOperationException("Project is not part of this organization.");
+
+        var slug = Common.Slug.From(ResourceName.Require(name));
+
+        if (_projects.Any(p => p.Id != projectId && p.Slug == slug))
+        {
+            throw new InvalidOperationException(
+                $"Another project already uses the address '{slug}'.");
+        }
+
+        project.Rename(name);
         Touch();
     }
 

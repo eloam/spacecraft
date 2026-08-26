@@ -106,21 +106,32 @@ public static class ProjectEndpoints
 
         var name = request.Name?.Trim();
 
-        if (string.IsNullOrWhiteSpace(name))
+        if (!ResourceName.IsValid(name))
         {
-            return ApiResults.Invalid(nameof(request.Name), "A name is required.");
+            return ApiResults.Invalid(nameof(request.Name), ResourceName.Rule);
         }
 
-        var project = await db.ApiProjects
-            .Include(p => p.Targets)
-            .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
+        var organization = await db.Organizations
+            .Include(o => o.Projects)
+            .ThenInclude(p => p.Targets)
+            .FirstOrDefaultAsync(o => o.Id == organizationId, ct);
 
-        if (project is null)
+        var project = organization?.Projects.FirstOrDefault(p => p.Id == projectId);
+
+        if (organization is null || project is null)
         {
             return ApiResults.NotFound("The project");
         }
 
-        project.Rename(name);
+        try
+        {
+            organization.RenameProject(projectId, name!);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ApiResults.Conflict(ex.Message);
+        }
+
         await db.SaveChangesAsync(ct);
 
         var specCount = await db.SpecVersions.CountAsync(s => s.ApiProjectId == projectId, ct);
@@ -251,9 +262,9 @@ public static class ProjectEndpoints
             return ApiResults.NotFoundOrForbidden();
         }
 
-        if (string.IsNullOrWhiteSpace(request.Name))
+        if (!ResourceName.IsValid(request.Name))
         {
-            return ApiResults.Invalid(nameof(request.Name), "A name is required.");
+            return ApiResults.Invalid(nameof(request.Name), ResourceName.Rule);
         }
 
         string slug;

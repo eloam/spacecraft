@@ -12,13 +12,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { DangerSection, SettingsSection } from "@/components/SettingsSections";
+import { NAME_MAX_LENGTH, NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { ApiError } from "@/api/client";
 import {
   useDeleteOrganization, useOrganization, useProjects, useRenameOrganization,
 } from "@/api/queries";
 
 const schema = z.object({
-  name: z.string().min(1, "A name is required.").max(100, "Use 100 characters or fewer."),
+  name: z
+    .string()
+    .max(NAME_MAX_LENGTH, `Use ${NAME_MAX_LENGTH} characters or fewer.`)
+    .refine(isValidResourceName, NAME_RULE),
 });
 
 export function OrganizationSettingsPage() {
@@ -45,9 +49,21 @@ export function OrganizationSettingsPage() {
     }
   }, [organization.data, form]);
 
+  const currentSlug = organization.data?.slug ?? "";
+  const nextSlug = slugPreview(form.watch("name") || "") || currentSlug;
+  const slugWillChange = Boolean(currentSlug) && nextSlug !== currentSlug;
+
   const onSubmit = form.handleSubmit((values) =>
     rename.mutate(values.name, {
-      onSuccess: () => toast.success("Organization renamed."),
+      onSuccess: (updated) => {
+        toast.success("Organization renamed.");
+        // The slug moved with the name, so the address bar is now pointing at a slug that
+        // no longer resolves. Replace rather than push: the old URL is not somewhere to
+        // go back to.
+        if (updated.slug !== orgId) {
+          navigate(`/orgs/${updated.slug}/settings`, { replace: true });
+        }
+      },
       onError: (error) =>
         toast.error(error instanceof ApiError ? error.detail : "Could not rename the organization."),
     }),
@@ -85,13 +101,21 @@ export function OrganizationSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="slug">Slug</Label>
-                <Input id="slug" value={organization.data?.slug ?? ""} readOnly disabled />
-                <p className="text-xs text-muted-foreground">
-                  {/* Renaming deliberately leaves this alone: it is the stable handle, and
-                      silently repointing it would break anything referring to it. */}
-                  Fixed once created, so links and scripts that use it keep working.
-                </p>
+                <Label htmlFor="slug">Address</Label>
+                <Input id="slug" value={nextSlug} readOnly disabled className="font-mono text-sm" />
+                {slugWillChange ? (
+                  // Renaming moves the slug, and the slug is the URL. Saying so before the
+                  // click is the difference between a rename and a broken link someone
+                  // discovers later.
+                  <p className="text-xs text-destructive">
+                    Renaming changes this address. Existing links to{" "}
+                    <code className="font-mono">{currentSlug}</code> will stop working.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Derived from the name, and used in this organization&apos;s URL.
+                  </p>
+                )}
               </div>
 
               <Button type="submit" disabled={rename.isPending || !form.formState.isDirty}>

@@ -108,6 +108,13 @@ serverless job, a single-use pod — so steps run in-process and the toolchains 
 image), or `None` (no boundary; refused outside Development). The old boolean forced a
 deployment into a serverless job to look identical to switching safety off on a laptop.
 
+**Names are restricted so the URL is predictable.** Organizations and projects accept
+letters, numbers, spaces and hyphens; the slug is derived from the name and is what appears
+in the address. Allowing anything else means a name silently transliterates — "Café/Ürün 2.0"
+becoming `cafe-urun-2-0` — and the address stops being something the user chose. Renaming
+moves the slug with the name, so the two never drift apart; the settings page shows the new
+address before saving and says which links will break.
+
 **Build and publish are separated by design.** The build step runs with *no* registry
 credentials mounted and no network beyond the package registry, and `npm install` runs with
 `--ignore-scripts`. A malicious lifecycle script in a transitive dependency therefore has

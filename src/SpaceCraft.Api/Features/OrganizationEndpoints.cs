@@ -73,9 +73,9 @@ public static class OrganizationEndpoints
 
         var name = request.Name?.Trim();
 
-        if (string.IsNullOrWhiteSpace(name))
+        if (!ResourceName.IsValid(name))
         {
-            return ApiResults.Invalid(nameof(request.Name), "A name is required.");
+            return ApiResults.Invalid(nameof(request.Name), ResourceName.Rule);
         }
 
         var organization = await db.Organizations
@@ -87,7 +87,18 @@ public static class OrganizationEndpoints
             return ApiResults.NotFoundOrForbidden();
         }
 
-        organization.Rename(name);
+        organization.Rename(name!);
+
+        // Organization slugs are unique across the instance, so a rename can collide with
+        // someone else's — including an organization the caller cannot see.
+        var taken = await db.Organizations
+            .AnyAsync(o => o.Id != organizationId && o.Slug == organization.Slug, ct);
+
+        if (taken)
+        {
+            return ApiResults.Conflict($"Another organization already uses the address '{organization.Slug}'.");
+        }
+
         await db.SaveChangesAsync(ct);
 
         var role = organization.Members.First(m => m.UserId == principal.Id()).Role;
@@ -169,9 +180,9 @@ public static class OrganizationEndpoints
         SpaceCraftDbContext db,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
+        if (!ResourceName.IsValid(request.Name))
         {
-            return ApiResults.Invalid(nameof(request.Name), "A name is required.");
+            return ApiResults.Invalid(nameof(request.Name), ResourceName.Rule);
         }
 
         string slug;

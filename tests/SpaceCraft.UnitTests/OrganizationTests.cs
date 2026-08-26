@@ -52,21 +52,58 @@ public class OrganizationTests
     }
 
     [Fact]
-    public void Renaming_leaves_the_slug_alone()
+    public void Renaming_moves_the_slug_with_the_name()
     {
-        // The slug is the stable handle people put in links and scripts; repointing it on a
-        // rename would break them silently.
         var org = NewOrg(out _);
 
         org.Rename("Acme Corporation");
 
         org.Name.ShouldBe("Acme Corporation");
-        org.Slug.ShouldBe("acme-corp");
+        org.Slug.ShouldBe("acme-corporation");
     }
 
     [Fact]
     public void A_blank_name_is_refused() =>
         Should.Throw<ArgumentException>(() => NewOrg(out _).Rename("   "));
+
+    [Fact]
+    public void A_name_that_would_not_slug_cleanly_is_refused() =>
+        // Allowing it would produce an address the user never chose and cannot predict.
+        Should.Throw<ArgumentException>(() => NewOrg(out _).Rename("Café/Ürün"));
+
+    [Fact]
+    public void Renaming_a_project_moves_its_slug_too()
+    {
+        var org = NewOrg(out _);
+        var project = org.AddProject("Billing", "billing");
+
+        org.RenameProject(project.Id, "Billing API");
+
+        project.Name.ShouldBe("Billing API");
+        project.Slug.ShouldBe("billing-api");
+    }
+
+    [Fact]
+    public void A_rename_that_would_collide_with_a_sibling_is_refused()
+    {
+        // Project slugs are unique within an organization, and the slug is the URL: two
+        // projects cannot share one.
+        var org = NewOrg(out _);
+        var first = org.AddProject("Billing", "billing");
+        org.AddProject("Pet Store", "pet-store");
+
+        Should.Throw<InvalidOperationException>(() => org.RenameProject(first.Id, "Pet Store"))
+            .Message.ShouldContain("pet-store");
+    }
+
+    [Fact]
+    public void Renaming_a_project_to_its_own_name_is_not_a_collision()
+    {
+        var org = NewOrg(out _);
+        var project = org.AddProject("Billing", "billing");
+
+        Should.NotThrow(() => org.RenameProject(project.Id, "Billing"));
+    }
 
     [Fact]
     public void The_only_owner_cannot_be_demoted()
@@ -159,17 +196,6 @@ public class ApiProjectTests
         var spec = project.AddSpecVersion(id => $"specs/{id:N}.yaml", "hash", 100, SpecSource.Upload);
 
         spec.StorageKey.ShouldBe($"specs/{spec.Id:N}.yaml");
-    }
-
-    [Fact]
-    public void Renaming_a_project_leaves_its_slug_alone()
-    {
-        var project = NewOrg().AddProject("Billing", "billing");
-
-        project.Rename("  Billing API  ");
-
-        project.Name.ShouldBe("Billing API");
-        project.Slug.ShouldBe("billing");
     }
 
     [Fact]

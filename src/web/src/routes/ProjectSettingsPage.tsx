@@ -12,13 +12,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { DangerSection, SettingsSection } from "@/components/SettingsSections";
+import { NAME_MAX_LENGTH, NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { ApiError } from "@/api/client";
 import {
   useDeleteProject, useOrganization, useProject, useRenameProject,
 } from "@/api/queries";
 
 const schema = z.object({
-  name: z.string().min(1, "A name is required.").max(100, "Use 100 characters or fewer."),
+  name: z
+    .string()
+    .max(NAME_MAX_LENGTH, `Use ${NAME_MAX_LENGTH} characters or fewer.`)
+    .refine(isValidResourceName, NAME_RULE),
 });
 
 export function ProjectSettingsPage() {
@@ -43,9 +47,18 @@ export function ProjectSettingsPage() {
     }
   }, [project.data, form]);
 
+  const currentSlug = project.data?.slug ?? "";
+  const nextSlug = slugPreview(form.watch("name") || "") || currentSlug;
+  const slugWillChange = Boolean(currentSlug) && nextSlug !== currentSlug;
+
   const onSubmit = form.handleSubmit((values) =>
     rename.mutate(values.name, {
-      onSuccess: () => toast.success("Project renamed."),
+      onSuccess: (updated) => {
+        toast.success("Project renamed.");
+        if (updated.slug !== projectId) {
+          navigate(`/orgs/${orgId}/projects/${updated.slug}/settings`, { replace: true });
+        }
+      },
       onError: (error) =>
         toast.error(error instanceof ApiError ? error.detail : "Could not rename the project."),
     }),
@@ -82,11 +95,21 @@ export function ProjectSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="slug">Slug</Label>
-                <Input id="slug" value={project.data?.slug ?? ""} readOnly disabled />
-                <p className="text-xs text-muted-foreground">
-                  Fixed once created, so links and scripts that use it keep working.
-                </p>
+                <Label htmlFor="slug">Address</Label>
+                <Input id="slug" value={nextSlug} readOnly disabled className="font-mono text-sm" />
+                {slugWillChange ? (
+                  // Renaming moves the slug, and the slug is the URL. Saying so before the
+                  // click is the difference between a rename and a broken link someone
+                  // discovers later.
+                  <p className="text-xs text-destructive">
+                    Renaming changes this address. Existing links to{" "}
+                    <code className="font-mono">{currentSlug}</code> will stop working.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Derived from the name, and used in this project&apos;s URL.
+                  </p>
+                )}
               </div>
 
               <Button type="submit" disabled={rename.isPending || !form.formState.isDirty}>
