@@ -129,4 +129,43 @@ export function isTerminal(status: number): boolean {
   return status === RunStatus.Succeeded || status === RunStatus.Failed || status === RunStatus.Cancelled;
 }
 
+/**
+ * Steps that will not run again, whatever their outcome.
+ *
+ * Counting only Succeeded understates a finished run: a pipeline that was not asked to
+ * publish leaves that step Skipped, so a perfectly good run reported "3/4 steps" and read
+ * as though something had not completed.
+ */
+export function isStepSettled(status: number): boolean {
+  return status === StepStatus.Succeeded
+    || status === StepStatus.Failed
+    || status === StepStatus.Skipped;
+}
+
+/**
+ * How long a finished run took, as prose. Once a run is over, "4/4 steps" tells the reader
+ * nothing they cannot see from its status — the time it took is the useful number.
+ */
+export function formatRunDuration(run: {
+  startedAt: string | null;
+  completedAt: string | null;
+}): string {
+  if (!run.startedAt || !run.completedAt) {
+    return "—";
+  }
+
+  const seconds = Math.max(
+    0,
+    Math.round((new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()) / 1000),
+  );
+
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return rest === 0 ? `${minutes}m` : `${minutes}m ${rest}s`;
+}
+
 export type ArtifactDownload = Schemas["ArtifactDownloadResponse"];

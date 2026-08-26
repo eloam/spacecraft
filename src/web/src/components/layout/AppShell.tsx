@@ -21,13 +21,17 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b sticky top-0 z-30 bg-background/85 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
-          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:gap-4">
+          <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight">
             <Orbit className="size-5" aria-hidden />
-            SpaceCraft
+            {/* The wordmark is the first thing to go on a narrow screen: keeping it pushed
+                the account button off-screen entirely — 424px of content in a 375px viewport
+                — leaving no way to sign out on a phone. sr-only rather than hidden, so the
+                link keeps a name for assistive tech at every width. */}
+            <span className="sr-only sm:not-sr-only">SpaceCraft</span>
           </Link>
 
-          <nav className="ml-4 flex items-center gap-1 text-sm">
+          <nav className="flex min-w-0 items-center gap-1 text-sm">
             {/* shadcn's Button is built on Base UI, which composes via a `render` prop
                 rather than Radix's `asChild`. Applying the variants to the link directly
                 is simpler here and keeps router semantics intact. */}
@@ -46,7 +50,7 @@ export function AppShell() {
             )}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <ThemeToggle />
 
             <DropdownMenu>

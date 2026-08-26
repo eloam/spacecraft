@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Package, Play, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,10 @@ import {
   languageLabel,
   registryLabel,
   stepKindLabel,
+  runStatusLabel,
+  isTerminal,
+  isStepSettled,
+  formatRunDuration,
 } from "@/api/types";
 import { PageBreadcrumb } from "@/components/PageBreadcrumb";
 import { ApiError } from "@/api/client";
@@ -34,6 +38,7 @@ import { toast } from "sonner";
 
 export function ProjectPage() {
   const { orgId = "", projectId = "" } = useParams();
+  const navigate = useNavigate();
   const organization = useOrganization(orgId);
   const project = useProject(orgId, projectId);
   const specs = useSpecs(orgId, projectId);
@@ -183,22 +188,40 @@ export function ProjectPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {runs.data.map((run) => (
-                    <TableRow key={run.id}>
-                      <TableCell>
-                        <Link to={`/orgs/${orgId}/runs/${run.id}`}>
-                          <RunStatusBadge status={run.status} />
-                        </Link>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{run.resolvedVersion ?? "—"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {run.steps.filter((s) => s.status === 3).length}/{run.steps.length} steps
-                      </TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">
-                        {new Date(run.queuedAt).toLocaleString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {runs.data.map((run) => {
+                    const settled = run.steps.filter((s) => isStepSettled(s.status)).length;
+                    const queued = new Date(run.queuedAt);
+
+                    return (
+                      <TableRow
+                        key={run.id}
+                        // The whole row is the target for a mouse; the link inside keeps it
+                        // reachable by keyboard and nameable by a screen reader.
+                        className="cursor-pointer"
+                        onClick={() => navigate(`/orgs/${orgId}/runs/${run.id}`)}
+                      >
+                        <TableCell>
+                          <Link
+                            to={`/orgs/${orgId}/runs/${run.id}`}
+                            // Without this every row announced just "Succeeded", leaving
+                            // three identical links with nothing to choose between them.
+                            aria-label={`Run ${run.resolvedVersion ?? "without a version"}, ${runStatusLabel[run.status]}, queued ${queued.toLocaleString()}`}
+                          >
+                            <RunStatusBadge status={run.status} />
+                          </Link>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{run.resolvedVersion ?? "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {isTerminal(run.status)
+                            ? formatRunDuration(run)
+                            : `${settled}/${run.steps.length} steps`}
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          {queued.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             ) : (
