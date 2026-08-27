@@ -31,21 +31,27 @@ export function ContextNav({
   meta,
   tabs,
 }: {
-  title: ReactNode;
+  /** Optional: omit when the header above already names what these tabs act on. */
+  title?: ReactNode;
   meta?: ReactNode;
   tabs: ContextTab[];
 }) {
   const { pathname } = useLocation();
 
   return (
-    <div className="border-b bg-muted/30">
+    <div className="border-b bg-topbar">
       <div className="mx-auto max-w-6xl px-4">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-4 pb-3">
-          <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-          {meta}
-        </div>
+        {(title || meta) && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-4 pb-3">
+            {title && <h1 className="text-lg font-semibold tracking-tight">{title}</h1>}
+            {meta}
+          </div>
+        )}
 
-        <nav aria-label="Sections" className="-mb-px flex gap-1 overflow-x-auto">
+        <nav
+          aria-label="Sections"
+          className="-mb-px flex gap-1 overflow-x-auto pt-2"
+        >
           {tabs.map((tab) => (
             <NavLink
               key={tab.to}
@@ -53,7 +59,10 @@ export function ContextNav({
               end
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors",
+                  // first:pl-0 rather than a negative margin on the whole bar: both put the first
+                  // tab's icon on the page margin, but this one keeps its underline from starting
+                  // 12px to the left of everything else. The gap to the next tab is untouched.
+                  "flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors first:pl-0",
                   tab.matches?.(pathname) ?? isActive
                     ? "border-foreground font-medium text-foreground"
                     : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",

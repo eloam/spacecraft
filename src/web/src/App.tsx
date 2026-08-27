@@ -6,7 +6,10 @@ import { useAuthStore } from "@/stores/auth";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoginPage } from "@/routes/LoginPage";
 import { RegisterPage } from "@/routes/RegisterPage";
-import { AccountPage } from "@/routes/AccountPage";
+import { AccountLayout } from "@/routes/account/AccountLayout";
+import { AccountProfilePage } from "@/routes/account/AccountProfilePage";
+import { AccountSecurityPage } from "@/routes/account/AccountSecurityPage";
+import { AccountDangerPage } from "@/routes/account/AccountDangerPage";
 import { PublicationsPage } from "@/routes/PublicationsPage";
 import { MembersPage } from "@/routes/MembersPage";
 import { OrganizationSettingsPage } from "@/routes/OrganizationSettingsPage";
@@ -48,7 +51,11 @@ export default function App() {
         }
       >
         <Route path="/" element={<OrganizationsPage />} />
-        <Route path="/account" element={<AccountPage />} />
+        <Route path="/account" element={<AccountLayout />}>
+          <Route index element={<AccountProfilePage />} />
+          <Route path="security" element={<AccountSecurityPage />} />
+          <Route path="danger" element={<AccountDangerPage />} />
+        </Route>
         <Route path="/orgs/:orgId" element={<ProjectsPage />} />
         <Route path="/orgs/:orgId/credentials" element={<CredentialsPage />} />
         <Route path="/orgs/:orgId/publications" element={<PublicationsPage />} />

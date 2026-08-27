@@ -7,16 +7,15 @@ import { Separator } from "@/components/ui/separator";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge, StepStatusIcon } from "@/components/StatusBadge";
 import { api } from "@/api/client";
-import { useCancelRun, useOrganization, useRun, useStepLog } from "@/api/queries";
+import { useCancelRun, useRun, useStepLog } from "@/api/queries";
 import { StepStatus, isTerminal, stepKindLabel, stepStatusLabel } from "@/api/types";
 import type { ArtifactDownload } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
-import { PageBreadcrumb } from "@/components/PageBreadcrumb";
+import { BackLink } from "@/components/BackLink";
 
 export function RunPage() {
   const { orgId = "", runId = "" } = useParams();
-  const organization = useOrganization(orgId);
   const run = useRun(orgId, runId);
   const cancel = useCancelRun(orgId);
   const [openStep, setOpenStep] = useState<string | null>(null);
@@ -33,23 +32,21 @@ export function RunPage() {
 
   return (
     <div className="space-y-6">
-      {/* The run knows its project, so the trail can reach back through it rather than
-          jumping straight to the organization as the old back link did. */}
-      <PageBreadcrumb
-        crumbs={[
-          { label: "Organizations", to: "/" },
-          { label: organization.data?.name ?? "Organization", to: `/orgs/${orgId}` },
-          ...(run.data
-            ? [{
-                label: run.data.projectName ?? "Project",
-                to: `/orgs/${orgId}/projects/${run.data.apiProjectId}`,
-              }]
-            : []),
-          { label: "Run" },
-        ]}
-      />
-
+      {/* Same shape as a project page. The run knows its project, so it goes back to the
+          list this run was opened from — and only falls back to the organization while that
+          is still loading, where "All runs" would name a list it cannot yet link to. */}
       <div>
+        <BackLink
+          to={
+            run.data
+              ? `/orgs/${orgId}/projects/${run.data.apiProjectId}/runs`
+              : `/orgs/${orgId}`
+          }
+          className="mb-2"
+        >
+          {run.data ? "All runs" : "All projects"}
+        </BackLink>
+
         <h1 className="text-2xl font-semibold tracking-tight">Pipeline run</h1>
         <p className="font-mono text-xs text-muted-foreground">{runId}</p>
       </div>

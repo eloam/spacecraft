@@ -1,32 +1,19 @@
 import { useParams } from "react-router-dom";
-import { Building2, FolderGit2, KeyRound, Package, Settings, Users } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { FolderGit2, KeyRound, Package, Settings, Users } from "lucide-react";
 import { ContextNav } from "@/components/layout/ContextNav";
-import { useOrganization } from "@/api/queries";
-import { roleLabel } from "@/api/types";
 
-/** The organization's own sections, shown on every page scoped to it. */
+/**
+ * The organization's sections.
+ *
+ * No title of its own: the header above already reads "SpaceCraft / Acme Corp", and
+ * repeating the name here said it twice on every page.
+ */
 export function OrganizationNav() {
   const { orgId = "" } = useParams();
-  const organization = useOrganization(orgId);
-
   const base = `/orgs/${orgId}`;
 
   return (
     <ContextNav
-      title={
-        <span className="flex items-center gap-2">
-          <Building2 className="size-4 text-muted-foreground" aria-hidden />
-          {/* Falls back to the slug while loading: it is already in the URL, so showing it
-              keeps the header from jumping once the name arrives. */}
-          {organization.data?.name ?? orgId}
-        </span>
-      }
-      meta={
-        organization.data && (
-          <Badge variant="secondary">{roleLabel[organization.data.role] ?? "Member"}</Badge>
-        )
-      }
       tabs={[
         {
           label: "Projects",

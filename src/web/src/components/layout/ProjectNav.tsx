@@ -24,30 +24,36 @@ export function ProjectNav() {
   ];
 
   return (
-    // No negative bottom margin here: the border belongs to this element, not a parent it
-    // needs to overlap, and -mb-px would cancel the spacing the layout puts after it —
-    // Tailwind v4 spaces children with margin-block-end, which that overrides.
-    <nav aria-label="Project sections" className="flex gap-1 overflow-x-auto border-b">
-      {tabs.map((tab) => {
-        const active = tab.exact ? pathname === tab.to : pathname.startsWith(tab.to);
+    // The rule sits on the wrapper rather than the nav, so -mb-px can lift the active tab's
+    // underline over it instead of stacking the two. It is safe there: on the nav it cannot
+    // cancel the margin-block-end the layout puts after the wrapper, which is what it did
+    // when this element carried the border itself.
+    <div className="border-b">
+      <nav aria-label="Project sections" className="-mb-px flex gap-1 overflow-x-auto">
+        {tabs.map((tab) => {
+          const active = tab.exact ? pathname === tab.to : pathname.startsWith(tab.to);
 
-        return (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            end={tab.exact}
-            className={cn(
-              "flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors",
-              active
-                ? "border-foreground font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
-            )}
-          >
-            {tab.icon}
-            {tab.label}
-          </NavLink>
-        );
-      })}
-    </nav>
+          return (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.exact}
+              className={cn(
+                // first:pl-0 rather than a negative margin on the whole bar: both put the first
+                // tab's icon on the page margin, but this one keeps its underline from starting
+                // 12px to the left of everything else. The gap to the next tab is untouched.
+                "flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors first:pl-0",
+                active
+                  ? "border-foreground font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+            </NavLink>
+          );
+        })}
+      </nav>
+    </div>
   );
 }

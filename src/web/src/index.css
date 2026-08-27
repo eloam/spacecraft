@@ -39,6 +39,7 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    --color-topbar: var(--topbar);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -73,6 +74,23 @@
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
     --radius: 0.625rem;
+
+    /* The bars at the top of the app — the global one and the sections under it — share a
+       single surface so they read as one piece of chrome rather than two stacked strips.
+       Opaque rather than muted/30: the global bar is sticky, and a translucent one would
+       let the page scroll through it. Mixed rather than hand-picked so it keeps tracking
+       --muted and --background if either is retuned. */
+    --topbar: color-mix(in oklch, var(--muted) 30%, var(--background));
+
+    /* Source colours for the spec viewer. Kept at very low chroma so a document reads as
+       part of this greyscale interface rather than as an editor pasted into it — structure
+       comes mostly from weight, with just enough tone to separate keys from values.
+       --code-warning is the one severity the palette had no colour for: destructive covers
+       errors, muted covers information, and warnings sat between them with nothing. */
+    --code-key: oklch(0.36 0.06 265);
+    --code-string: oklch(0.44 0.05 155);
+    --code-atom: oklch(0.45 0.07 45);
+    --code-warning: oklch(0.62 0.11 75);
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -115,6 +133,11 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+    --code-key: oklch(0.78 0.07 265);
+    --code-string: oklch(0.76 0.06 155);
+    --code-atom: oklch(0.79 0.08 45);
+    --code-warning: oklch(0.78 0.1 75);
+
 }
 
 @layer base {
