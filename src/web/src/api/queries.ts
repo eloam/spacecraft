@@ -8,6 +8,8 @@ import type {
   Project,
   Run,
   SdkTarget,
+  SpecContent,
+  SpecDiagnostic,
   SpecUpload,
   SpecVersion,
   User,
@@ -26,6 +28,10 @@ export const keys = {
   project: (orgId: string, projectId: string) => ["organizations", orgId, "projects", projectId] as const,
   specs: (orgId: string, projectId: string) =>
     ["organizations", orgId, "projects", projectId, "specs"] as const,
+  specDiagnostics: (orgId: string, projectId: string, specId: string | null) =>
+    ["organizations", orgId, "projects", projectId, "specs", specId, "diagnostics"] as const,
+  specContent: (orgId: string, projectId: string, specId: string | null) =>
+    ["organizations", orgId, "projects", projectId, "specs", specId, "content"] as const,
   runs: (orgId: string, projectId?: string) =>
     ["organizations", orgId, "runs", projectId ?? "all"] as const,
   run: (orgId: string, runId: string) => ["organizations", orgId, "runs", runId] as const,
@@ -93,12 +99,6 @@ export type Member = {
   joinedAt: string;
 };
 
-export type SpecDiagnostic = {
-  severity: number;
-  message: string;
-  pointer: string | null;
-};
-
 export function usePublications(orgId: string, projectId?: string) {
   return useQuery({
     queryKey: ["publications", orgId, projectId ?? "all"],
@@ -112,13 +112,55 @@ export function usePublications(orgId: string, projectId?: string) {
 
 export function useSpecDiagnostics(orgId: string, projectId: string, specId: string | null) {
   return useQuery({
-    queryKey: ["diagnostics", orgId, projectId, specId],
+    queryKey: keys.specDiagnostics(orgId, projectId, specId),
     queryFn: () =>
       api.get<SpecDiagnostic[]>(
         `/organizations/${orgId}/projects/${projectId}/specs/${specId}/diagnostics`,
       ),
     // Only fetched when a spec is actually open: 413 findings is not a payload to prefetch.
     enabled: Boolean(orgId && projectId && specId),
+  });
+}
+
+/**
+ * The document a spec version was created from, so findings can be read against their source.
+ *
+ * Held for the session: it is immutable — a spec version's bytes never change — and it is the
+ * one payload here big enough that refetching it on a remount would be felt.
+ */
+export function useSpecContent(orgId: string, projectId: string, specId: string | null) {
+  return useQuery({
+    queryKey: keys.specContent(orgId, projectId, specId),
+    queryFn: () =>
+      api.get<SpecContent>(
+        `/organizations/${orgId}/projects/${projectId}/specs/${specId}/content`,
+      ),
+    enabled: Boolean(orgId && projectId && specId),
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+}
+
+/**
+ * Runs today's validator over a document validated by an older one.
+ *
+ * Everything the dialog shows is invalidated together: the findings change, and so do the
+ * counts and the declared versions on the specs table behind it.
+ */
+export function useRevalidateSpec(orgId: string, projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (specId: string) =>
+      api.post<SpecUpload>(
+        `/organizations/${orgId}/projects/${projectId}/specs/${specId}/revalidate`,
+        {},
+      ),
+    onSuccess: () => {
+      // One call covers all three: the diagnostics and content keys nest under the specs
+      // key, and React Query invalidates by prefix.
+      queryClient.invalidateQueries({ queryKey: keys.specs(orgId, projectId) });
+    },
   });
 }
 
@@ -172,6 +214,29 @@ export function useRenameProject(orgId: string, projectId: string) {
   return useMutation({
     mutationFn: (name: string) =>
       api.patch<Project>(`/organizations/${orgId}/projects/${projectId}`, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.project(orgId, projectId) });
+      queryClient.invalidateQueries({ queryKey: keys.projects(orgId) });
+    },
+  });
+}
+
+/**
+ * Turns the SDK-readiness checks on or off for a project.
+ *
+ * It changes what future validations conclude, not what past ones concluded: findings are
+ * written once and read back from the row, so existing spec versions keep theirs until they
+ * are revalidated.
+ */
+export function useSetStrictValidation(orgId: string, projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      api.put<Project>(
+        `/organizations/${orgId}/projects/${projectId}/strict-validation`,
+        { enabled },
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.project(orgId, projectId) });
       queryClient.invalidateQueries({ queryKey: keys.projects(orgId) });
@@ -398,7 +463,7 @@ export function useProject(orgId: string, projectId: string) {
 export function useCreateProject(orgId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { name: string; slug?: string }) =>
+    mutationFn: (input: { name: string; slug?: string; strictValidation?: boolean }) =>
       api.post<Project>(`/organizations/${orgId}/projects`, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.projects(orgId) });

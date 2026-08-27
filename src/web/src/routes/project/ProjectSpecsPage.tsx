@@ -4,7 +4,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SpecValidationBadge } from "@/routes/project/SpecValidationBadge";
-import { DiagnosticsDialog } from "@/routes/project/DiagnosticsDialog";
+import { SpecValidationDialog } from "@/routes/project/SpecValidationDialog";
 import { useSpecs } from "@/api/queries";
 
 /** Uploaded OpenAPI documents and what validation made of them. */
@@ -25,6 +25,8 @@ export function ProjectSpecsPage() {
                 <TableHead>#</TableHead>
                 <TableHead>API</TableHead>
                 <TableHead>Version</TableHead>
+                {/* The document's own format version, not the API's — "3.0.3", not "1.0". */}
+                <TableHead>OpenAPI</TableHead>
                 <TableHead>Validation</TableHead>
                 <TableHead className="text-right">Uploaded</TableHead>
               </TableRow>
@@ -35,18 +37,20 @@ export function ProjectSpecsPage() {
                   <TableCell className="font-mono text-xs">{spec.sequence}</TableCell>
                   <TableCell>{spec.apiTitle ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{spec.apiVersion ?? "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{spec.openApiVersion ?? "—"}</TableCell>
                   <TableCell>
-                    {spec.warningCount + spec.errorCount > 0 ? (
+                    {spec.informationCount + spec.warningCount + spec.errorCount > 0 ? (
                       // The count was a dead end: it told you something was wrong
                       // without any way to find out what.
                       <button
                         type="button"
                         onClick={() => setDiagnosticsFor(spec.id)}
                         className="cursor-pointer rounded-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                        aria-label={`Show ${spec.errorCount + spec.warningCount} validation findings`}
+                        aria-label={`Show ${spec.errorCount + spec.warningCount + spec.informationCount} validation findings`}
                       >
                         <SpecValidationBadge
                           status={spec.validationStatus}
+                          information={spec.informationCount}
                           warnings={spec.warningCount}
                           errors={spec.errorCount}
                         />
@@ -54,6 +58,7 @@ export function ProjectSpecsPage() {
                     ) : (
                       <SpecValidationBadge
                         status={spec.validationStatus}
+                        information={spec.informationCount}
                         warnings={spec.warningCount}
                         errors={spec.errorCount}
                       />
@@ -69,7 +74,7 @@ export function ProjectSpecsPage() {
         ) : null}
       </QueryBoundary>
 
-      <DiagnosticsDialog
+      <SpecValidationDialog
         orgId={orgId}
         projectId={projectId}
         specId={diagnosticsFor}

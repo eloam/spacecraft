@@ -17,6 +17,7 @@ export type SdkTarget = Schemas["TargetResponse"];
 export type SpecVersion = Schemas["SpecVersionResponse"];
 export type SpecUpload = Schemas["SpecUploadResponse"];
 export type SpecDiagnostic = Schemas["SpecDiagnostic"];
+export type SpecContent = Schemas["SpecContentResponse"];
 export type Run = Schemas["RunResponse"];
 export type RunStep = Schemas["StepResponse"];
 export type Credential = Schemas["CredentialResponse"];
@@ -68,6 +69,13 @@ export const RegistryKind = {
   Maven: 3,
   PyPI: 4,
   Packagist: 5,
+} as const;
+
+/** Mirrors SpaceCraft.Infrastructure.OpenApi.DiagnosticSeverity. */
+export const DiagnosticSeverity = {
+  Information: 0,
+  Warning: 1,
+  Error: 2,
 } as const;
 
 export const SpecValidationStatus = {

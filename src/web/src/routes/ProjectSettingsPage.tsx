@@ -9,12 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { DangerSection, SettingsSection } from "@/components/SettingsSections";
 import { NAME_MAX_LENGTH, NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { ApiError } from "@/api/client";
 import {
-  useDeleteProject, useProject, useRenameProject,
+  useDeleteProject, useProject, useRenameProject, useSetStrictValidation,
 } from "@/api/queries";
 
 const schema = z.object({
@@ -30,6 +31,7 @@ export function ProjectSettingsPage() {
   const project = useProject(orgId, projectId);
   const rename = useRenameProject(orgId, projectId);
   const remove = useDeleteProject(orgId);
+  const strict = useSetStrictValidation(orgId, projectId);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -100,6 +102,52 @@ export function ProjectSettingsPage() {
                 {rename.isPending ? "Saving…" : "Save changes"}
               </Button>
             </form>
+          </SettingsSection>
+
+          <SettingsSection
+            title="Validation"
+            description="What an uploaded document has to satisfy before an SDK is generated from it."
+          >
+            <div className="flex items-start justify-between gap-6">
+              <div className="max-w-lg space-y-1">
+                <Label htmlFor="strict" className="text-sm font-medium">
+                  Strict mode
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Beyond &ldquo;is this valid OpenAPI&rdquo;, check whether a usable SDK can
+                  come out of it: a base URL to call, method names that can be spelled,
+                  described responses, publishable metadata. A document that would produce a
+                  broken client is rejected instead of being built.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Turn it off for a specification you consume but do not own, where the
+                  findings are noise standing between you and a client that works.
+                </p>
+              </div>
+
+              <Switch
+                id="strict"
+                checked={project.data?.strictValidation ?? true}
+                disabled={strict.isPending}
+                onCheckedChange={(enabled) =>
+                  strict.mutate(enabled, {
+                    // Existing versions keep the findings they were given at upload, so the
+                    // change is not visible until each is revalidated. Saying so here beats
+                    // letting it be discovered as an inconsistency.
+                    onSuccess: () =>
+                      toast.success(
+                        enabled
+                          ? "Strict mode on. Revalidate a spec to apply it to what is already uploaded."
+                          : "Strict mode off. Revalidate a spec to apply it to what is already uploaded.",
+                      ),
+                    onError: (error) =>
+                      toast.error(
+                        error instanceof ApiError ? error.detail : "Could not change the setting.",
+                      ),
+                  })
+                }
+              />
+            </div>
           </SettingsSection>
 
           <DangerSection

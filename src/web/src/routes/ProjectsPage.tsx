@@ -5,6 +5,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -116,16 +117,20 @@ function CreateProjectDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [name, setName] = useState("");
+  // Offered here rather than only in settings: it decides what the first upload is told, and
+  // the first upload usually happens before anyone opens the settings page.
+  const [strictValidation, setStrictValidation] = useState(true);
   const create = useCreateProject(orgId);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     create.mutate(
-      { name },
+      { name, strictValidation },
       {
         onSuccess: (project) => {
           toast.success(`Created ${project.name}`);
           setName("");
+          setStrictValidation(true);
           onOpenChange(false);
         },
         onError: (err) =>
@@ -171,6 +176,26 @@ function CreateProjectDialog({
               <p className="text-xs text-muted-foreground">
                 Derived from the name, and unique within this organization.
               </p>
+            </div>
+
+            <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+              <div className="space-y-1">
+                <Label htmlFor="project-strict" className="text-sm font-medium">
+                  Strict validation
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Check that a usable SDK can come out of an uploaded document — a base URL to
+                  call, method names that can be spelled, described responses — and refuse the
+                  ones that would produce a broken client. Turn it off for a specification you
+                  consume but do not own.
+                </p>
+              </div>
+
+              <Switch
+                id="project-strict"
+                checked={strictValidation}
+                onCheckedChange={setStrictValidation}
+              />
             </div>
           </div>
 

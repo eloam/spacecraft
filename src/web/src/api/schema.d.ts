@@ -882,6 +882,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organizationId}/projects/{projectId}/strict-validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Turns the SDK-readiness checks on or off for this project. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizationId: string;
+                    projectId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StrictValidationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProjectResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organizationId}/projects/{projectId}/targets/{targetId}": {
         parameters: {
             query?: never;
@@ -1062,6 +1114,104 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organizationId}/projects/{projectId}/specs/{specVersionId}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the document as uploaded, for showing findings in context. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizationId: string;
+                    projectId: string;
+                    specVersionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SpecContentResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organizationId}/projects/{projectId}/specs/{specVersionId}/revalidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-runs validation over a stored document and replaces its findings. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizationId: string;
+                    projectId: string;
+                    specVersionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SpecUploadResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -2026,6 +2176,7 @@ export interface components {
         CreateProjectRequest: {
             name: string;
             slug: null | string;
+            strictValidation: null | boolean;
         };
         CreateRunRequest: {
             /** Format: uuid */
@@ -2118,6 +2269,7 @@ export interface components {
             slug: string;
             source: components["schemas"]["SpecSource"];
             gitHubRepository: null | string;
+            strictValidation: boolean;
             /** Format: int32 */
             specVersionCount: number;
             targets: components["schemas"]["TargetResponse"][];
@@ -2205,6 +2357,10 @@ export interface components {
             expiresAt: string;
             isCurrent: boolean;
         };
+        SpecContentResponse: {
+            content: string;
+            format: string;
+        };
         SpecDiagnostic: {
             severity: components["schemas"]["DiagnosticSeverity"];
             message: string;
@@ -2225,6 +2381,9 @@ export interface components {
             validationStatus: components["schemas"]["SpecValidationStatus"];
             apiTitle: null | string;
             apiVersion: null | string;
+            openApiVersion: null | string;
+            /** Format: int32 */
+            informationCount: number;
             /** Format: int32 */
             warningCount: number;
             /** Format: int32 */
@@ -2249,6 +2408,9 @@ export interface components {
             hasLog: boolean;
         };
         StepStatus: number;
+        StrictValidationRequest: {
+            enabled: boolean;
+        };
         TargetResponse: {
             /** Format: uuid */
             id: string;
