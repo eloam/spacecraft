@@ -68,6 +68,13 @@ public sealed class SpecVersion : Entity
     /// <summary>Diagnostics from the parser, stored as JSON.</summary>
     public string? Diagnostics { get; private set; }
 
+    /// <summary>
+    /// Findings that are neither wrong nor risky, only worth knowing. Counted separately so
+    /// a spec carrying hundreds of them still shows something to open, without claiming a
+    /// warning it does not have.
+    /// </summary>
+    public int InformationCount { get; private set; }
+
     public int WarningCount { get; private set; }
     public int ErrorCount { get; private set; }
 
@@ -76,6 +83,12 @@ public sealed class SpecVersion : Entity
 
     /// <summary>info.version from the document — the version the SDK inherits by default.</summary>
     public string? ApiVersion { get; private set; }
+
+    /// <summary>
+    /// The OpenAPI version the document declares, e.g. "3.0.3". Distinct from ApiVersion:
+    /// this one describes the contract's format, not the API it describes.
+    /// </summary>
+    public string? OpenApiVersion { get; private set; }
 
     /// <summary>Commit SHA that produced this spec, when it arrived via GitHub.</summary>
     public string? GitCommitSha { get; private set; }
@@ -90,6 +103,8 @@ public sealed class SpecVersion : Entity
         SpecValidationStatus status,
         string? apiTitle,
         string? apiVersion,
+        string? openApiVersion,
+        int informationCount,
         int warningCount,
         int errorCount,
         string? diagnosticsJson)
@@ -97,6 +112,8 @@ public sealed class SpecVersion : Entity
         ValidationStatus = status;
         ApiTitle = apiTitle;
         ApiVersion = apiVersion;
+        OpenApiVersion = openApiVersion;
+        InformationCount = informationCount;
         WarningCount = warningCount;
         ErrorCount = errorCount;
         Diagnostics = diagnosticsJson;

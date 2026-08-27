@@ -224,7 +224,7 @@ public class ApiProjectTests
         var project = NewOrg().AddProject("Billing", "billing");
         var spec = project.AddSpecVersion(id => $"{id:N}", "hash", 10, SpecSource.Upload);
 
-        spec.MarkValidated(SpecValidationStatus.Invalid, null, null, 0, 2, null);
+        spec.MarkValidated(SpecValidationStatus.Invalid, null, null, null, 0, 0, 2, null);
 
         spec.IsGeneratable.ShouldBeFalse();
     }
@@ -235,7 +235,7 @@ public class ApiProjectTests
         var project = NewOrg().AddProject("Billing", "billing");
         var spec = project.AddSpecVersion(id => $"{id:N}", "hash", 10, SpecSource.Upload);
 
-        spec.MarkValidated(SpecValidationStatus.ValidWithWarnings, "API", "1.0.0", 3, 0, null);
+        spec.MarkValidated(SpecValidationStatus.ValidWithWarnings, "API", "1.0.0", "3.0.3", 0, 3, 0, null);
 
         spec.IsGeneratable.ShouldBeTrue();
     }

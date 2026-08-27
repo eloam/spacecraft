@@ -10,7 +10,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features;
 
-public sealed record CreateProjectRequest(string Name, string? Slug);
+/// <summary>
+/// <paramref name="StrictValidation"/> is nullable so that omitting it means "whatever the
+/// default is" rather than "off" — a caller that predates the option should not silently
+/// create projects without it.
+/// </summary>
+public sealed record CreateProjectRequest(string Name, string? Slug, bool? StrictValidation);
 
 public sealed record AddTargetRequest(SdkLanguage Language, string PackageName, RegistryKind? Registry, bool AutoPublish);
 
@@ -30,11 +35,14 @@ public sealed record ProjectResponse(
     string Slug,
     SpecSource Source,
     string? GitHubRepository,
+    bool StrictValidation,
     int SpecVersionCount,
     IReadOnlyList<TargetResponse> Targets,
     DateTimeOffset CreatedAt);
 
 public sealed record RenameProjectRequest(string Name);
+
+public sealed record StrictValidationRequest(bool Enabled);
 
 /// <summary>
 /// Typing the name back is the confirmation. Shared by project and target deletion so the
@@ -71,6 +79,11 @@ public static class ProjectEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Adds an SDK target to a project.");
 
+        group.MapPut("/{projectId:guid}/strict-validation", SetStrictValidationAsync)
+            .Produces<ProjectResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Turns the SDK-readiness checks on or off for this project.");
+
         group.MapPatch("/{projectId:guid}", RenameAsync)
             .Produces<ProjectResponse>()
             .ProducesValidationProblem()
@@ -87,6 +100,45 @@ public static class ProjectEndpoints
             .WithSummary("Deletes an SDK target and the runs that produced it.");
 
         return api;
+    }
+
+    /// <summary>
+    /// Turns the SDK-readiness checks on or off.
+    ///
+    /// It only changes what future validations conclude — findings are written once and read
+    /// back from the row, so existing spec versions keep what they were told until they are
+    /// revalidated. Saying so is the revalidate endpoint's job, not this one's.
+    /// </summary>
+    private static async Task<IResult> SetStrictValidationAsync(
+        Guid organizationId,
+        Guid projectId,
+        [FromBody] StrictValidationRequest request,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        CancellationToken ct)
+    {
+        // Member, like renaming: reversible, and it publishes nothing.
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var project = await db.ApiProjects
+            .Include(p => p.Targets)
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
+
+        if (project is null)
+        {
+            return ApiResults.NotFound("The project");
+        }
+
+        project.SetStrictValidation(request.Enabled);
+        await db.SaveChangesAsync(ct);
+
+        var specCount = await db.SpecVersions.CountAsync(s => s.ApiProjectId == projectId, ct);
+
+        return TypedResults.Ok(ToResponse(project, specCount));
     }
 
     private static async Task<IResult> RenameAsync(
@@ -298,6 +350,11 @@ public static class ProjectEndpoints
         try
         {
             project = organization.AddProject(request.Name.Trim(), slug);
+
+            if (request.StrictValidation is { } strict)
+            {
+                project.SetStrictValidation(strict);
+            }
         }
         catch (InvalidOperationException ex)
         {
@@ -411,6 +468,7 @@ public static class ProjectEndpoints
             project.Slug,
             project.Source,
             project.GitHubRepository,
+            project.StrictValidation,
             specVersionCount,
             project.Targets.Select(ToTargetResponse).ToList(),
             project.CreatedAt);

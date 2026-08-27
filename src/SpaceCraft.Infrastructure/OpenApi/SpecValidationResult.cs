@@ -4,6 +4,13 @@ namespace SpaceCraft.Infrastructure.OpenApi;
 
 public enum DiagnosticSeverity
 {
+    /// <summary>
+    /// Worth telling the operator, but nothing is wrong: the document is valid and the SDK
+    /// it produces is usable. Numbered 0 so the existing Warning and Error values — already
+    /// serialised into stored diagnostics — keep meaning what they meant.
+    /// </summary>
+    Information = 0,
+
     Warning = 1,
     Error = 2,
 }
@@ -15,9 +22,17 @@ public sealed record SpecValidationResult(
     SpecValidationStatus Status,
     string? ApiTitle,
     string? ApiVersion,
+    /// <summary>
+    /// The OpenAPI version the document declares — "3.0.3", not the API's own version.
+    /// It decides what a generator has to cope with (3.1 moves to JSON Schema 2020-12), so
+    /// it belongs next to the document rather than buried in it.
+    /// </summary>
+    string? OpenApiVersion,
     IReadOnlyList<SpecDiagnostic> Diagnostics,
     int OperationCount)
 {
+    public int InformationCount => Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Information);
+
     public int WarningCount => Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
 
     public int ErrorCount => Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
@@ -25,7 +40,7 @@ public sealed record SpecValidationResult(
     public bool IsGeneratable => Status is SpecValidationStatus.Valid or SpecValidationStatus.ValidWithWarnings;
 
     public static SpecValidationResult Invalid(params SpecDiagnostic[] diagnostics) =>
-        new(SpecValidationStatus.Invalid, null, null, diagnostics, 0);
+        new(SpecValidationStatus.Invalid, null, null, null, diagnostics, 0);
 }
 
 public interface ISpecValidator
@@ -34,5 +49,13 @@ public interface ISpecValidator
     /// Parses and policy-checks a document. Never throws on malformed input — a bad spec
     /// is an expected outcome that becomes an <see cref="SpecValidationStatus.Invalid"/> result.
     /// </summary>
-    Task<SpecValidationResult> ValidateAsync(Stream content, string fileName, CancellationToken ct = default);
+    /// <param name="strict">
+    /// Also apply <see cref="StrictSdkPolicy"/> — the checks that decide whether a usable SDK
+    /// can come out — and treat the parser's own warnings as errors.
+    /// </param>
+    Task<SpecValidationResult> ValidateAsync(
+        Stream content,
+        string fileName,
+        bool strict = false,
+        CancellationToken ct = default);
 }

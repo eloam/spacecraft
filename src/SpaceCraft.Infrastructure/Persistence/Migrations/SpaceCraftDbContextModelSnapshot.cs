@@ -228,64 +228,6 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                     b.ToTable("organization_members", "spacecraft");
                 });
 
-            modelBuilder.Entity("SpaceCraft.Domain.Organizations.WaitlistEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("ConfirmationTokenHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("confirmation_token_hash");
-
-                    b.Property<DateTimeOffset?>("ConfirmedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("confirmed_at");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)")
-                        .HasColumnName("email");
-
-                    b.Property<string>("IpHash")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("ip_hash");
-
-                    b.Property<bool>("IsConfirmed")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_confirmed");
-
-                    b.Property<string>("Source")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("source");
-
-                    b.Property<DateTimeOffset?>("UnsubscribedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("unsubscribed_at");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_waitlist_entries");
-
-                    b.HasIndex("Email")
-                        .IsUnique()
-                        .HasDatabaseName("ix_waitlist_entries_email");
-
-                    b.ToTable("waitlist_entries", "spacecraft");
-                });
-
             modelBuilder.Entity("SpaceCraft.Domain.Pipelines.PipelineRun", b =>
                 {
                     b.Property<Guid>("Id")
@@ -499,6 +441,10 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("source");
 
+                    b.Property<bool>("StrictValidation")
+                        .HasColumnType("boolean")
+                        .HasColumnName("strict_validation");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -618,6 +564,14 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)")
                         .HasColumnName("git_commit_sha");
+
+                    b.Property<int>("InformationCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("information_count");
+
+                    b.Property<string>("OpenApiVersion")
+                        .HasColumnType("text")
+                        .HasColumnName("open_api_version");
 
                     b.Property<int>("Sequence")
                         .HasColumnType("integer")
@@ -796,6 +750,64 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_registry_credentials_organization_id_registry");
 
                     b.ToTable("registry_credentials", "spacecraft");
+                });
+
+            modelBuilder.Entity("SpaceCraft.Domain.Waitlist.WaitlistEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ConfirmationTokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("confirmation_token_hash");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("IpHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("ip_hash");
+
+                    b.Property<bool>("IsConfirmed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_confirmed");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("source");
+
+                    b.Property<DateTimeOffset?>("UnsubscribedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("unsubscribed_at");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_waitlist_entries");
+
+                    b.HasIndex("Email")
+                        .IsUnique()
+                        .HasDatabaseName("ix_waitlist_entries_email");
+
+                    b.ToTable("waitlist_entries", "spacecraft");
                 });
 
             modelBuilder.Entity("SpaceCraft.Infrastructure.Identity.PasswordResetToken", b =>

@@ -62,6 +62,25 @@ public sealed class ApiProject : Entity
     /// <summary>Branch watched for spec changes.</summary>
     public string? GitHubBranch { get; private set; }
 
+    /// <summary>
+    /// Whether uploads are held to the checks that decide whether a usable SDK can come out,
+    /// on top of "is this valid OpenAPI".
+    ///
+    /// On by default: a project exists here to publish an SDK, so a document that cannot
+    /// produce a working one should say so at upload rather than after a build. It is per
+    /// project because the answer differs — a spec you own can be fixed, one you only consume
+    /// cannot, and there the checks are noise standing between you and a usable client.
+    /// </summary>
+    public bool StrictValidation { get; private set; } = true;
+
+    public void SetStrictValidation(bool enabled)
+    {
+        if (StrictValidation == enabled) return;
+
+        StrictValidation = enabled;
+        Touch();
+    }
+
     public IReadOnlyCollection<SpecVersion> SpecVersions => _specVersions;
     public IReadOnlyCollection<SdkTarget> Targets => _targets;
 

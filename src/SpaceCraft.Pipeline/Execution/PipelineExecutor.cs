@@ -130,7 +130,14 @@ public sealed class PipelineExecutor(
         await db.SaveChangesAsync(ct);
 
         await using var stream = File.OpenRead(workspace.HostPath(RunWorkspace.SpecRelativePath(specFileName)));
-        var result = await specValidator.ValidateAsync(stream, specFileName, ct);
+        // The project's own setting, so a run validates a document exactly the way its
+        // upload did rather than by a second, looser standard.
+        var strict = await db.ApiProjects
+            .Where(p => p.Id == spec.ApiProjectId)
+            .Select(p => p.StrictValidation)
+            .FirstOrDefaultAsync(ct);
+
+        var result = await specValidator.ValidateAsync(stream, specFileName, strict, ct);
 
         var log = string.Join('\n', result.Diagnostics.Select(d =>
             $"[{d.Severity.ToString().ToLowerInvariant()}] {d.JsonPointer ?? "-"} {d.Message}"));
@@ -183,12 +190,14 @@ public sealed class PipelineExecutor(
         run.SetResolvedVersion(resolvedVersion);
 
         spec.MarkValidated(
-            result.Status,
-            result.ApiTitle,
-            result.ApiVersion,
-            result.WarningCount,
-            result.ErrorCount,
-            System.Text.Json.JsonSerializer.Serialize(result.Diagnostics));
+            status: result.Status,
+            apiTitle: result.ApiTitle,
+            apiVersion: result.ApiVersion,
+            openApiVersion: result.OpenApiVersion,
+            informationCount: result.InformationCount,
+            warningCount: result.WarningCount,
+            errorCount: result.ErrorCount,
+            diagnosticsJson: System.Text.Json.JsonSerializer.Serialize(result.Diagnostics));
 
         step.Succeed(logKey);
         await db.SaveChangesAsync(ct);

@@ -17,11 +17,20 @@ public sealed record SpecVersionResponse(
     SpecValidationStatus ValidationStatus,
     string? ApiTitle,
     string? ApiVersion,
+    string? OpenApiVersion,
+    int InformationCount,
     int WarningCount,
     int ErrorCount,
     long SizeInBytes,
     SpecSource Source,
     DateTimeOffset CreatedAt);
+
+/// <summary>
+/// The document as uploaded, so findings can be shown against the source they came from.
+/// Served through the API rather than as a presigned URL: it saves a CORS policy on the
+/// bucket, and the upload cap already bounds what this can return.
+/// </summary>
+public sealed record SpecContentResponse(string Content, string Format);
 
 public sealed record SpecUploadResponse(
     SpecVersionResponse SpecVersion,
@@ -50,6 +59,16 @@ public static class SpecEndpoints
             .Produces<List<SpecDiagnostic>>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Returns the validation findings recorded when the spec was uploaded.");
+
+        group.MapGet("/{specVersionId:guid}/content", GetContentAsync)
+            .Produces<SpecContentResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Returns the document as uploaded, for showing findings in context.");
+
+        group.MapPost("/{specVersionId:guid}/revalidate", RevalidateAsync)
+            .Produces<SpecUploadResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Re-runs validation over a stored document and replaces its findings.");
 
         group.MapPost("/", UploadAsync)
             .Produces<SpecUploadResponse>(StatusCodes.Status201Created)
@@ -108,9 +127,14 @@ public static class SpecEndpoints
             return ApiResults.NotFoundOrForbidden();
         }
 
+        // The organization is part of the lookup, not just of the permission check: without
+        // it, a viewer of one organization could pass their own id with another's project id
+        // and read findings they have no access to.
         var stored = await db.SpecVersions
             .AsNoTracking()
-            .Where(s => s.Id == specVersionId && s.ApiProjectId == projectId)
+            .Where(s => s.Id == specVersionId
+                        && s.ApiProjectId == projectId
+                        && db.ApiProjects.Any(p => p.Id == projectId && p.OrganizationId == organizationId))
             .Select(s => s.Diagnostics)
             .FirstOrDefaultAsync(ct);
 
@@ -122,6 +146,126 @@ public static class SpecEndpoints
         var diagnostics = System.Text.Json.JsonSerializer.Deserialize<List<SpecDiagnostic>>(stored) ?? [];
 
         return TypedResults.Ok(diagnostics);
+    }
+
+    private static async Task<IResult> GetContentAsync(
+        Guid organizationId,
+        Guid projectId,
+        Guid specVersionId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        IObjectStorage storage,
+        CancellationToken ct)
+    {
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var storageKey = await db.SpecVersions
+            .AsNoTracking()
+            .Where(s => s.Id == specVersionId
+                        && s.ApiProjectId == projectId
+                        && db.ApiProjects.Any(p => p.Id == projectId && p.OrganizationId == organizationId))
+            .Select(s => s.StorageKey)
+            .FirstOrDefaultAsync(ct);
+
+        if (storageKey is null)
+        {
+            return ApiResults.NotFound("The specification version");
+        }
+
+        if (!await storage.ExistsAsync(storageKey, ct))
+        {
+            // The row outlived its object — a bucket wiped between environments, say. Saying
+            // so beats handing back an empty document that reads as a spec with no content.
+            return ApiResults.NotFound("The stored document");
+        }
+
+        var content = await storage.GetTextAsync(storageKey, ct);
+
+        // The extension is fixed at upload, so it is the document's own format rather than a
+        // guess made by sniffing the text.
+        var format = Path.GetExtension(storageKey).ToLowerInvariant() is ".json" ? "json" : "yaml";
+
+        return TypedResults.Ok(new SpecContentResponse(content, format));
+    }
+
+    /// <summary>
+    /// Runs today's validator over a document validated by an older one.
+    ///
+    /// Findings are written once, at upload, and read back from the row — so a spec keeps
+    /// whatever the rules said on the day it arrived. Every change to those rules would
+    /// otherwise apply only to documents uploaded afterwards, and re-uploading the same file
+    /// is no way out: identical bytes are recognised as a duplicate and skip validation
+    /// entirely. This is the way to bring an existing version up to date.
+    ///
+    /// It deliberately does not trigger runs. Nothing about the contract changed, only what
+    /// we noticed about it, and republishing a package on that basis would be wrong.
+    /// </summary>
+    private static async Task<IResult> RevalidateAsync(
+        Guid organizationId,
+        Guid projectId,
+        Guid specVersionId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        ISpecValidator validator,
+        IObjectStorage storage,
+        CancellationToken ct)
+    {
+        // Member, not Viewer: this rewrites what the project records about a document.
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var project = await db.ApiProjects
+            .Include(p => p.SpecVersions)
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
+
+        var specVersion = project?.SpecVersions.FirstOrDefault(s => s.Id == specVersionId);
+
+        if (project is null || specVersion is null)
+        {
+            return ApiResults.NotFound("The specification version");
+        }
+
+        if (!await storage.ExistsAsync(specVersion.StorageKey, ct))
+        {
+            return ApiResults.NotFound("The stored document");
+        }
+
+        // Buffered rather than validated straight off the storage stream: that one cannot
+        // seek, and reading the declared OpenAPI version means going back to the top of the
+        // document after the parser has run through it. Upload buffers for the same reason.
+        using var buffer = new MemoryStream();
+        await using (var stored = await storage.GetAsync(specVersion.StorageKey, ct))
+        {
+            await stored.CopyToAsync(buffer, ct);
+        }
+
+        buffer.Position = 0;
+
+        // The validator picks its reader from the extension, and the storage key carries the
+        // one the document was uploaded with.
+        var validation = await validator.ValidateAsync(
+            buffer, specVersion.StorageKey, project.StrictValidation, ct);
+
+        specVersion.MarkValidated(
+            status: validation.Status,
+            apiTitle: validation.ApiTitle,
+            apiVersion: validation.ApiVersion,
+            openApiVersion: validation.OpenApiVersion,
+            informationCount: validation.InformationCount,
+            warningCount: validation.WarningCount,
+            errorCount: validation.ErrorCount,
+            diagnosticsJson: System.Text.Json.JsonSerializer.Serialize(validation.Diagnostics));
+
+        await db.SaveChangesAsync(ct);
+
+        return TypedResults.Ok(new SpecUploadResponse(ToResponse(specVersion), validation.Diagnostics, []));
     }
 
     private static async Task<IResult> UploadAsync(
@@ -187,7 +331,7 @@ public static class SpecEndpoints
         }
 
         buffer.Position = 0;
-        var validation = await validator.ValidateAsync(buffer, file.FileName, ct);
+        var validation = await validator.ValidateAsync(buffer, file.FileName, project.StrictValidation, ct);
 
         var specVersion = project.AddSpecVersion(
             storageKeyFactory: id => StorageKeys.Spec(organizationId, projectId, id, extension),
@@ -203,12 +347,14 @@ public static class SpecEndpoints
             ct);
 
         specVersion.MarkValidated(
-            validation.Status,
-            validation.ApiTitle,
-            validation.ApiVersion,
-            validation.WarningCount,
-            validation.ErrorCount,
-            System.Text.Json.JsonSerializer.Serialize(validation.Diagnostics));
+            status: validation.Status,
+            apiTitle: validation.ApiTitle,
+            apiVersion: validation.ApiVersion,
+            openApiVersion: validation.OpenApiVersion,
+            informationCount: validation.InformationCount,
+            warningCount: validation.WarningCount,
+            errorCount: validation.ErrorCount,
+            diagnosticsJson: System.Text.Json.JsonSerializer.Serialize(validation.Diagnostics));
 
         // Auto-publish targets get a run immediately — this is the "zero friction from
         // commit to publish" path. Everything else waits for an explicit trigger.
@@ -244,6 +390,8 @@ public static class SpecEndpoints
             s.ValidationStatus,
             s.ApiTitle,
             s.ApiVersion,
+            s.OpenApiVersion,
+            s.InformationCount,
             s.WarningCount,
             s.ErrorCount,
             s.SizeInBytes,
