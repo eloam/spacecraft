@@ -48,6 +48,8 @@ builder.Services.AddDataProtection()
     .SetApplicationName("spacecraft");
 
 builder.Services.AddProblemDetails();
+// Runs before the default handler, which would answer 500 to a request the caller malformed.
+builder.Services.AddExceptionHandler<SpaceCraft.Api.Common.BadRequestExceptionHandler>();
 builder.Services.AddRequestTimeouts();
 builder.Services.AddOpenApi(options => options.AddSchemaTransformer<NumericSchemaTransformer>());
 
