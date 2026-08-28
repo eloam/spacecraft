@@ -33,6 +33,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SpecFindingCounts } from "@/routes/project/SpecFindingCounts";
 import { SpecValidationDialog } from "@/routes/project/SpecValidationDialog";
 import { SpecDiffDialog } from "@/routes/project/SpecDiffDialog";
+import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/api/client";
 import { useDeleteSpec, usePublications, useSpecs } from "@/api/queries";
@@ -44,26 +45,6 @@ function fileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-/**
- * "2 days ago" rather than a timestamp: this column is scanned for recency, not read for a
- * precise moment. The exact value stays on the title attribute for when it is.
- */
-function timeAgo(iso: string) {
-  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  const units: [Intl.RelativeTimeFormatUnit, number][] = [
-    ["second", 60], ["minute", 60], ["hour", 24], ["day", 30], ["month", 12], ["year", Infinity],
-  ];
-
-  let value = seconds;
-  for (const [unit, size] of units) {
-    if (Math.abs(value) < size) {
-      return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(-value, unit);
-    }
-    value = Math.round(value / size);
-  }
-  return new Date(iso).toLocaleDateString();
 }
 
 type Filter = "all" | "valid" | "warnings" | "errors";

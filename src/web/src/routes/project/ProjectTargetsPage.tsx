@@ -1,78 +1,290 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Package, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Hand, Layers, MoreHorizontal, Package, Plus, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { AddTargetDialog } from "@/routes/project/AddTargetDialog";
 import { ApiError } from "@/api/client";
-import { useDeleteTarget, useProject } from "@/api/queries";
-import { languageLabel, registryLabel } from "@/api/types";
+import { useDeleteTarget, useProject, usePublications } from "@/api/queries";
+import { PublicationStatus, languageLabel, registryLabel } from "@/api/types";
+import type { SdkTarget } from "@/api/types";
+import { timeAgo } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+/**
+ * The one thing that tells two rows apart at a glance, since every other cell is words.
+ * Brand hues rather than theme tokens: they carry the same meaning in either theme, and a
+ * palette drawn from the theme would give six languages six shades of the same colour.
+ */
+const languageColor: Record<number, string> = {
+  1: "bg-[#3178c6]", // TypeScript
+  2: "bg-[#8a51a5]", // C#
+  3: "bg-[#e76f00]", // Java
+  4: "bg-[#ffd43b]", // Python
+  5: "bg-[#787cb5]", // PHP
+  6: "bg-[#00add8]", // Go
+};
+
+type Filter = "all" | "automatic" | "manual";
+
+/** The same icons the publishing column uses, so a filter and what it selects look alike. */
+const filters: {
+  id: Filter;
+  label: string;
+  Icon: typeof Layers;
+  matches: (t: SdkTarget) => boolean;
+}[] = [
+  { id: "all", label: "All", Icon: Layers, matches: () => true },
+  { id: "automatic", label: "Automatic", Icon: Zap, matches: (t) => t.autoPublish },
+  { id: "manual", label: "Manual", Icon: Hand, matches: (t) => !t.autoPublish },
+];
 
 /** One SDK per language and registry, and what each has published. */
 export function ProjectTargetsPage() {
   const { orgId = "", projectId = "" } = useParams();
   const project = useProject(orgId, projectId);
+  const publications = usePublications(orgId, projectId);
   const deleteTarget = useDeleteTarget(orgId, projectId);
 
   const [targetOpen, setTargetOpen] = useState(false);
   const [targetToDelete, setTargetToDelete] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
+
+  const targets = useMemo(() => project.data?.targets ?? [], [project.data]);
+
+  /**
+   * How many versions each target has out, and where they can be read. The target row knows
+   * its last version but not that it is one of several, nor how to reach it — and a package
+   * name that cannot be followed is half an answer.
+   */
+  const releases = useMemo(() => {
+    const map = new Map<string, { count: number; url: string | null }>();
+
+    for (const publication of publications.data ?? []) {
+      if (
+        publication.status !== PublicationStatus.Succeeded &&
+        publication.status !== PublicationStatus.AlreadyExists
+      ) {
+        continue;
+      }
+
+      const existing = map.get(publication.sdkTargetId) ?? { count: 0, url: null };
+      map.set(publication.sdkTargetId, {
+        count: existing.count + 1,
+        url: existing.url ?? publication.registryUrl,
+      });
+    }
+
+    return map;
+  }, [publications.data]);
+
+  const visible = useMemo(
+    () => targets.filter(filters.find((f) => f.id === filter)!.matches),
+    [targets, filter],
+  );
+
+  const deleting = targets.find((t) => t.id === targetToDelete);
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button variant="outline" onClick={() => setTargetOpen(true)}>
-          <Plus className="size-4" aria-hidden />
-          Add target
-        </Button>
-      </div>
-
+    <div className="space-y-6">
       <QueryBoundary isLoading={project.isLoading} error={project.error}>
-        {project.data?.targets.length ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Language</TableHead>
-                <TableHead>Package</TableHead>
-                <TableHead>Registry</TableHead>
-                <TableHead>Auto-publish</TableHead>
-                <TableHead className="text-right">Last published</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {project.data.targets.map((target) => (
-                <TableRow key={target.id}>
-                  <TableCell>{languageLabel[target.language]}</TableCell>
-                  <TableCell className="font-mono text-xs">{target.packageName}</TableCell>
-                  <TableCell>{registryLabel[target.registry]}</TableCell>
-                  <TableCell>
-                    <Badge variant={target.autoPublish ? "default" : "secondary"}>
-                      {target.autoPublish ? "On" : "Off"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-xs">
-                    {target.lastPublishedVersion ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setTargetToDelete(target.id)}
+        {targets.length ? (
+          <div className="space-y-3">
+            {/* Beside the table, not inside its frame: a toolbar band directly above the
+                table's own header row puts two banded strips back to back, which reads as a
+                table inside a table. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" onClick={() => setTargetOpen(true)}>
+                <Plus className="size-4" aria-hidden />
+                Add target
+              </Button>
+
+              {/* One control rather than loose buttons: a segmented set says the choices are
+                  exclusive before anything is clicked. */}
+              <div className="ml-auto flex items-center rounded-lg border bg-card p-0.5">
+                {filters.map(({ id, label, Icon, matches }) => {
+                  const count = targets.filter(matches).length;
+
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={filter === id}
+                      disabled={count === 0 && id !== "all"}
+                      onClick={() => setFilter(id)}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-xs transition-colors",
+                        "disabled:cursor-not-allowed disabled:opacity-40",
+                        filter === id
+                          ? "bg-secondary font-medium text-secondary-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
                     >
-                      <Trash2 className="size-4" aria-hidden />
-                      <span className="sr-only">Delete {target.packageName}</span>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      <Icon className="size-3.5" aria-hidden />
+                      {label}
+                      <span className="tabular-nums opacity-60">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Card className="py-0">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SDK</TableHead>
+                      <TableHead className="w-32">Registry</TableHead>
+                      <TableHead className="w-40">Publishing</TableHead>
+                      <TableHead className="w-48">Latest release</TableHead>
+                      <TableHead className="w-24 text-right">
+                        <span className="sr-only">Actions</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {visible.map((target) => {
+                      const release = releases.get(target.id);
+
+                      return (
+                        <TableRow key={target.id}>
+                          {/* Language and package name together: they name one thing, and as
+                              two columns the eye had to join them back up on every row. */}
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  "size-2 shrink-0 rounded-full",
+                                  languageColor[target.language] ?? "bg-muted-foreground",
+                                )}
+                                aria-hidden
+                              />
+                              <span className="font-medium">{languageLabel[target.language]}</span>
+                            </div>
+                            <p className="pl-4 font-mono text-xs text-muted-foreground">
+                              {target.packageName}
+                            </p>
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge variant="outline" className="font-mono text-[10px]">
+                              {registryLabel[target.registry]}
+                            </Badge>
+                          </TableCell>
+
+                          {/* "On"/"Off" left the reader to guess what was on. Naming the two
+                              modes says what happens when a run succeeds. */}
+                          <TableCell>
+                            {target.autoPublish ? (
+                              <span className="flex items-center gap-1.5 text-xs">
+                                <Zap className="size-3.5 text-[var(--code-warning)]" aria-hidden />
+                                Automatic
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Hand className="size-3.5" aria-hidden />
+                                Manual
+                              </span>
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            {target.lastPublishedVersion ? (
+                              <>
+                                <p className="font-mono text-xs">{target.lastPublishedVersion}</p>
+                                <p
+                                  className="text-xs text-muted-foreground"
+                                  title={
+                                    target.lastPublishedAt
+                                      ? new Date(target.lastPublishedAt).toLocaleString()
+                                      : undefined
+                                  }
+                                >
+                                  {target.lastPublishedAt ? timeAgo(target.lastPublishedAt) : "—"}
+                                  {release && release.count > 1 && (
+                                    <> · {release.count} releases</>
+                                  )}
+                                </p>
+                              </>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                Nothing published yet
+                              </span>
+                            )}
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              {/* Kept in the open: it is the one action that leaves this page,
+                                  and a destination is worth showing rather than hiding. */}
+                              {release?.url && (
+                                <Button
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  aria-label={`Open ${target.packageName} on ${registryLabel[target.registry]}`}
+                                  title={`Open on ${registryLabel[target.registry]}`}
+                                  render={
+                                    <a
+                                      href={release.url}
+                                      target="_blank"
+                                      rel="noreferrer noopener"
+                                    />
+                                  }
+                                >
+                                  <ExternalLink className="size-4" aria-hidden />
+                                </Button>
+                              )}
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  render={<Button size="icon-sm" variant="ghost" />}
+                                  aria-label={`More actions for ${target.packageName}`}
+                                >
+                                  <MoreHorizontal className="size-4" aria-hidden />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-44">
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onClick={() => {
+                                      setDeleteError(null);
+                                      setTargetToDelete(target.id);
+                                    }}
+                                  >
+                                    <Trash2 className="size-4" aria-hidden />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+
+                {visible.length === 0 && (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    No target matches this filter.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           <EmptyState
             icon={<Package className="size-8" />}
@@ -105,7 +317,7 @@ export function ProjectTargetsPage() {
         }}
         title="Delete this SDK target?"
         description="The target and the runs that produced it are removed."
-        confirmText={project.data?.targets.find((t) => t.id === targetToDelete)?.packageName}
+        confirmText={deleting?.packageName}
         consequences={[
           "Runs for this target, with their artifacts and logs",
           "Packages already published stay in their registries",
@@ -115,11 +327,7 @@ export function ProjectTargetsPage() {
         onConfirm={() =>
           targetToDelete &&
           deleteTarget.mutate(
-            {
-              targetId: targetToDelete,
-              packageName:
-                project.data?.targets.find((t) => t.id === targetToDelete)?.packageName ?? "",
-            },
+            { targetId: targetToDelete, packageName: deleting?.packageName ?? "" },
             {
               onSuccess: () => {
                 toast.success("SDK target deleted.");
