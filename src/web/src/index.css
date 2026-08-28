@@ -96,6 +96,11 @@
        publishing only when a person says so is the reassuring one, and had no colour to be
        reassuring in — it was left grey, which read as disabled rather than as held. */
     --success: oklch(0.58 0.11 155);
+
+    /* Worn by the "All" filter when it is the one selected. Purple because it is the only
+       one of these options that is not a severity: it says nothing is being hidden, so it
+       cannot borrow the colour of anything it would have hidden. */
+    --filter-all: oklch(0.56 0.13 300);
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -143,6 +148,7 @@
     --code-atom: oklch(0.79 0.08 45);
     --code-warning: oklch(0.78 0.1 75);
     --success: oklch(0.76 0.1 155);
+    --filter-all: oklch(0.76 0.12 300);
 
 }
 

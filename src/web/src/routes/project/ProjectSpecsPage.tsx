@@ -49,22 +49,40 @@ function fileSize(bytes: number) {
 
 type Filter = "all" | "valid" | "warnings" | "errors";
 
-/** The same icons the counts column uses, so a filter and what it selects look alike. */
+/**
+ * The same icons the counts column uses, so a filter and what it selects look alike — and,
+ * once selected, the same colour too. Unselected they stay monochrome: four coloured icons
+ * competing at once is what the segmented control was meant to quieten.
+ */
 const filters: {
   id: Filter;
   label: string;
   Icon: typeof Layers;
+  tone: string;
   matches: (s: SpecVersion) => boolean;
 }[] = [
-  { id: "all", label: "All", Icon: Layers, matches: () => true },
+  { id: "all", label: "All", Icon: Layers, tone: "text-[var(--filter-all)]", matches: () => true },
   {
     id: "valid",
     label: "Generatable",
     Icon: CircleCheck,
+    tone: "text-[var(--success)]",
     matches: (s) => s.validationStatus !== SpecValidationStatus.Invalid,
   },
-  { id: "warnings", label: "Warnings", Icon: TriangleAlert, matches: (s) => s.warningCount > 0 },
-  { id: "errors", label: "Errors", Icon: CircleAlert, matches: (s) => s.errorCount > 0 },
+  {
+    id: "warnings",
+    label: "Warnings",
+    Icon: TriangleAlert,
+    tone: "text-[var(--code-warning)]",
+    matches: (s) => s.warningCount > 0,
+  },
+  {
+    id: "errors",
+    label: "Errors",
+    Icon: CircleAlert,
+    tone: "text-destructive",
+    matches: (s) => s.errorCount > 0,
+  },
 ];
 
 /** Uploaded OpenAPI documents and what validation made of them. */
@@ -209,7 +227,7 @@ export function ProjectSpecsPage() {
               {/* One control rather than four loose buttons: a segmented set says the choices
                   are exclusive before anything is clicked. */}
               <div className="ml-auto flex items-center rounded-lg border bg-card p-0.5">
-                {filters.map(({ id, label, Icon, matches }) => {
+                {filters.map(({ id, label, Icon, tone, matches }) => {
                   const count = items.filter(matches).length;
 
                   return (
@@ -227,7 +245,7 @@ export function ProjectSpecsPage() {
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      <Icon className="size-3.5" aria-hidden />
+                      <Icon className={cn("size-3.5", filter === id && tone)} aria-hidden />
                       {label}
                       <span className="tabular-nums opacity-60">{count}</span>
                     </button>

@@ -40,16 +40,33 @@ const languageColor: Record<number, string> = {
 
 type Filter = "all" | "automatic" | "manual";
 
-/** The same icons the publishing column uses, so a filter and what it selects look alike. */
+/**
+ * The same icons the publishing column uses, so a filter and what it selects look alike —
+ * and, once selected, the same colour too. Unselected they stay monochrome: coloured icons
+ * competing at once is what the segmented control was meant to quieten.
+ */
 const filters: {
   id: Filter;
   label: string;
   Icon: typeof Layers;
+  tone: string;
   matches: (t: SdkTarget) => boolean;
 }[] = [
-  { id: "all", label: "All", Icon: Layers, matches: () => true },
-  { id: "automatic", label: "Automatic", Icon: Zap, matches: (t) => t.autoPublish },
-  { id: "manual", label: "Manual", Icon: Hand, matches: (t) => !t.autoPublish },
+  { id: "all", label: "All", Icon: Layers, tone: "text-[var(--filter-all)]", matches: () => true },
+  {
+    id: "automatic",
+    label: "Automatic",
+    Icon: Zap,
+    tone: "text-[var(--code-warning)]",
+    matches: (t) => t.autoPublish,
+  },
+  {
+    id: "manual",
+    label: "Manual",
+    Icon: Hand,
+    tone: "text-[var(--success)]",
+    matches: (t) => !t.autoPublish,
+  },
 ];
 
 /** One SDK per language and registry, and what each has published. */
@@ -126,7 +143,7 @@ export function ProjectTargetsPage() {
               {/* One control rather than loose buttons: a segmented set says the choices are
                   exclusive before anything is clicked. */}
               <div className="ml-auto flex items-center rounded-lg border bg-card p-0.5">
-                {filters.map(({ id, label, Icon, matches }) => {
+                {filters.map(({ id, label, Icon, tone, matches }) => {
                   const count = targets.filter(matches).length;
 
                   return (
@@ -144,7 +161,7 @@ export function ProjectTargetsPage() {
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      <Icon className="size-3.5" aria-hidden />
+                      <Icon className={cn("size-3.5", filter === id && tone)} aria-hidden />
                       {label}
                       <span className="tabular-nums opacity-60">{count}</span>
                     </button>
