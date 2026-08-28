@@ -108,4 +108,27 @@ public class RunnerCommandTests
     [Fact]
     public void An_empty_environment_variable_is_treated_as_absent() =>
         RunnerCommand.Parse([], Environment("SPACECRAFT_RUN_ID", "   ")).Mode.ShouldBe(RunnerMode.Drain);
+
+    [Fact]
+    public void Relocating_storage_is_destructive_and_defaults_to_doing_it()
+    {
+        var command = RunnerCommand.Parse(["--relocate-storage"], NoEnvironment);
+
+        command.Mode.ShouldBe(RunnerMode.RelocateStorage);
+        command.DryRun.ShouldBeFalse();
+        command.IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void A_dry_run_is_recognised_wherever_it_sits()
+    {
+        // Position-independent on purpose: a flag that guards a destructive command should
+        // not be ignored for arriving in the wrong order.
+        RunnerCommand.Parse(["--relocate-storage", "--dry-run"], NoEnvironment).DryRun.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Dry_run_belongs_to_the_command_that_declares_it() =>
+        // Nothing else takes the flag, so it must not leak into another mode's meaning.
+        RunnerCommand.Parse(["--drain", "--dry-run"], NoEnvironment).DryRun.ShouldBeFalse();
 }

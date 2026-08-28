@@ -20,6 +20,13 @@ public interface IObjectStorage
     Task DeleteAsync(string key, CancellationToken ct = default);
 
     /// <summary>
+    /// Copies an object within the bucket, server-side. Used to move objects to a new key
+    /// layout without pulling tens of megabytes through the process to push them straight
+    /// back. Throws <see cref="ObjectNotFoundException"/> when the source is absent.
+    /// </summary>
+    Task CopyAsync(string sourceKey, string destinationKey, CancellationToken ct = default);
+
+    /// <summary>
     /// Time-limited download URL, so the API never proxies large artifact bodies itself.
     /// </summary>
     string GetDownloadUrl(string key, TimeSpan validFor);

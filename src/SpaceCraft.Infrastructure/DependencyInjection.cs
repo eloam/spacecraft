@@ -40,7 +40,13 @@ public static class DependencyInjection
 
         services.AddScoped<IPipelineRunQueue, PipelineRunQueue>();
 
-        services.Configure<ObjectStorageOptions>(configuration.GetSection(ObjectStorageOptions.SectionName));
+        // Validated at startup rather than on the first upload: a missing bucket name or a
+        // blank region used to surface as whatever the S3 SDK threw, halfway through someone
+        // dropping a file in.
+        services.AddOptions<ObjectStorageOptions>()
+            .Bind(configuration.GetSection(ObjectStorageOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddSingleton<IAmazonS3>(provider =>
         {
@@ -55,7 +61,7 @@ public static class DependencyInjection
 
             if (!string.IsNullOrWhiteSpace(options.ServiceUrl))
             {
-                // MinIO / R2 / any S3-compatible endpoint.
+                // Scaleway Object Storage, or any other S3-compatible endpoint.
                 config.ServiceURL = options.ServiceUrl;
             }
             else

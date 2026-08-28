@@ -48,6 +48,46 @@ public static partial class StrictSdkPolicy
         foreach (var finding in Metadata(document)) yield return finding;
     }
 
+    /// <summary>
+    /// The one check that needs more than the document: how its version stands against the
+    /// one before it.
+    ///
+    /// Registries are append-only. Publishing 1.0.0 twice is impossible, and publishing 0.9.0
+    /// after 1.0.0 leaves consumers on a version their tooling will never offer them again.
+    /// Both fail at the very last step of a pipeline, minutes after a build — which is the
+    /// worst place to learn it.
+    /// </summary>
+    public static IEnumerable<SpecDiagnostic> AgainstPrevious(
+        OpenApiDocument document,
+        string? previousApiVersion)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (string.IsNullOrWhiteSpace(previousApiVersion)) yield break;
+
+        var declared = document.Info?.Version;
+        if (string.IsNullOrWhiteSpace(declared)) yield break;
+
+        // Null means one of the two carries no version a registry would take, which the
+        // metadata rules already report on their own.
+        if (SemanticVersion.Compare(declared, previousApiVersion) is not { } order) yield break;
+
+        if (order == 0)
+        {
+            yield return Error(
+                $"info.version is still '{declared}', the version the previous document "
+                + "declared. A registry will not take the same version twice.",
+                "#/info/version");
+        }
+        else if (order < 0)
+        {
+            yield return Error(
+                $"info.version '{declared}' comes before '{previousApiVersion}', which this "
+                + "project already published from. Releases only move forward.",
+                "#/info/version");
+        }
+    }
+
     // --- base url --------------------------------------------------------------------------
 
     /// <summary>
@@ -204,23 +244,24 @@ public static partial class StrictSdkPolicy
                     op.Pointer);
             }
 
-            // Two parameters that reduce to one argument name. Covers the exact duplicate as
-            // well, since identical names normalise identically — and the generator has no
-            // more room to tell them apart than this check does.
+            // Two distinct names that reduce to one argument. Not exact duplicates: the
+            // parser collapses a parameter declared twice before this ever sees it, so such a
+            // rule could only ever fire on a false positive.
             var argumentNames = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var parameter in op.Parameters)
             {
                 if (parameter.Name is null) continue;
 
-                var key = $"{parameter.In}:{Normalise(parameter.Name)}";
-                if (key.EndsWith(':')) continue;
+                var normalised = Normalise(parameter.Name);
+                if (normalised.Length == 0) continue;
+
+                var key = $"{parameter.In}:{normalised}";
 
                 if (argumentNames.TryGetValue(key, out var other))
                 {
-                    yield return Error(
-                        other == parameter.Name
-                            ? $"Parameter '{parameter.Name}' is declared twice in the same {parameter.In}."
-                            : $"Parameters '{parameter.Name}' and '{other}' become one argument once normalised.",
+                    yield return Warning(
+                        $"Parameters '{parameter.Name}' and '{other}' differ only by punctuation "
+                        + "or case; languages that normalise argument names would collapse them into one.",
                         op.Pointer);
                 }
                 else
@@ -728,9 +769,20 @@ public static partial class StrictSdkPolicy
         {
             foreach (var (method, operation) in item.Operations ?? [])
             {
+                // Deduplicated by location and name rather than concatenated. Microsoft.OpenApi
+                // merges an operation's parameters up into its path item — a path item here
+                // reports 13 where the operation declares 11 — so adding both lists counted
+                // every operation parameter twice and reported each as a duplicate.
                 var parameters = new List<IOpenApiParameter>();
-                if (item.Parameters is not null) parameters.AddRange(item.Parameters);
-                if (operation.Parameters is not null) parameters.AddRange(operation.Parameters);
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+
+                foreach (var parameter in (operation.Parameters ?? []).Concat(item.Parameters ?? []))
+                {
+                    if (seen.Add($"{parameter.In}:{parameter.Name}"))
+                    {
+                        parameters.Add(parameter);
+                    }
+                }
 
                 yield return new OperationRef(
                     path,

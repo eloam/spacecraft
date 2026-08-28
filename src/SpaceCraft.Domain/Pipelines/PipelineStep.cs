@@ -50,6 +50,20 @@ public sealed class PipelineStep : Entity
         Touch();
     }
 
+    /// <summary>
+    /// Points at the same bytes under a different key, after they have been copied there.
+    ///
+    /// Separate from the methods that record work being done: nothing about this step
+    /// changed, only where its object lives.
+    /// </summary>
+    public void RelocateLogTo(string storageKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(storageKey);
+
+        LogStorageKey = storageKey;
+        Touch();
+    }
+
     public void Fail(string reason, string? logStorageKey = null)
     {
         Status = StepStatus.Failed;

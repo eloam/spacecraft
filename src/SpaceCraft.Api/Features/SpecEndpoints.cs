@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using SpaceCraft.Api.Common;
+using SpaceCraft.Api.Features.Deletion;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Domain.Projects;
@@ -18,6 +19,8 @@ public sealed record SpecVersionResponse(
     string? ApiTitle,
     string? ApiVersion,
     string? OpenApiVersion,
+    /// <summary>"yaml" or "json" — the notation the document was uploaded in.</summary>
+    string Format,
     int InformationCount,
     int WarningCount,
     int ErrorCount,
@@ -70,10 +73,17 @@ public static class SpecEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Re-runs validation over a stored document and replaces its findings.");
 
+        group.MapDelete("/{specVersionId:guid}", DeleteAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Deletes a spec version, unless a package was published from it.");
+
         group.MapPost("/", UploadAsync)
             .Produces<SpecUploadResponse>(StatusCodes.Status201Created)
-            // A re-upload of identical bytes returns 200 with the existing version.
-            .Produces<SpecUploadResponse>()
+            // Identical bytes are refused: nothing would change, and the old response looked
+            // like a successful upload of a version it had not created.
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem()
             .WithSummary("Uploads an OpenAPI document as a new spec version.")
             // These two return IEndpointConventionBuilder rather than RouteHandlerBuilder,
@@ -185,11 +195,7 @@ public static class SpecEndpoints
 
         var content = await storage.GetTextAsync(storageKey, ct);
 
-        // The extension is fixed at upload, so it is the document's own format rather than a
-        // guess made by sniffing the text.
-        var format = Path.GetExtension(storageKey).ToLowerInvariant() is ".json" ? "json" : "yaml";
-
-        return TypedResults.Ok(new SpecContentResponse(content, format));
+        return TypedResults.Ok(new SpecContentResponse(content, StorageKeys.FormatOf(storageKey)));
     }
 
     /// <summary>
@@ -250,8 +256,16 @@ public static class SpecEndpoints
 
         // The validator picks its reader from the extension, and the storage key carries the
         // one the document was uploaded with.
+        // The document that came before this one, not the newest: revalidating spec #1 must
+        // not judge it against #2.
+        var previousApiVersion = project.SpecVersions
+            .Where(s => s.Sequence < specVersion.Sequence)
+            .OrderByDescending(s => s.Sequence)
+            .Select(s => s.ApiVersion)
+            .FirstOrDefault();
+
         var validation = await validator.ValidateAsync(
-            buffer, specVersion.StorageKey, project.StrictValidation, ct);
+            buffer, specVersion.StorageKey, project.StrictValidation, previousApiVersion, ct);
 
         specVersion.MarkValidated(
             status: validation.Status,
@@ -277,6 +291,7 @@ public static class SpecEndpoints
         IOrganizationAccess access,
         ISpecValidator validator,
         IObjectStorage storage,
+        ResourceDeleter deleter,
         CancellationToken ct)
     {
         if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
@@ -322,19 +337,38 @@ public static class SpecEndpoints
         buffer.Position = 0;
         var contentHash = Convert.ToHexString(await SHA256.HashDataAsync(buffer, ct)).ToLowerInvariant();
 
-        // Identical bytes mean nothing changed; re-running the pipeline would republish the
-        // same package for no reason.
+        // Refused, not silently accepted. This used to return 200 with the existing version
+        // and no diagnostics, which the UI reported as a successful upload of a version it had
+        // never created — the upload looked broken precisely because it had done nothing.
         var duplicate = project.SpecVersions.FirstOrDefault(s => s.ContentHash == contentHash);
         if (duplicate is not null)
         {
-            return TypedResults.Ok(new SpecUploadResponse(ToResponse(duplicate), [], []));
+            var detail =
+                $"This document is byte-for-byte spec #{duplicate.Sequence}, uploaded on "
+                + $"{duplicate.CreatedAt:yyyy-MM-dd}. Nothing about the contract has changed.";
+
+            // Whether that version can be removed is the operator's next question, so answer
+            // it here rather than after a second failed attempt.
+            if (await deleter.PublishedFromAsync(duplicate.Id, ct) is { } published)
+            {
+                detail += $" {published.Reason}";
+            }
+
+            return ApiResults.Conflict(detail);
         }
 
         buffer.Position = 0;
-        var validation = await validator.ValidateAsync(buffer, file.FileName, project.StrictValidation, ct);
+        var previousApiVersion = project.SpecVersions
+            .OrderByDescending(s => s.Sequence)
+            .Select(s => s.ApiVersion)
+            .FirstOrDefault();
+
+        var validation = await validator.ValidateAsync(
+            buffer, file.FileName, project.StrictValidation, previousApiVersion, ct);
 
         var specVersion = project.AddSpecVersion(
-            storageKeyFactory: id => StorageKeys.Spec(organizationId, projectId, id, extension),
+            storageKeyFactory: id =>
+                StorageKeys.Spec(organizationId, projectId, id, file.FileName, extension),
             contentHash: contentHash,
             sizeInBytes: file.Length,
             source: SpecSource.Upload);
@@ -384,6 +418,42 @@ public static class SpecEndpoints
             new SpecUploadResponse(ToResponse(specVersion), validation.Diagnostics, triggered));
     }
 
+    private static async Task<IResult> DeleteAsync(
+        Guid organizationId,
+        Guid projectId,
+        Guid specVersionId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        ResourceDeleter deleter,
+        CancellationToken ct)
+    {
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var exists = await db.SpecVersions
+            .AsNoTracking()
+            .AnyAsync(
+                s => s.Id == specVersionId
+                     && s.ApiProjectId == projectId
+                     && db.ApiProjects.Any(p => p.Id == projectId && p.OrganizationId == organizationId),
+                ct);
+
+        if (!exists)
+        {
+            return ApiResults.NotFound("The specification version");
+        }
+
+        if (await deleter.DeleteSpecVersionAsync(specVersionId, ct) is { } refusal)
+        {
+            return ApiResults.Conflict(refusal.Reason);
+        }
+
+        return TypedResults.NoContent();
+    }
+
     private static SpecVersionResponse ToResponse(SpecVersion s) =>
         new(s.Id,
             s.Sequence,
@@ -391,6 +461,7 @@ public static class SpecEndpoints
             s.ApiTitle,
             s.ApiVersion,
             s.OpenApiVersion,
+            StorageKeys.FormatOf(s.StorageKey),
             s.InformationCount,
             s.WarningCount,
             s.ErrorCount,

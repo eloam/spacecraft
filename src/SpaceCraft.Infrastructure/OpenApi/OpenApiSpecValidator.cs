@@ -16,6 +16,7 @@ public sealed partial class OpenApiSpecValidator(ILogger<OpenApiSpecValidator> l
         Stream content,
         string fileName,
         bool strict = false,
+        string? previousApiVersion = null,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -92,6 +93,7 @@ public sealed partial class OpenApiSpecValidator(ILogger<OpenApiSpecValidator> l
         if (strict)
         {
             diagnostics.AddRange(StrictSdkPolicy.Apply(document));
+            diagnostics.AddRange(StrictSdkPolicy.AgainstPrevious(document, previousApiVersion));
         }
 
         // Keyed on severity rather than on "are there any findings": an information-only

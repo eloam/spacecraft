@@ -137,7 +137,17 @@ public sealed class PipelineExecutor(
             .Select(p => p.StrictValidation)
             .FirstOrDefaultAsync(ct);
 
-        var result = await specValidator.ValidateAsync(stream, specFileName, strict, ct);
+        // The version to be judged against is the one before this document in its project,
+        // not simply the latest — revalidating an old spec must not compare it to its own
+        // successors.
+        var previousApiVersion = await db.SpecVersions
+            .Where(s => s.ApiProjectId == spec.ApiProjectId && s.Sequence < spec.Sequence)
+            .OrderByDescending(s => s.Sequence)
+            .Select(s => s.ApiVersion)
+            .FirstOrDefaultAsync(ct);
+
+        var result = await specValidator.ValidateAsync(
+            stream, specFileName, strict, previousApiVersion, ct);
 
         var log = string.Join('\n', result.Diagnostics.Select(d =>
             $"[{d.Severity.ToString().ToLowerInvariant()}] {d.JsonPointer ?? "-"} {d.Message}"));
@@ -308,7 +318,8 @@ public sealed class PipelineExecutor(
             workspace.HostPath(RunWorkspace.ArtifactRelativePath),
             outcome.ArtifactFileName);
 
-        var artifactKey = StorageKeys.Artifact(run.OrganizationId, run.Id, outcome.ArtifactFileName);
+        var artifactKey = StorageKeys.Artifact(
+            run.OrganizationId, run.ApiProjectId, run.Id, outcome.ArtifactFileName);
 
         await using (var artifact = File.OpenRead(artifactPath))
         {
@@ -423,7 +434,8 @@ public sealed class PipelineExecutor(
             return null;
         }
 
-        var key = StorageKeys.StepLog(run.OrganizationId, run.Id, kind.ToString());
+        var key = StorageKeys.StepLog(
+            run.OrganizationId, run.ApiProjectId, run.Id, kind.ToString());
 
         try
         {

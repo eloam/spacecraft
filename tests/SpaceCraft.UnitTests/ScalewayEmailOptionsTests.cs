@@ -1,4 +1,5 @@
 using SpaceCraft.Api.Email;
+using SpaceCraft.Infrastructure.Scaleway;
 using Shouldly;
 using Xunit;
 
@@ -6,25 +7,28 @@ namespace SpaceCraft.UnitTests;
 
 public class ScalewayEmailOptionsTests
 {
+    /// <summary>
+    /// Sending still needs a key and a project id, but they come from two sections now: the
+    /// key belongs to this service, the project to the account. Each half only answers for
+    /// itself; the composition root requires both together.
+    /// </summary>
     [Fact]
-    public void Both_a_key_and_a_project_are_needed_before_the_transport_is_usable()
-    {
-        // Half-configured is the dangerous state: it looks deliberate but cannot send.
-        new ScalewayEmailOptions { ApiKey = "secret" }.IsConfigured.ShouldBeFalse();
-        new ScalewayEmailOptions { ProjectId = "project" }.IsConfigured.ShouldBeFalse();
-    }
+    public void A_key_is_what_makes_the_transport_usable() =>
+        new ScalewayEmailOptions { ApiKey = "secret" }.IsConfigured.ShouldBeTrue();
 
     [Fact]
-    public void A_fully_configured_transport_is_recognised() =>
-        new ScalewayEmailOptions { ApiKey = "secret", ProjectId = "project" }
-            .IsConfigured.ShouldBeTrue();
+    public void A_project_id_is_what_makes_the_account_usable() =>
+        new ScalewayOptions { ProjectId = "project" }.IsConfigured.ShouldBeTrue();
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
-    public void Blank_credentials_do_not_count_as_configured(string? value) =>
-        new ScalewayEmailOptions { ApiKey = value, ProjectId = value }.IsConfigured.ShouldBeFalse();
+    public void Blank_credentials_do_not_count_as_configured(string? value)
+    {
+        new ScalewayEmailOptions { ApiKey = value }.IsConfigured.ShouldBeFalse();
+        new ScalewayOptions { ProjectId = value }.IsConfigured.ShouldBeFalse();
+    }
 
     [Fact]
     public void The_region_defaults_to_where_the_service_exists() =>

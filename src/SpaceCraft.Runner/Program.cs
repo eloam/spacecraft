@@ -22,7 +22,10 @@ builder.Services.AddSerilog((services, configuration) => configuration
     .ReadFrom.Services(services)
     .Enrich.FromLogContext());
 
-builder.Services.Configure<RunnerOptions>(builder.Configuration.GetSection(RunnerOptions.SectionName));
+builder.Services.AddOptions<RunnerOptions>()
+    .Bind(builder.Configuration.GetSection(RunnerOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
 builder.Services.AddSpaceCraftPipeline(builder.Configuration, builder.Environment.IsDevelopment());

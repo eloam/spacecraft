@@ -60,4 +60,43 @@ public static partial class SemanticVersion
     /// <summary>True when the value is already a strict three-part semantic version.</summary>
     public static bool IsStrict(string? version) =>
         version is not null && TryNormalize(version) == version;
+
+    /// <summary>
+    /// Orders two versions by their normalised numbers: negative when <paramref name="left"/>
+    /// comes first, zero when they are the same release, positive when it comes after. Null
+    /// when either side carries no version a registry would take.
+    ///
+    /// Numeric, not textual: "1.10.0" follows "1.9.0" even though it sorts before it as a
+    /// string, and that is precisely the comparison a release makes.
+    ///
+    /// Prerelease and build suffixes are ignored. Ordering them properly is a specification of
+    /// its own, and nothing here needs to tell 1.0.0-rc.1 from 1.0.0-rc.2 — only whether the
+    /// release moved forward.
+    /// </summary>
+    public static int? Compare(string? left, string? right)
+    {
+        if (Numbers(left) is not { } a || Numbers(right) is not { } b) return null;
+
+        for (var i = 0; i < 3; i++)
+        {
+            if (a[i] != b[i]) return a[i].CompareTo(b[i]);
+        }
+
+        return 0;
+    }
+
+    private static int[]? Numbers(string? version)
+    {
+        if (TryNormalize(version) is not { } normalized) return null;
+
+        var match = Loose().Match(normalized);
+        if (!match.Success) return null;
+
+        return
+        [
+            int.Parse(match.Groups["major"].Value, System.Globalization.CultureInfo.InvariantCulture),
+            int.Parse(match.Groups["minor"].Value, System.Globalization.CultureInfo.InvariantCulture),
+            int.Parse(match.Groups["patch"].Value, System.Globalization.CultureInfo.InvariantCulture),
+        ];
+    }
 }

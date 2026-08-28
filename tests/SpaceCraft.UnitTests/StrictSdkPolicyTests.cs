@@ -15,15 +15,15 @@ public class StrictSdkPolicyTests
 {
     private static readonly OpenApiSpecValidator Validator = new(NullLogger<OpenApiSpecValidator>.Instance);
 
-    private static Task<SpecValidationResult> StrictAsync(string yaml) =>
+    private static Task<SpecValidationResult> StrictAsync(string yaml, string? previousApiVersion = null) =>
         Validator.ValidateAsync(
             new MemoryStream(Encoding.UTF8.GetBytes(yaml)), "openapi.yaml", strict: true,
-            TestContext.Current.CancellationToken);
+            previousApiVersion, TestContext.Current.CancellationToken);
 
-    private static Task<SpecValidationResult> LenientAsync(string yaml) =>
+    private static Task<SpecValidationResult> LenientAsync(string yaml, string? previousApiVersion = null) =>
         Validator.ValidateAsync(
             new MemoryStream(Encoding.UTF8.GetBytes(yaml)), "openapi.yaml", strict: false,
-            TestContext.Current.CancellationToken);
+            previousApiVersion, TestContext.Current.CancellationToken);
 
     /// <summary>A document that passes every strict check, for tests to vary one thing from.</summary>
     private const string Clean = """
@@ -346,8 +346,33 @@ public class StrictSdkPolicyTests
                       schema: { type: string }
             """));
 
-        result.Status.ShouldBe(SpecValidationStatus.Invalid);
-        result.Diagnostics.ShouldContain(d => d.Message.Contains("become one argument once normalised"));
+        result.Status.ShouldBe(SpecValidationStatus.ValidWithWarnings);
+        result.Diagnostics.ShouldContain(d =>
+            d.Message.Contains("differ only by punctuation") && d.Message.Contains("argument names"));
+    }
+
+    /// <summary>
+    /// Microsoft.OpenApi merges an operation's parameters up into its path item, so reading
+    /// both lists counted every one of them twice. On a real Keycloak path that produced
+    /// eleven "declared twice" errors against parameters declared exactly once.
+    /// </summary>
+    [Fact]
+    public async Task Parameters_are_counted_once_even_though_the_parser_lists_them_twice()
+    {
+        var result = await StrictAsync(Clean.Replace("""
+                  summary: Lists things.
+            """, """
+                  summary: Lists things.
+                  parameters:
+                    - name: first
+                      in: query
+                      schema: { type: integer }
+                    - name: max
+                      in: query
+                      schema: { type: integer }
+            """));
+
+        result.Diagnostics.ShouldBeEmpty();
     }
 
     /// <summary>
@@ -532,4 +557,41 @@ public class StrictSdkPolicyTests
 
         result.Diagnostics.ShouldContain(d => d.Message.Contains("cannot wire on its own"));
     }
+
+    [Fact]
+    public async Task Republishing_the_same_version_is_an_error()
+    {
+        // Registries are append-only: 1.0.0 cannot be published twice.
+        var result = await StrictAsync(Clean, previousApiVersion: "1.0.0");
+
+        result.Status.ShouldBe(SpecValidationStatus.Invalid);
+        result.Diagnostics.ShouldContain(d => d.Message.Contains("will not take the same version twice"));
+    }
+
+    [Fact]
+    public async Task Going_backwards_is_an_error()
+    {
+        var result = await StrictAsync(Clean, previousApiVersion: "2.3.0");
+
+        result.Status.ShouldBe(SpecValidationStatus.Invalid);
+        result.Diagnostics.ShouldContain(d => d.Message.Contains("Releases only move forward"));
+    }
+
+    [Fact]
+    public async Task Moving_forward_raises_nothing() =>
+        (await StrictAsync(Clean, previousApiVersion: "0.9.0")).Diagnostics.ShouldBeEmpty();
+
+    [Fact]
+    public async Task Ten_follows_nine_rather_than_sorting_before_it() =>
+        // The comparison is numeric; as strings "1.10.0" would come before "1.9.0".
+        (await StrictAsync(Clean.Replace("version: 1.0.0", "version: 1.10.0"), previousApiVersion: "1.9.0"))
+            .Diagnostics.ShouldBeEmpty();
+
+    [Fact]
+    public async Task The_first_document_of_a_project_has_nothing_to_move_past() =>
+        (await StrictAsync(Clean, previousApiVersion: null)).Diagnostics.ShouldBeEmpty();
+
+    [Fact]
+    public async Task Version_history_is_a_strict_concern_only() =>
+        (await LenientAsync(Clean, previousApiVersion: "2.3.0")).ErrorCount.ShouldBe(0);
 }

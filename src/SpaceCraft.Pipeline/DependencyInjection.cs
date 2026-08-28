@@ -22,6 +22,7 @@ public static class DependencyInjection
 
         // Fail at startup rather than the first time a run executes untrusted code unsandboxed.
         services.AddOptions<PipelineOptions>()
+            .ValidateDataAnnotations()
             .Validate(options =>
             {
                 options.Validate(isDevelopment);

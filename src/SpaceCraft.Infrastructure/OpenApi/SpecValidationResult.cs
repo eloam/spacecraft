@@ -53,9 +53,15 @@ public interface ISpecValidator
     /// Also apply <see cref="StrictSdkPolicy"/> — the checks that decide whether a usable SDK
     /// can come out — and treat the parser's own warnings as errors.
     /// </param>
+    /// <param name="previousApiVersion">
+    /// info.version of the newest document that came before this one, when there is one. The
+    /// only piece of the project's history a document has to be judged against: a registry is
+    /// append-only, so a version that does not move forward can never be published.
+    /// </param>
     Task<SpecValidationResult> ValidateAsync(
         Stream content,
         string fileName,
         bool strict = false,
+        string? previousApiVersion = null,
         CancellationToken ct = default);
 }

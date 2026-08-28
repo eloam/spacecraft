@@ -132,6 +132,20 @@ public sealed class PipelineRun : Entity
         Touch();
     }
 
+    /// <summary>
+    /// Points at the same bytes under a different key, after they have been copied there.
+    ///
+    /// Separate from the methods that record work being done: nothing about this run
+    /// changed, only where its object lives.
+    /// </summary>
+    public void RelocateArtifactTo(string storageKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(storageKey);
+
+        ArtifactStorageKey = storageKey;
+        Touch();
+    }
+
     public void Succeed()
     {
         Status = RunStatus.Succeeded;

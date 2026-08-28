@@ -26,12 +26,15 @@ public sealed class PipelineOptions
     /// primitive array then fails to compile. Pinning is what keeps the pair consistent.
     /// </para>
     /// </summary>
+    [Required]
     public string KiotaImage { get; set; } = "mcr.microsoft.com/openapi/kiota:1.34.1";
 
     /// <summary>Image carrying the Node toolchain used to build and publish npm packages.</summary>
+    [Required]
     public string NodeImage { get; set; } = "node:22-alpine";
 
     /// <summary>Registry npm publishes to. Overridden in tests to point at a local Verdaccio.</summary>
+    [Required]
     public string NpmRegistry { get; set; } = "https://registry.npmjs.org";
 
     public TimeSpan GenerateTimeout { get; set; } = TimeSpan.FromMinutes(5);

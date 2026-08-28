@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace SpaceCraft.Runner;
 
 public sealed class RunnerOptions
@@ -8,12 +10,14 @@ public sealed class RunnerOptions
     /// Runs executed concurrently while draining. One is right when each invocation is a
     /// single-purpose job sized for one run; raise it only when the host has the headroom.
     /// </summary>
+    [Range(1, 64)]
     public int Concurrency { get; set; } = 1;
 
     /// <summary>
     /// Most runs a single drain invocation will execute. Bounds how long one invocation can
     /// last so a scheduler's own timeout is never the thing that stops it mid-build.
     /// </summary>
+    [Range(1, 10_000)]
     public int MaxRunsPerInvocation { get; set; } = 25;
 
     /// <summary>

@@ -12,6 +12,11 @@ namespace SpaceCraft.Api.Features;
 public sealed record PublicationResponse(
     Guid Id,
     Guid PipelineRunId,
+    /// <summary>
+    /// The document this package was generated from. Carried so a caller can say which spec
+    /// version is live without joining publications to runs itself.
+    /// </summary>
+    Guid? SpecVersionId,
     Guid SdkTargetId,
     Guid? ApiProjectId,
     string? ProjectName,
@@ -65,7 +70,12 @@ public static class PublicationEndpoints
             join project in db.ApiProjects.AsNoTracking()
                 on target.ApiProjectId equals project.Id into projects
             from project in projects.DefaultIfEmpty()
-            select new { publication, project };
+            // The run is what knows which document produced the package; the publication only
+            // knows the run.
+            join run in db.PipelineRuns.AsNoTracking()
+                on publication.PipelineRunId equals run.Id into runs
+            from run in runs.DefaultIfEmpty()
+            select new { publication, project, run };
 
         if (projectId is { } id)
         {
@@ -80,6 +90,7 @@ public static class PublicationEndpoints
         return TypedResults.Ok(rows.Select(row => new PublicationResponse(
             row.publication.Id,
             row.publication.PipelineRunId,
+            row.run == null ? null : row.run.SpecVersionId,
             row.publication.SdkTargetId,
             row.project?.Id,
             row.project?.Name,

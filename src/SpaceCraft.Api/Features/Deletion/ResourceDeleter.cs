@@ -1,4 +1,5 @@
 using SpaceCraft.Domain.Pipelines;
+using SpaceCraft.Domain.Registries;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
@@ -117,6 +118,78 @@ public sealed class ResourceDeleter(
 
         await db.SaveChangesAsync(ct);
         return null;
+    }
+
+    /// <summary>
+    /// Removes one spec version, the document behind it, and the runs that were executed
+    /// against it.
+    ///
+    /// Refused once anything reached a registry: the package stays installable whatever we
+    /// delete here, so removing the document it was generated from would leave a published
+    /// artifact with no record of where it came from.
+    /// </summary>
+    public async Task<DeletionRefusal?> DeleteSpecVersionAsync(Guid specVersionId, CancellationToken ct)
+    {
+        if (await PublishedFromAsync(specVersionId, ct) is { } published)
+        {
+            return published;
+        }
+
+        if (await HasActiveRunsAsync(r => r.SpecVersionId == specVersionId, ct) is { } refusal)
+        {
+            return refusal;
+        }
+
+        var runIds = await db.PipelineRuns
+            .Where(r => r.SpecVersionId == specVersionId)
+            .Select(r => r.Id)
+            .ToListAsync(ct);
+
+        // Pending and failed attempts only; the succeeded ones were refused above. Nothing
+        // else removes them, since no foreign key covers publications.
+        db.Publications.RemoveRange(
+            await db.Publications.Where(p => runIds.Contains(p.PipelineRunId)).ToListAsync(ct));
+
+        await PurgeRunsAsync(r => r.SpecVersionId == specVersionId, ct);
+
+        var spec = await db.SpecVersions.FirstOrDefaultAsync(s => s.Id == specVersionId, ct);
+        if (spec is not null)
+        {
+            await DeleteObjectsAsync([spec.StorageKey], ct);
+            db.SpecVersions.Remove(spec);
+        }
+
+        await db.SaveChangesAsync(ct);
+        return null;
+    }
+
+    /// <summary>
+    /// Whether a package reached a registry from this spec version, and so why it cannot be
+    /// removed or usefully re-uploaded.
+    ///
+    /// Succeeded and AlreadyExists both mean the registry carries that version — one because
+    /// we pushed it, the other because it was already there. Pending and Failed reached
+    /// nothing.
+    /// </summary>
+    public async Task<DeletionRefusal?> PublishedFromAsync(Guid specVersionId, CancellationToken ct)
+    {
+        var published = await db.Publications
+            .Where(p => p.Status == PublicationStatus.Succeeded || p.Status == PublicationStatus.AlreadyExists)
+            .Join(db.PipelineRuns.Where(r => r.SpecVersionId == specVersionId),
+                publication => publication.PipelineRunId,
+                run => run.Id,
+                (publication, _) => new { publication.PackageName, publication.Version })
+            .ToListAsync(ct);
+
+        if (published.Count == 0) return null;
+
+        var packages = string.Join(", ", published
+            .Select(p => $"{p.PackageName}@{p.Version}")
+            .Distinct(StringComparer.Ordinal));
+
+        return new DeletionRefusal(
+            $"This document was published as {packages}. Registries are append-only, so the "
+            + "package stays available whatever happens here.");
     }
 
     /// <summary>

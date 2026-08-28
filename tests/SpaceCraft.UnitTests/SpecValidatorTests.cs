@@ -19,9 +19,11 @@ public class SpecValidatorTests
     private static Task<SpecValidationResult> ValidateAsync(
         string yaml,
         string fileName = "openapi.yaml",
-        bool strict = false) =>
+        bool strict = false,
+        string? previousApiVersion = null) =>
         Validator.ValidateAsync(
-            new MemoryStream(Encoding.UTF8.GetBytes(yaml)), fileName, strict, TestContext.Current.CancellationToken);
+            new MemoryStream(Encoding.UTF8.GetBytes(yaml)), fileName, strict, previousApiVersion,
+            TestContext.Current.CancellationToken);
 
     private const string MinimalValid = """
         openapi: 3.0.3

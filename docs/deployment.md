@@ -76,17 +76,18 @@ Jwt__SigningKey=…
 Jwt__Issuer=spacecraft
 Jwt__Audience=spacecraft-api
 
-# Object storage
+# Scaleway account — shared by every service that talks to it
+Scaleway__ProjectId=…
+
+# Object storage — its own IAM key, distinct from the email one
 ObjectStorage__BucketName=spacecraft
 ObjectStorage__ServiceUrl=https://s3.fr-par.scw.cloud
 ObjectStorage__Region=fr-par
 ObjectStorage__AccessKey=…
 ObjectStorage__SecretKey=…
-ObjectStorage__ForcePathStyle=false
 
 # Email — startup fails without these outside Development
 Email__Scaleway__ApiKey=…
-Email__Scaleway__ProjectId=…
 Email__Scaleway__Region=fr-par
 Email__Scaleway__FromEmail=noreply@yourdomain
 Email__Scaleway__FromName=SpaceCraft
@@ -115,6 +116,27 @@ anything genuinely secret goes in user secrets:
 ```bash
 dotnet user-secrets set "Email:Scaleway:ApiKey" "<secret key>" --project src/SpaceCraft.Api
 ```
+
+**Two API keys, one project.** Transactional Email and Object Storage each get their own IAM
+application, so a key that can send mail cannot read the bucket and vice versa. Both live in the
+Scaleway project named by `Scaleway__ProjectId` — that is the only thing they share, and it is
+why the project id is not filed under either service.
+
+**A bucket per environment.** Development and production use separate buckets, created once in
+the console; nothing creates them at startup. Scope the development key to the development
+bucket, so a wrong `BucketName` there fails instead of writing into production.
+
+Objects are laid out by ownership:
+
+```
+orgs/{org}/projects/{project}/specs/{name}-{spec}.yaml
+orgs/{org}/projects/{project}/runs/{run}/artifact/{fileName}
+orgs/{org}/projects/{project}/runs/{run}/logs/{step}.log
+```
+
+One prefix per project is what makes a per-project lifecycle rule or bulk delete possible. After
+a change to that layout, `--relocate-storage` on the runner image moves existing objects onto
+it; `--dry-run` first, since it deletes the sources once the copies are confirmed.
 
 Two prerequisites are not configuration and cannot be worked around:
 

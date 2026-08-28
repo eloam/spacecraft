@@ -93,6 +93,20 @@ public sealed class SpecVersion : Entity
     /// <summary>Commit SHA that produced this spec, when it arrived via GitHub.</summary>
     public string? GitCommitSha { get; private set; }
 
+    /// <summary>
+    /// Points at the same bytes under a different key, after they have been copied there.
+    ///
+    /// Separate from the methods that record work being done: nothing about this document
+    /// changed, only where its object lives.
+    /// </summary>
+    public void RelocateTo(string storageKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(storageKey);
+
+        StorageKey = storageKey;
+        Touch();
+    }
+
     public void RecordGitOrigin(string commitSha)
     {
         GitCommitSha = commitSha;

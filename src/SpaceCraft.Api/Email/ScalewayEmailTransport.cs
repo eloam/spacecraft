@@ -4,6 +4,8 @@ using System.Text.Json.Serialization;
 using SpaceCraft.Api.Common;
 using Microsoft.Extensions.Options;
 
+using SpaceCraft.Infrastructure.Scaleway;
+
 namespace SpaceCraft.Api.Email;
 
 /// <summary>
@@ -22,9 +24,11 @@ namespace SpaceCraft.Api.Email;
 public sealed class ScalewayEmailTransport(
     HttpClient http,
     IOptions<ScalewayEmailOptions> options,
+    IOptions<ScalewayOptions> scaleway,
     ILogger<ScalewayEmailTransport> logger) : IEmailTransport
 {
     private readonly ScalewayEmailOptions _options = options.Value;
+    private readonly ScalewayOptions _scaleway = scaleway.Value;
 
     public async Task SendAsync(EmailMessage message, CancellationToken ct = default)
     {
@@ -36,7 +40,7 @@ public sealed class ScalewayEmailTransport(
             message.Subject,
             message.TextBody,
             message.HtmlBody,
-            _options.ProjectId!);
+            _scaleway.ProjectId!);
 
         // Retries, backoff with jitter, per-attempt timeouts and the circuit breaker all live
         // in the resilience pipeline attached to this client, not here.

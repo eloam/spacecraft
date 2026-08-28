@@ -25,36 +25,6 @@ services:
       retries: 10
 
   # S3-compatible object storage for specs, build artifacts and logs.
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: spacecraft
-      MINIO_ROOT_PASSWORD: spacecraft-dev-secret
-    ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # web console
-    volumes:
-      - minio-data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  # Creates the bucket once MinIO is up, then exits.
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 spacecraft spacecraft-dev-secret &&
-      mc mb --ignore-existing local/spacecraft &&
-      echo 'bucket ready'
-      "
-
   # A local npm registry, so the publish step can be exercised end to end without
   # pushing anything to npmjs.org. Publishing to a real registry is irreversible;
   # having a throwaway one is what makes this pipeline safe to develop against.
@@ -75,5 +45,4 @@ services:
 
 volumes:
   postgres-data:
-  minio-data:
   verdaccio-storage:

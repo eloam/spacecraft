@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace SpaceCraft.Worker;
 
 public sealed class WorkerOptions
@@ -8,6 +10,7 @@ public sealed class WorkerOptions
     /// Runs executed concurrently by this process. Each one holds a container, so this is
     /// really a statement about how much CPU and memory the host can spare.
     /// </summary>
+    [Range(1, 64)]
     public int Concurrency { get; set; } = 2;
 
     /// <summary>How long to wait before re-checking an empty queue.</summary>

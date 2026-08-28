@@ -1,4 +1,5 @@
 using SpaceCraft.Api.Common;
+using SpaceCraft.Infrastructure.Scaleway;
 using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Api.Email;
@@ -16,12 +17,27 @@ public static class EmailServiceExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.Configure<ScalewayEmailOptions>(configuration.GetSection(ScalewayEmailOptions.SectionName));
+        // The key and the project id stay optional — empty is what selects the logging
+        // transport in development. Everything else about a send is checked at startup.
+        services.AddOptions<ScalewayEmailOptions>()
+            .Bind(configuration.GetSection(ScalewayEmailOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<ScalewayOptions>()
+            .Bind(configuration.GetSection(ScalewayOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         var options = new ScalewayEmailOptions();
         configuration.GetSection(ScalewayEmailOptions.SectionName).Bind(options);
 
-        if (options.IsConfigured)
+        var scaleway = new ScalewayOptions();
+        configuration.GetSection(ScalewayOptions.SectionName).Bind(scaleway);
+
+        // Both halves, from two sections: the key belongs to this service, the project to the
+        // account. Sending needs them together.
+        if (options.IsConfigured && scaleway.IsConfigured)
         {
             services.AddHttpClient<IEmailTransport, ScalewayEmailTransport>((provider, client) =>
                 {
@@ -63,7 +79,7 @@ public static class EmailServiceExtensions
             // clear text, and nobody would receive them.
             throw new InvalidOperationException(
                 "No email transport is configured. Set Email:Scaleway:ApiKey and "
-                + "Email:Scaleway:ProjectId, or run in Development to log messages instead.");
+                + "Scaleway:ProjectId, or run in Development to log messages instead.");
         }
 
         // One queue type, three uses. Each endpoint enqueues unconditionally and a
