@@ -147,18 +147,18 @@ export function SpecValidationDialog({
         {
           onSuccess: (result) => {
             setCurrentId(null);
-            // Which mode produced them, not just how many: the same document answers
-            // differently under each, and a bare count invites the wrong conclusion.
+            // The mode the server reports, not the one that was asked for: an override the
+            // API does not honour would otherwise be announced as though it had been.
             toast.success(
               `${count(result.diagnostics.length, "finding")}, revalidated `
-              + `${(override ?? strict) ? "in strict mode" : "without strict mode"}.`,
+              + `${result.strict ? "in strict mode" : "without strict mode"}.`,
             );
           },
           onError: () => toast.error("The document could not be revalidated."),
         },
       );
     },
-    [specId, revalidate, strict],
+    [specId, revalidate],
   );
 
   const pointers = useMemo(

@@ -49,10 +49,17 @@ public sealed record RevalidateRequest(bool? Strict);
 /// </summary>
 public sealed record SpecListResponse(IReadOnlyList<SpecVersionResponse> Items, int Total);
 
+/// <summary>
+/// <paramref name="Strict"/> reports the mode these findings were produced under, rather than
+/// leaving the caller to assume the one it asked for: revalidation can be asked to run the
+/// other way, and a client that reports its own request describes a run that may not have
+/// happened.
+/// </summary>
 public sealed record SpecUploadResponse(
     SpecVersionResponse SpecVersion,
     IReadOnlyList<SpecDiagnostic> Diagnostics,
-    IReadOnlyList<Guid> TriggeredRunIds);
+    IReadOnlyList<Guid> TriggeredRunIds,
+    bool Strict);
 
 public static class SpecEndpoints
 {
@@ -309,7 +316,8 @@ public static class SpecEndpoints
 
         await db.SaveChangesAsync(ct);
 
-        return TypedResults.Ok(new SpecUploadResponse(ToResponse(specVersion), validation.Diagnostics, []));
+        return TypedResults.Ok(
+            new SpecUploadResponse(ToResponse(specVersion), validation.Diagnostics, [], strict));
     }
 
     private static async Task<IResult> UploadAsync(
@@ -445,7 +453,8 @@ public static class SpecEndpoints
 
         return TypedResults.Created(
             $"/api/v1/organizations/{organizationId}/projects/{projectId}/specs",
-            new SpecUploadResponse(ToResponse(specVersion), validation.Diagnostics, triggered));
+            new SpecUploadResponse(
+                ToResponse(specVersion), validation.Diagnostics, triggered, project.StrictValidation));
     }
 
     private static async Task<IResult> DeleteAsync(

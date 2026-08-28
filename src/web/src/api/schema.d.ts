@@ -2496,6 +2496,7 @@ export interface components {
             specVersion: components["schemas"]["SpecVersionResponse"];
             diagnostics: components["schemas"]["SpecDiagnostic"][];
             triggeredRunIds: string[];
+            strict: boolean;
         };
         SpecValidationStatus: number;
         SpecVersionResponse: {
