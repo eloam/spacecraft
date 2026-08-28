@@ -1,9 +1,22 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeftRight, FileCode2, History, MoreHorizontal, SquareCode, Trash2 } from "lucide-react";
+import {
+  ArrowLeftRight,
+  CircleAlert,
+  CircleCheck,
+  FileCode2,
+  History,
+  Layers,
+  MoreHorizontal,
+  Package,
+  SquareCode,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
@@ -55,11 +68,22 @@ function timeAgo(iso: string) {
 
 type Filter = "all" | "valid" | "warnings" | "errors";
 
-const filters: { id: Filter; label: string; matches: (s: SpecVersion) => boolean }[] = [
-  { id: "all", label: "All", matches: () => true },
-  { id: "valid", label: "Generatable", matches: (s) => s.validationStatus !== SpecValidationStatus.Invalid },
-  { id: "warnings", label: "Warnings", matches: (s) => s.warningCount > 0 },
-  { id: "errors", label: "Errors", matches: (s) => s.errorCount > 0 },
+/** The same icons the counts column uses, so a filter and what it selects look alike. */
+const filters: {
+  id: Filter;
+  label: string;
+  Icon: typeof Layers;
+  matches: (s: SpecVersion) => boolean;
+}[] = [
+  { id: "all", label: "All", Icon: Layers, matches: () => true },
+  {
+    id: "valid",
+    label: "Generatable",
+    Icon: CircleCheck,
+    matches: (s) => s.validationStatus !== SpecValidationStatus.Invalid,
+  },
+  { id: "warnings", label: "Warnings", Icon: TriangleAlert, matches: (s) => s.warningCount > 0 },
+  { id: "errors", label: "Errors", Icon: CircleAlert, matches: (s) => s.errorCount > 0 },
 ];
 
 /** Uploaded OpenAPI documents and what validation made of them. */
@@ -89,7 +113,7 @@ export function ProjectSpecsPage() {
    * so this says which document is live rather than making the reader join two tabs.
    */
   const published = useMemo(() => {
-    const map = new Map<string, string[]>();
+    const map = new Map<string, { label: string; url: string | null }[]>();
 
     for (const publication of publications.data ?? []) {
       if (!publication.specVersionId) continue;
@@ -102,7 +126,9 @@ export function ProjectSpecsPage() {
 
       const label = `${publication.packageName}@${publication.version}`;
       const existing = map.get(publication.specVersionId) ?? [];
-      if (!existing.includes(label)) existing.push(label);
+      if (!existing.some((p) => p.label === label)) {
+        existing.push({ label, url: publication.registryUrl });
+      }
       map.set(publication.specVersionId, existing);
     }
 
@@ -169,30 +195,15 @@ export function ProjectSpecsPage() {
 
       <QueryBoundary isLoading={specs.isLoading} error={specs.error}>
         {items.length ? (
-          <>
+          <div className="space-y-3">
+            {/* Beside the table, not inside its frame: a toolbar band directly above the
+                table's own header row put two banded strips back to back, which reads as a
+                table inside a table. */}
             <div className="flex flex-wrap items-center gap-2">
-              {filters.map((option) => {
-                const count = items.filter(option.matches).length;
-
-                return (
-                  <Button
-                    key={option.id}
-                    size="xs"
-                    variant={filter === option.id ? "secondary" : "ghost"}
-                    aria-pressed={filter === option.id}
-                    disabled={count === 0 && option.id !== "all"}
-                    onClick={() => setFilter(option.id)}
-                  >
-                    {option.label}
-                    <span className="ml-1 tabular-nums text-muted-foreground">{count}</span>
-                  </Button>
-                );
-              })}
-
               {/* Appears only once two versions are picked: an always-present button that does
                   nothing most of the time teaches people to ignore it. */}
               {pair.length === 2 && (
-                <div className="ml-auto flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   {mixedNotations && (
                     // Said plainly rather than by a button that vanishes: the two were just
                     // picked, and their disappearance would read as a bug.
@@ -213,15 +224,45 @@ export function ProjectSpecsPage() {
                   </Button>
                 </div>
               )}
+
+              {/* One control rather than four loose buttons: a segmented set says the choices
+                  are exclusive before anything is clicked. */}
+              <div className="ml-auto flex items-center rounded-lg border bg-card p-0.5">
+                {filters.map(({ id, label, Icon, matches }) => {
+                  const count = items.filter(matches).length;
+
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={filter === id}
+                      disabled={count === 0 && id !== "all"}
+                      onClick={() => setFilter(id)}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-xs transition-colors",
+                        "disabled:cursor-not-allowed disabled:opacity-40",
+                        filter === id
+                          ? "bg-secondary font-medium text-secondary-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="size-3.5" aria-hidden />
+                      {label}
+                      <span className="tabular-nums opacity-60">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <Table>
+            <Card className="py-0">
+              <CardContent className="p-0">
+                <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10">
                     <span className="sr-only">Select to compare</span>
                   </TableHead>
-                  <TableHead className="w-12">#</TableHead>
                   <TableHead>API</TableHead>
                   {/* The document's own format version, not the API's — "3.0.3", not "1.0". */}
                   <TableHead className="w-32">OpenAPI</TableHead>
@@ -250,13 +291,12 @@ export function ProjectSpecsPage() {
                         />
                       </TableCell>
 
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {spec.sequence}
-                      </TableCell>
-
-                      {/* Title, then the details that used to cost two columns of their own. */}
+                      {/* Title, with the details that used to cost three columns of their own. */}
                       <TableCell>
                         <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-muted-foreground">
+                            #{spec.sequence}
+                          </span>
                           {/* The name is the obvious thing to click to read a document, and
                               was the one part of the row that did nothing. Underlined on row
                               hover rather than its own: the pointer is somewhere on the row
@@ -316,9 +356,32 @@ export function ProjectSpecsPage() {
                           // refused, and now that is visible before the click rather than
                           // after it.
                           <div className="space-y-0.5 font-mono">
-                            {packages.map((label) => (
-                              <p key={label} className="truncate">{label}</p>
-                            ))}
+                            {packages.map(({ label, url }) => {
+                              const inner = (
+                                <>
+                                  <Package className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+                                  {label}
+                                </>
+                              );
+
+                              // The registry is where this actually lives; a name that cannot
+                              // be followed is half an answer.
+                              return url ? (
+                                <a
+                                  key={label}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer noopener"
+                                  className="flex items-center gap-1 truncate hover:underline"
+                                >
+                                  {inner}
+                                </a>
+                              ) : (
+                                <p key={label} className="flex items-center gap-1 truncate">
+                                  {inner}
+                                </p>
+                              );
+                            })}
                           </div>
                         )}
                       </TableCell>
@@ -377,20 +440,24 @@ export function ProjectSpecsPage() {
                   );
                 })}
               </TableBody>
-            </Table>
+                </Table>
 
-            {visible.length === 0 && (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No version matches this filter.
-              </p>
-            )}
+                {visible.length === 0 && (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    No version matches this filter.
+                  </p>
+                )}
+              </CardContent>
 
-            {hidden > 0 && (
-              <p className="text-center text-xs text-muted-foreground">
-                Showing the {items.length} most recent of {specs.data?.total} versions.
-              </p>
-            )}
-          </>
+              {hidden > 0 && (
+                <CardFooter className="border-t py-2.5">
+                  <p className="text-xs text-muted-foreground">
+                    Showing the {items.length} most recent of {specs.data?.total} versions.
+                  </p>
+                </CardFooter>
+              )}
+            </Card>
+          </div>
         ) : (
           // The drop zone above is not an empty state: it says what to do, not what is there.
           <EmptyState
