@@ -206,8 +206,11 @@ export function ProjectTargetsPage() {
                                 Automatic
                               </span>
                             ) : (
-                              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <Hand className="size-3.5" aria-hidden />
+                              // Coloured like its opposite, and no longer muted: the two are
+                              // equal states of the same setting, and greying one of them
+                              // read as the target being switched off.
+                              <span className="flex items-center gap-1.5 text-xs">
+                                <Hand className="size-3.5 text-[var(--success)]" aria-hidden />
                                 Manual
                               </span>
                             )}
