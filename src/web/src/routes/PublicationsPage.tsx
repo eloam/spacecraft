@@ -5,15 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { usePublications } from "@/api/queries";
-import { registryLabel } from "@/api/types";
+import { PublicationStatus, registryLabel } from "@/api/types";
 
-/** Mirrors SpaceCraft.Domain.Registries.PublicationStatus. */
-const PublicationStatus = {
-  Pending: 1,
-  Succeeded: 2,
-  AlreadyExists: 3,
-  Failed: 4,
-} as const;
 
 function StatusBadge({ status }: { status: number }) {
   if (status === PublicationStatus.Succeeded) {

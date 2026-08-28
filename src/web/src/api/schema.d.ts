@@ -1036,15 +1036,6 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SpecUploadResponse"];
-                    };
-                };
                 /** @description Created */
                 201: {
                     headers: {
@@ -1061,6 +1052,15 @@ export interface paths {
                     };
                     content: {
                         "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -1213,6 +1213,62 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organizationId}/projects/{projectId}/specs/{specVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Deletes a spec version, unless a package was published from it. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizationId: string;
+                    projectId: string;
+                    specVersionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -2282,6 +2338,8 @@ export interface components {
             /** Format: uuid */
             pipelineRunId: string;
             /** Format: uuid */
+            specVersionId: null | string;
+            /** Format: uuid */
             sdkTargetId: string;
             /** Format: uuid */
             apiProjectId: null | string;
@@ -2382,6 +2440,7 @@ export interface components {
             apiTitle: null | string;
             apiVersion: null | string;
             openApiVersion: null | string;
+            format: string;
             /** Format: int32 */
             informationCount: number;
             /** Format: int32 */

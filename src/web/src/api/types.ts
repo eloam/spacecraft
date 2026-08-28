@@ -21,6 +21,7 @@ export type SpecContent = Schemas["SpecContentResponse"];
 export type Run = Schemas["RunResponse"];
 export type RunStep = Schemas["StepResponse"];
 export type Credential = Schemas["CredentialResponse"];
+export type Publication = Schemas["PublicationResponse"];
 
 /** Mirrors SpaceCraft.Domain.Organizations.OrganizationRole. */
 export const OrganizationRole = {
@@ -76,6 +77,19 @@ export const DiagnosticSeverity = {
   Information: 0,
   Warning: 1,
   Error: 2,
+} as const;
+
+/**
+ * Mirrors SpaceCraft.Domain.Registries.PublicationStatus.
+ *
+ * Failed is 3 and AlreadyExists is 4. A copy of this living in PublicationsPage had the two
+ * the other way round, so a failed publication was reported as one the registry already had.
+ */
+export const PublicationStatus = {
+  Pending: 1,
+  Succeeded: 2,
+  Failed: 3,
+  AlreadyExists: 4,
 } as const;
 
 export const SpecValidationStatus = {

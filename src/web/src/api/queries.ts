@@ -6,6 +6,7 @@ import type {
   Credential,
   Organization,
   Project,
+  Publication,
   Run,
   SdkTarget,
   SpecContent,
@@ -74,21 +75,6 @@ export type Session = {
 };
 
 export type DeletionBlocker = { organizationName: string; reason: string };
-
-export type Publication = {
-  id: string;
-  pipelineRunId: string;
-  apiProjectId: string | null;
-  projectName: string | null;
-  registry: number;
-  packageName: string;
-  version: string;
-  status: number;
-  registryUrl: string | null;
-  failureReason: string | null;
-  createdAt: string;
-  completedAt: string | null;
-};
 
 export type Member = {
   userId: string;
@@ -160,6 +146,26 @@ export function useRevalidateSpec(orgId: string, projectId: string) {
       // One call covers all three: the diagnostics and content keys nest under the specs
       // key, and React Query invalidates by prefix.
       queryClient.invalidateQueries({ queryKey: keys.specs(orgId, projectId) });
+    },
+  });
+}
+
+/**
+ * Removes one uploaded document, with the runs executed against it.
+ *
+ * The server refuses once a package reached a registry: the package stays installable
+ * whatever is deleted here, so the document it came from has to stay too.
+ */
+export function useDeleteSpec(orgId: string, projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (specId: string) =>
+      api.delete<void>(`/organizations/${orgId}/projects/${projectId}/specs/${specId}`),
+    onSuccess: () => {
+      // Prefix invalidation covers the findings and the document alongside the table.
+      queryClient.invalidateQueries({ queryKey: keys.specs(orgId, projectId) });
+      queryClient.invalidateQueries({ queryKey: keys.runs(orgId, projectId) });
     },
   });
 }
