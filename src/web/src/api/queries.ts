@@ -272,6 +272,18 @@ export function useDeleteProject(orgId: string) {
   });
 }
 
+export function useUpdateTarget(orgId: string, projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { targetId: string; packageName: string; autoPublish: boolean }) =>
+      api.patch<SdkTarget>(
+        `/organizations/${orgId}/projects/${projectId}/targets/${input.targetId}`,
+        { packageName: input.packageName, autoPublish: input.autoPublish },
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.project(orgId, projectId) }),
+  });
+}
+
 export function useDeleteTarget(orgId: string, projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({

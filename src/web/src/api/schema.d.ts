@@ -982,7 +982,62 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /** Changes an SDK target's package name or auto-publish setting. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organizationId: string;
+                    projectId: string;
+                    targetId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateTargetRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TargetResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/v1/organizations/{organizationId}/projects/{projectId}/specs": {
@@ -2488,6 +2543,10 @@ export interface components {
         };
         UpdateProfileRequest: {
             displayName: null | string;
+        };
+        UpdateTargetRequest: {
+            packageName: string;
+            autoPublish: boolean;
         };
         UserResponse: {
             /** Format: uuid */

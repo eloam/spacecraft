@@ -33,6 +33,14 @@ public sealed class SdkTarget : Entity
 
     public DateTimeOffset? LastPublishedAt { get; private set; }
 
+    /// <summary>
+    /// Points the target at a different package.
+    ///
+    /// The last publication is forgotten along with the old name: it went out under a package
+    /// this target no longer publishes to, and reporting it beside the new one would claim a
+    /// release that was never made. Nothing is lost — the registry keeps what it was given,
+    /// and the publication rows keep the name each version went out under.
+    /// </summary>
     public void Rename(string packageName)
     {
         if (!PackageCoordinates.IsValidFor(Registry, packageName))
@@ -40,7 +48,14 @@ public sealed class SdkTarget : Entity
             throw new ArgumentException($"'{packageName}' is not a valid package name for {Registry}.", nameof(packageName));
         }
 
+        if (string.Equals(PackageName, packageName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
         PackageName = packageName;
+        LastPublishedVersion = null;
+        LastPublishedAt = null;
         Touch();
     }
 

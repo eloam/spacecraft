@@ -219,6 +219,47 @@ public class ApiProjectTests
     }
 
     [Fact]
+    public void Renaming_a_target_forgets_the_release_published_under_the_old_name()
+    {
+        var target = NewTarget();
+        target.RecordPublication("1.4.2", DateTimeOffset.UtcNow);
+
+        target.Rename("@acme/billing-sdk");
+
+        target.PackageName.ShouldBe("@acme/billing-sdk");
+        // It went out as @acme/a@1.4.2, and reporting it beside the new name would claim a
+        // release that was never made.
+        target.LastPublishedVersion.ShouldBeNull();
+        target.LastPublishedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Renaming_a_target_to_the_name_it_already_has_keeps_its_release()
+    {
+        var target = NewTarget();
+        target.RecordPublication("1.4.2", DateTimeOffset.UtcNow);
+
+        target.Rename("@acme/a");
+
+        target.LastPublishedVersion.ShouldBe("1.4.2");
+    }
+
+    [Fact]
+    public void A_rename_to_a_name_invalid_for_the_registry_leaves_the_target_alone()
+    {
+        var target = NewTarget();
+
+        // Uppercase is not a legal npm package name.
+        Should.Throw<ArgumentException>(() => target.Rename("@Acme/Billing"));
+
+        target.PackageName.ShouldBe("@acme/a");
+    }
+
+    private static SdkTarget NewTarget() =>
+        NewOrg().AddProject("Billing", "billing")
+            .AddTarget(SdkLanguage.TypeScript, "@acme/a", RegistryKind.Npm);
+
+    [Fact]
     public void A_spec_that_failed_validation_is_not_generatable()
     {
         var project = NewOrg().AddProject("Billing", "billing");

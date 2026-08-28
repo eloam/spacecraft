@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ExternalLink, Hand, Layers, MoreHorizontal, Package, Plus, Trash2, Zap } from "lucide-react";
+import { ExternalLink, Hand, Layers, MoreHorizontal, Package, Pencil, Plus, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,13 +9,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
-import { AddTargetDialog } from "@/routes/project/AddTargetDialog";
+import { TargetDialog } from "@/routes/project/TargetDialog";
 import { ApiError } from "@/api/client";
 import { useDeleteTarget, useProject, usePublications } from "@/api/queries";
 import { PublicationStatus, languageLabel, registryLabel } from "@/api/types";
@@ -59,6 +60,10 @@ export function ProjectTargetsPage() {
   const deleteTarget = useDeleteTarget(orgId, projectId);
 
   const [targetOpen, setTargetOpen] = useState(false);
+  const [editing, setEditing] = useState<SdkTarget | undefined>(undefined);
+  // Bumped on every opening and used as the dialog's key: the form takes its values from the
+  // row it was opened on, and a remount is what makes it read them again.
+  const [opening, setOpening] = useState(0);
   const [targetToDelete, setTargetToDelete] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
@@ -98,6 +103,12 @@ export function ProjectTargetsPage() {
 
   const deleting = targets.find((t) => t.id === targetToDelete);
 
+  function openDialog(target?: SdkTarget) {
+    setEditing(target);
+    setOpening((n) => n + 1);
+    setTargetOpen(true);
+  }
+
   return (
     <div className="space-y-6">
       <QueryBoundary isLoading={project.isLoading} error={project.error}>
@@ -107,7 +118,7 @@ export function ProjectTargetsPage() {
                 table's own header row puts two banded strips back to back, which reads as a
                 table inside a table. */}
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" onClick={() => setTargetOpen(true)}>
+              <Button variant="outline" onClick={() => openDialog()}>
                 <Plus className="size-4" aria-hidden />
                 Add target
               </Button>
@@ -258,6 +269,13 @@ export function ProjectTargetsPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-44">
                                   <DropdownMenuItem
+                                    onClick={() => openDialog(target)}
+                                  >
+                                    <Pencil className="size-4" aria-hidden />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
                                     variant="destructive"
                                     onClick={() => {
                                       setDeleteError(null);
@@ -291,7 +309,7 @@ export function ProjectTargetsPage() {
             title="No SDK targets"
             description="A target says which language to emit and which package name to publish it under."
             action={
-              <Button variant="outline" onClick={() => setTargetOpen(true)}>
+              <Button variant="outline" onClick={() => openDialog()}>
                 <Plus className="size-4" aria-hidden />
                 Add target
               </Button>
@@ -300,9 +318,11 @@ export function ProjectTargetsPage() {
         )}
       </QueryBoundary>
 
-      <AddTargetDialog
+      <TargetDialog
+        key={opening}
         orgId={orgId}
         projectId={projectId}
+        target={editing}
         open={targetOpen}
         onOpenChange={setTargetOpen}
       />

@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Features.Deletion;
 using SpaceCraft.Domain.Common;
 using SpaceCraft.Domain.Organizations;
+using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Domain.Projects;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +19,13 @@ namespace SpaceCraft.Api.Features;
 public sealed record CreateProjectRequest(string Name, string? Slug, bool? StrictValidation);
 
 public sealed record AddTargetRequest(SdkLanguage Language, string PackageName, RegistryKind? Registry, bool AutoPublish);
+
+/// <summary>
+/// What a target can still be changed to. Language and registry are not here: they decide
+/// which generator runs and where the result goes, so changing either would make the row
+/// describe something that was never built.
+/// </summary>
+public sealed record UpdateTargetRequest(string PackageName, bool AutoPublish);
 
 public sealed record TargetResponse(
     Guid Id,
@@ -93,6 +101,13 @@ public static class ProjectEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Deletes a project with its specs, targets and run history.");
+
+        group.MapPatch("/{projectId:guid}/targets/{targetId:guid}", UpdateTargetAsync)
+            .Produces<TargetResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Changes an SDK target's package name or auto-publish setting.");
 
         group.MapDelete("/{projectId:guid}/targets/{targetId:guid}", DeleteTargetAsync)
             .Produces(StatusCodes.Status204NoContent)
@@ -459,6 +474,81 @@ public static class ProjectEndpoints
         return TypedResults.Created(
             $"/api/v1/organizations/{organizationId}/projects/{projectId}",
             ToTargetResponse(target));
+    }
+
+    /// <summary>
+    /// Changes the package a target publishes to, and whether it does so on its own.
+    ///
+    /// Refused while the target has work in flight: a run reads the package name when it
+    /// reaches its publish step, so a rename mid-run would push to a package nobody asked
+    /// for, under a version that belongs to the other one.
+    /// </summary>
+    private static async Task<IResult> UpdateTargetAsync(
+        Guid organizationId,
+        Guid projectId,
+        Guid targetId,
+        [FromBody] UpdateTargetRequest request,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        CancellationToken ct)
+    {
+        // Admin, like adding and deleting one: it decides what gets published where.
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var target = await db.SdkTargets
+            .Where(t => t.Id == targetId && t.ApiProjectId == projectId)
+            .Where(t => db.ApiProjects.Any(p => p.Id == projectId && p.OrganizationId == organizationId))
+            .FirstOrDefaultAsync(ct);
+
+        if (target is null)
+        {
+            return ApiResults.NotFound("The SDK target");
+        }
+
+        var packageName = request.PackageName?.Trim() ?? string.Empty;
+
+        if (!string.Equals(packageName, target.PackageName, StringComparison.Ordinal))
+        {
+            var active = await db.PipelineRuns.CountAsync(
+                r => r.SdkTargetId == targetId
+                    && (r.Status == RunStatus.Queued || r.Status == RunStatus.Running),
+                ct);
+
+            if (active > 0)
+            {
+                return ApiResults.Conflict(
+                    $"{active} run{(active == 1 ? " is" : "s are")} still queued or running for this target. "
+                    + "Wait for them to finish, or cancel them first.");
+            }
+
+            try
+            {
+                target.Rename(packageName);
+            }
+            catch (ArgumentException ex)
+            {
+                return ApiResults.Invalid(nameof(request.PackageName), ex.Message);
+            }
+        }
+
+        target.SetAutoPublish(request.AutoPublish);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Trips the (registry, package_name) unique index: another project claimed it.
+            return ApiResults.Conflict(
+                $"'{packageName}' is already registered on {target.Registry} by another project.");
+        }
+
+        return TypedResults.Ok(ToTargetResponse(target));
     }
 
     private static ProjectResponse ToResponse(ApiProject project, int specVersionCount) =>
