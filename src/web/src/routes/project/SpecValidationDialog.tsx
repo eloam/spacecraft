@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -382,29 +383,34 @@ export function SpecValidationDialog({
                 </DropdownMenuTrigger>
 
                 <DropdownMenuContent align="end" className="w-80">
-                  <DropdownMenuLabel className="font-normal">
-                    This project validates {strict ? "in strict mode" : "without strict mode"}.
-                    Run it the other way once, without changing the setting.
-                  </DropdownMenuLabel>
-                  <DropdownMenuItem
-                    // The item is two lines tall; the icon belongs beside the first of them.
-                    className="items-start [&_svg]:mt-0.5"
-                    onClick={() => run(!strict)}
-                  >
-                    {strict ? (
-                      <ShieldOff className="size-4 text-muted-foreground" aria-hidden />
-                    ) : (
-                      <ShieldCheck className="size-4 text-[var(--success)]" aria-hidden />
-                    )}
-                    <span>
-                      {strict ? "Revalidate without strict mode" : "Revalidate in strict mode"}
-                      <span className="block text-xs text-muted-foreground">
-                        {strict
-                          ? "Checks that this is valid OpenAPI, and nothing more. Replaces the findings below."
-                          : "Also checks that a usable SDK can come out of this document. Replaces the findings below."}
+                  {/* Base UI requires a label to sit inside a group: its GroupLabel
+                      reads context the group provides, and rendering it loose throws
+                      when the menu opens. */}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="font-normal">
+                      This project validates {strict ? "in strict mode" : "without strict mode"}.
+                      Run it the other way once, without changing the setting.
+                    </DropdownMenuLabel>
+                    <DropdownMenuItem
+                      // The item is two lines tall; the icon belongs beside the first of them.
+                      className="items-start [&_svg]:mt-0.5"
+                      onClick={() => run(!strict)}
+                    >
+                      {strict ? (
+                        <ShieldOff className="size-4 text-muted-foreground" aria-hidden />
+                      ) : (
+                        <ShieldCheck className="size-4 text-[var(--success)]" aria-hidden />
+                      )}
+                      <span>
+                        {strict ? "Revalidate without strict mode" : "Revalidate in strict mode"}
+                        <span className="block text-xs text-muted-foreground">
+                          {strict
+                            ? "Checks that this is valid OpenAPI, and nothing more. Replaces the findings below."
+                            : "Also checks that a usable SDK can come out of this document. Replaces the findings below."}
+                        </span>
                       </span>
-                    </span>
-                  </DropdownMenuItem>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

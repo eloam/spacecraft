@@ -51,6 +51,11 @@ function DropdownMenuGroup({ ...props }: MenuPrimitive.Group.Props) {
   return <MenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
 }
 
+/**
+ * Must be rendered inside a {@link DropdownMenuGroup}: Base UI's GroupLabel reads the id the
+ * group provides, and throws when it cannot find it — which takes the page down with it as
+ * the menu opens, not when it is written.
+ */
 function DropdownMenuLabel({
   className,
   inset,
