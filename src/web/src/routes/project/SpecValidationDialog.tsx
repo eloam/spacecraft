@@ -1,14 +1,22 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronDown, ChevronUp, CircleAlert, Info, List, RefreshCw, SquareCode, TriangleAlert,
+  ChevronDown, ChevronRight, ChevronUp, CircleAlert, Info, List, RefreshCw, ShieldCheck,
+  ShieldOff, SquareCode, TriangleAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { LocatedFinding, Finding as SourceFinding } from "@/components/SpecSourceView";
 import { cn } from "@/lib/utils";
-import { useRevalidateSpec, useSpecContent, useSpecDiagnostics } from "@/api/queries";
+import { useProject, useRevalidateSpec, useSpecContent, useSpecDiagnostics } from "@/api/queries";
 import { DiagnosticSeverity } from "@/api/types";
 import type { IndexResponse } from "@/workers/specIndex.worker";
 
@@ -113,6 +121,9 @@ export function SpecValidationDialog({
   const diagnostics = useSpecDiagnostics(orgId, projectId, specId);
   const source = useSpecContent(orgId, projectId, specId);
   const revalidate = useRevalidateSpec(orgId, projectId);
+  // Which rules the replay will run under. The server reads it from the project either way;
+  // this is here so the button can say so before it is pressed rather than after.
+  const strict = useProject(orgId, projectId).data?.strictValidation ?? true;
 
   const [mode, setMode] = useState<"source" | "list">("source");
   const [hidden, setHidden] = useState<number[]>([]);
@@ -312,32 +323,59 @@ export function SpecValidationDialog({
             </Button>
 
             {/* Findings are written once, at upload, so a spec keeps whatever the rules said
-                that day. This replays today's rules over the same document. */}
-            <Button
-              size="xs"
-              variant="ghost"
-              className="gap-1.5"
-              disabled={specId === null || revalidate.isPending}
-              title="Re-run validation over this document"
-              onClick={() => {
-                if (specId === null) return;
-                revalidate.mutate(specId, {
-                  onSuccess: (result) => {
-                    setCurrentId(null);
-                    toast.success(
-                      count(result.diagnostics.length, "finding") + " after revalidation.",
-                    );
-                  },
-                  onError: () => toast.error("The document could not be revalidated."),
-                });
-              }}
-            >
-              <RefreshCw
-                className={cn("size-3.5", revalidate.isPending && "animate-spin")}
-                aria-hidden
-              />
-              Revalidate
-            </Button>
+                that day. This replays today's rules over the same document — and which rules
+                those are depends on a project setting, so the menu names them before running
+                rather than leaving the new count to be explained afterwards. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button size="xs" variant="outline" className="gap-1.5" />}
+                disabled={specId === null || revalidate.isPending}
+                title="Re-run validation over this document"
+              >
+                <RefreshCw
+                  className={cn("size-3.5", revalidate.isPending && "animate-spin")}
+                  aria-hidden
+                />
+                Revalidate
+                <ChevronRight className="size-3.5 opacity-60" aria-hidden />
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel className="font-normal">
+                  Replays validation over this document with the rules in force today.
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  // The item is two lines tall; the icon belongs beside the first of them.
+                  className="items-start [&_svg]:mt-0.5"
+                  onClick={() => {
+                    if (specId === null) return;
+                    revalidate.mutate(specId, {
+                      onSuccess: (result) => {
+                        setCurrentId(null);
+                        toast.success(
+                          count(result.diagnostics.length, "finding") + " after revalidation.",
+                        );
+                      },
+                      onError: () => toast.error("The document could not be revalidated."),
+                    });
+                  }}
+                >
+                  {strict ? (
+                    <ShieldCheck className="size-4 text-[var(--success)]" aria-hidden />
+                  ) : (
+                    <ShieldOff className="size-4 text-muted-foreground" aria-hidden />
+                  )}
+                  <span>
+                    {strict ? "Revalidate in strict mode" : "Revalidate without strict mode"}
+                    <span className="block text-xs text-muted-foreground">
+                      {strict
+                        ? "Also checks that a usable SDK can come out of this document."
+                        : "Checks that this is valid OpenAPI, and nothing more."}
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Button size="xs" variant="ghost" onClick={close}>
               Close
