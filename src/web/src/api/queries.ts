@@ -137,10 +137,11 @@ export function useRevalidateSpec(orgId: string, projectId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (specId: string) =>
+    // `strict` left out runs the project's own mode, which is what the plain button asks for.
+    mutationFn: (input: { specId: string; strict?: boolean }) =>
       api.post<SpecUpload>(
-        `/organizations/${orgId}/projects/${projectId}/specs/${specId}/revalidate`,
-        {},
+        `/organizations/${orgId}/projects/${projectId}/specs/${input.specId}/revalidate`,
+        { strict: input.strict ?? null },
       ),
     onSuccess: () => {
       // One call covers all three: the diagnostics and content keys nest under the specs

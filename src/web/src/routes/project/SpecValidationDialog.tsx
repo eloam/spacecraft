@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronDown, ChevronRight, ChevronUp, CircleAlert, Info, List, RefreshCw, ShieldCheck,
-  ShieldOff, SquareCode, TriangleAlert,
+  ChevronDown, ChevronUp, CircleAlert, Info, List, RefreshCw, ShieldCheck, ShieldOff,
+  SquareCode, TriangleAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -125,12 +125,40 @@ export function SpecValidationDialog({
   // this is here so the button can say so before it is pressed rather than after.
   const strict = useProject(orgId, projectId).data?.strictValidation ?? true;
 
+
   const [mode, setMode] = useState<"source" | "list">("source");
   const [hidden, setHidden] = useState<number[]>([]);
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [scrollTo, setScrollTo] = useState<{ line: number; nonce: number } | null>(null);
   const nonce = useRef(0);
   const list = useRef<HTMLUListElement>(null);
+
+  /**
+   * Replays validation over the stored document. Without an argument it runs the project's
+   * own mode; the menu passes the other one for a single run.
+   */
+  const run = useCallback(
+    (override?: boolean) => {
+      if (specId === null) return;
+
+      revalidate.mutate(
+        { specId, strict: override },
+        {
+          onSuccess: (result) => {
+            setCurrentId(null);
+            // Which mode produced them, not just how many: the same document answers
+            // differently under each, and a bare count invites the wrong conclusion.
+            toast.success(
+              `${count(result.diagnostics.length, "finding")}, revalidated `
+              + `${(override ?? strict) ? "in strict mode" : "without strict mode"}.`,
+            );
+          },
+          onError: () => toast.error("The document could not be revalidated."),
+        },
+      );
+    },
+    [specId, revalidate, strict],
+  );
 
   const pointers = useMemo(
     () => (diagnostics.data ?? []).map((d) => d.jsonPointer),
@@ -323,59 +351,63 @@ export function SpecValidationDialog({
             </Button>
 
             {/* Findings are written once, at upload, so a spec keeps whatever the rules said
-                that day. This replays today's rules over the same document — and which rules
-                those are depends on a project setting, so the menu names them before running
-                rather than leaving the new count to be explained afterwards. */}
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={<Button size="xs" variant="outline" className="gap-1.5" />}
+                that day. This replays today's rules over the same document.
+
+                A split control: the button runs the project's own mode, which is what is
+                wanted nearly every time, and the chevron opens the one-off — "what would the
+                other mode say about this?" — without making it as easy to reach by accident. */}
+            <div className="flex items-center">
+              <Button
+                size="xs"
+                variant="outline"
+                className="gap-1.5 rounded-r-none border-r-0"
                 disabled={specId === null || revalidate.isPending}
                 title="Re-run validation over this document"
+                onClick={() => run()}
               >
                 <RefreshCw
                   className={cn("size-3.5", revalidate.isPending && "animate-spin")}
                   aria-hidden
                 />
                 Revalidate
-                <ChevronRight className="size-3.5 opacity-60" aria-hidden />
-              </DropdownMenuTrigger>
+              </Button>
 
-              <DropdownMenuContent align="end" className="w-72">
-                <DropdownMenuLabel className="font-normal">
-                  Replays validation over this document with the rules in force today.
-                </DropdownMenuLabel>
-                <DropdownMenuItem
-                  // The item is two lines tall; the icon belongs beside the first of them.
-                  className="items-start [&_svg]:mt-0.5"
-                  onClick={() => {
-                    if (specId === null) return;
-                    revalidate.mutate(specId, {
-                      onSuccess: (result) => {
-                        setCurrentId(null);
-                        toast.success(
-                          count(result.diagnostics.length, "finding") + " after revalidation.",
-                        );
-                      },
-                      onError: () => toast.error("The document could not be revalidated."),
-                    });
-                  }}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button size="xs" variant="outline" className="rounded-l-none px-1.5" />}
+                  disabled={specId === null || revalidate.isPending}
+                  aria-label="Revalidate in the other mode"
                 >
-                  {strict ? (
-                    <ShieldCheck className="size-4 text-[var(--success)]" aria-hidden />
-                  ) : (
-                    <ShieldOff className="size-4 text-muted-foreground" aria-hidden />
-                  )}
-                  <span>
-                    {strict ? "Revalidate in strict mode" : "Revalidate without strict mode"}
-                    <span className="block text-xs text-muted-foreground">
-                      {strict
-                        ? "Also checks that a usable SDK can come out of this document."
-                        : "Checks that this is valid OpenAPI, and nothing more."}
+                  <ChevronDown className="size-3.5 opacity-70" aria-hidden />
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-80">
+                  <DropdownMenuLabel className="font-normal">
+                    This project validates {strict ? "in strict mode" : "without strict mode"}.
+                    Run it the other way once, without changing the setting.
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem
+                    // The item is two lines tall; the icon belongs beside the first of them.
+                    className="items-start [&_svg]:mt-0.5"
+                    onClick={() => run(!strict)}
+                  >
+                    {strict ? (
+                      <ShieldOff className="size-4 text-muted-foreground" aria-hidden />
+                    ) : (
+                      <ShieldCheck className="size-4 text-[var(--success)]" aria-hidden />
+                    )}
+                    <span>
+                      {strict ? "Revalidate without strict mode" : "Revalidate in strict mode"}
+                      <span className="block text-xs text-muted-foreground">
+                        {strict
+                          ? "Checks that this is valid OpenAPI, and nothing more. Replaces the findings below."
+                          : "Also checks that a usable SDK can come out of this document. Replaces the findings below."}
+                      </span>
                     </span>
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             <Button size="xs" variant="ghost" onClick={close}>
               Close

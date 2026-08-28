@@ -8,6 +8,7 @@ using SpaceCraft.Domain.Projects;
 using SpaceCraft.Infrastructure.OpenApi;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Storage;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features;
@@ -34,6 +35,13 @@ public sealed record SpecVersionResponse(
 /// bucket, and the upload cap already bounds what this can return.
 /// </summary>
 public sealed record SpecContentResponse(string Content, string Format);
+
+/// <summary>
+/// <paramref name="Strict"/> is nullable so that omitting it means "whatever the project is
+/// set to" rather than "off": a caller that just wants today's rules replayed should not have
+/// to know which mode the project runs in to ask for it.
+/// </summary>
+public sealed record RevalidateRequest(bool? Strict);
 
 /// <summary>
 /// A page of versions and how many exist. Without the total, a project past the cap would be
@@ -81,7 +89,9 @@ public static class SpecEndpoints
         group.MapPost("/{specVersionId:guid}/revalidate", RevalidateAsync)
             .Produces<SpecUploadResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .WithSummary("Re-runs validation over a stored document and replaces its findings.");
+            .WithSummary(
+                "Re-runs validation over a stored document and replaces its findings. "
+                + "Runs in the project's mode unless the body overrides it.");
 
         group.MapDelete("/{specVersionId:guid}", DeleteAsync)
             .Produces(StatusCodes.Status204NoContent)
@@ -228,6 +238,7 @@ public static class SpecEndpoints
         Guid organizationId,
         Guid projectId,
         Guid specVersionId,
+        [FromBody] RevalidateRequest? request,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         IOrganizationAccess access,
@@ -278,8 +289,13 @@ public static class SpecEndpoints
             .Select(s => s.ApiVersion)
             .FirstOrDefault();
 
+        // Answering "what would the other mode say about this document?" without making the
+        // project live in that mode. The findings it writes are the ones this run produced,
+        // so the caller is told which mode ran and can replay the default to get it back.
+        var strict = request?.Strict ?? project.StrictValidation;
+
         var validation = await validator.ValidateAsync(
-            buffer, specVersion.StorageKey, project.StrictValidation, previousApiVersion, ct);
+            buffer, specVersion.StorageKey, strict, previousApiVersion, ct);
 
         specVersion.MarkValidated(
             status: validation.Status,

@@ -1233,7 +1233,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Re-runs validation over a stored document and replaces its findings. */
+        /** Re-runs validation over a stored document and replaces its findings. Runs in the project's mode unless the body overrides it. */
         post: {
             parameters: {
                 query?: never;
@@ -1245,7 +1245,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["RevalidateRequest"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -2429,6 +2433,9 @@ export interface components {
         ResetPasswordRequest: {
             token: string;
             newPassword: string;
+        };
+        RevalidateRequest: {
+            strict: null | boolean;
         };
         RunResponse: {
             /** Format: uuid */
