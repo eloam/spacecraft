@@ -35,6 +35,12 @@ public sealed record SpecVersionResponse(
 /// </summary>
 public sealed record SpecContentResponse(string Content, string Format);
 
+/// <summary>
+/// A page of versions and how many exist. Without the total, a project past the cap would be
+/// shown its hundred most recent as though that were all of them.
+/// </summary>
+public sealed record SpecListResponse(IReadOnlyList<SpecVersionResponse> Items, int Total);
+
 public sealed record SpecUploadResponse(
     SpecVersionResponse SpecVersion,
     IReadOnlyList<SpecDiagnostic> Diagnostics,
@@ -48,6 +54,10 @@ public static class SpecEndpoints
     /// </summary>
     private const long MaxUploadBytes = SpecLimits.MaxSizeInBytes;
 
+    /// <summary>Most versions one listing returns. The total travels with them, so a project
+    /// past this knows it is seeing a slice.</summary>
+    private const int ListLimit = 100;
+
     public static RouteGroupBuilder MapSpecEndpoints(this RouteGroupBuilder api)
     {
         var group = api.MapGroup("/organizations/{organizationId:guid}/projects/{projectId:guid}/specs")
@@ -55,7 +65,7 @@ public static class SpecEndpoints
             .RequireAuthorization();
 
         group.MapGet("/", ListAsync)
-            .Produces<List<SpecVersionResponse>>()
+            .Produces<SpecListResponse>()
             .WithSummary("Lists the project's spec versions, newest first.");
 
         group.MapGet("/{specVersionId:guid}/diagnostics", GetDiagnosticsAsync)
@@ -107,15 +117,19 @@ public static class SpecEndpoints
             return ApiResults.NotFoundOrForbidden();
         }
 
-        var versions = await db.SpecVersions
+        var scoped = db.SpecVersions
             .AsNoTracking()
             .Where(s => s.ApiProjectId == projectId
-                        && db.ApiProjects.Any(p => p.Id == projectId && p.OrganizationId == organizationId))
+                        && db.ApiProjects.Any(p => p.Id == projectId && p.OrganizationId == organizationId));
+
+        var total = await scoped.CountAsync(ct);
+
+        var versions = await scoped
             .OrderByDescending(s => s.Sequence)
-            .Take(100)
+            .Take(ListLimit)
             .ToListAsync(ct);
 
-        return TypedResults.Ok(versions.Select(ToResponse).ToList());
+        return TypedResults.Ok(new SpecListResponse(versions.Select(ToResponse).ToList(), total));
     }
 
     /// <summary>

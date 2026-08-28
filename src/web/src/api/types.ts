@@ -15,6 +15,7 @@ export type Organization = Schemas["OrganizationResponse"];
 export type Project = Schemas["ProjectResponse"];
 export type SdkTarget = Schemas["TargetResponse"];
 export type SpecVersion = Schemas["SpecVersionResponse"];
+export type SpecList = Schemas["SpecListResponse"];
 export type SpecUpload = Schemas["SpecUploadResponse"];
 export type SpecDiagnostic = Schemas["SpecDiagnostic"];
 export type SpecContent = Schemas["SpecContentResponse"];

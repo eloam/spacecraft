@@ -1011,7 +1011,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SpecVersionResponse"][];
+                        "application/json": components["schemas"]["SpecListResponse"];
                     };
                 };
             };
@@ -2423,6 +2423,11 @@ export interface components {
             severity: components["schemas"]["DiagnosticSeverity"];
             message: string;
             jsonPointer?: null | string;
+        };
+        SpecListResponse: {
+            items: components["schemas"]["SpecVersionResponse"][];
+            /** Format: int32 */
+            total: number;
         };
         SpecSource: number;
         SpecUploadResponse: {

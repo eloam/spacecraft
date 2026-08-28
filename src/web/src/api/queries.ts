@@ -11,8 +11,8 @@ import type {
   SdkTarget,
   SpecContent,
   SpecDiagnostic,
+  SpecList,
   SpecUpload,
-  SpecVersion,
   User,
 } from "./types";
 import { useAuthStore } from "@/stores/auth";
@@ -496,7 +496,7 @@ export function useAddTarget(orgId: string, projectId: string) {
 export function useSpecs(orgId: string, projectId: string) {
   return useQuery({
     queryKey: keys.specs(orgId, projectId),
-    queryFn: () => api.get<SpecVersion[]>(`/organizations/${orgId}/projects/${projectId}/specs`),
+    queryFn: () => api.get<SpecList>(`/organizations/${orgId}/projects/${projectId}/specs`),
     enabled: Boolean(orgId && projectId),
   });
 }

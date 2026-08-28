@@ -20,7 +20,7 @@ export function ProjectRunsPage() {
   // rather than server-side because the page already holds every run of the project.
   const specFilter = search.get("spec");
   const specs = useSpecs(orgId, projectId);
-  const spec = specs.data?.find((s) => s.id === specFilter);
+  const spec = specs.data?.items.find((s) => s.id === specFilter);
 
   const visible = useMemo(
     () => (runs.data ?? []).filter((run) => !specFilter || run.specVersionId === specFilter),

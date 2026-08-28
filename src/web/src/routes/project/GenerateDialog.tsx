@@ -26,7 +26,7 @@ export function GenerateDialog({
   const specs = useSpecs(orgId, projectId);
   const createRun = useCreateRun(orgId);
 
-  const usableSpecs = specs.data?.filter((s) => s.validationStatus !== SpecValidationStatus.Invalid) ?? [];
+  const usableSpecs = specs.data?.items.filter((s) => s.validationStatus !== SpecValidationStatus.Invalid) ?? [];
   const targets = project.data?.targets ?? [];
 
   const [specId, setSpecId] = useState("");

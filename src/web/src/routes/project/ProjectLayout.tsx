@@ -23,7 +23,7 @@ export function ProjectLayout() {
 
   const canGenerate =
     (project.data?.targets.length ?? 0) > 0 &&
-    (specs.data?.some((s) => s.validationStatus !== SpecValidationStatus.Invalid) ?? false);
+    (specs.data?.items.some((s) => s.validationStatus !== SpecValidationStatus.Invalid) ?? false);
 
   return (
     <div className="space-y-6">

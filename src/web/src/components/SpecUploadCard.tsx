@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { CopyCheck, FileUp, TriangleAlert } from "lucide-react";
+import { CopyCheck, FileUp, SquareCode, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -11,23 +11,34 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useUploadSpec } from "@/api/queries";
-import type { SpecDiagnostic } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
 /** Drop zone plus file picker for a new OpenAPI document. */
-export function SpecUploadCard({ orgId, projectId }: { orgId: string; projectId: string }) {
+export function SpecUploadCard({
+  orgId,
+  projectId,
+  onViewFindings,
+}: {
+  orgId: string;
+  projectId: string;
+  /** Opens the validation dialog on a version this card just created. */
+  onViewFindings?: (specId: string) => void;
+}) {
   const upload = useUploadSpec(orgId, projectId);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [diagnostics, setDiagnostics] = useState<SpecDiagnostic[]>([]);
+  const [findingCount, setFindingCount] = useState(0);
   const [duplicate, setDuplicate] = useState<{ fileName: string; detail: string } | null>(null);
+  const [uploaded, setUploaded] = useState<string | null>(null);
 
   function send(file: File) {
-    setDiagnostics([]);
+    setFindingCount(0);
+    setUploaded(null);
     upload.mutate(file, {
       onSuccess: (result) => {
-        setDiagnostics(result.diagnostics ?? []);
+        setUploaded(result.specVersion.id);
+        setFindingCount(result.diagnostics?.length ?? 0);
         const triggered = result.triggeredRunIds?.length ?? 0;
         toast.success(
           `Uploaded spec #${result.specVersion.sequence}` +
@@ -96,23 +107,25 @@ export function SpecUploadCard({ orgId, projectId }: { orgId: string; projectId:
           </Button>
         </div>
 
-        {diagnostics.length > 0 && (
+        {findingCount > 0 && (
           <Alert>
             <TriangleAlert className="size-4" aria-hidden />
             <AlertTitle>
-              {diagnostics.length} {diagnostics.length === 1 ? "diagnostic" : "diagnostics"}
+              {findingCount} {findingCount === 1 ? "finding" : "findings"}
             </AlertTitle>
-            <AlertDescription>
-              <ul className="mt-2 space-y-1 text-xs">
-                {diagnostics.slice(0, 8).map((d, i) => (
-                  <li key={i} className="font-mono">
-                    <span className="text-muted-foreground">{d.jsonPointer ?? "-"}</span> {d.message}
-                  </li>
-                ))}
-                {diagnostics.length > 8 && (
-                  <li className="text-muted-foreground">…and {diagnostics.length - 8} more</li>
-                )}
-              </ul>
+            <AlertDescription className="space-y-3">
+              <p>
+                {/* This used to list the first eight and say "…and 718 more", with nothing
+                    leading anywhere. The viewer shows every one against the line it came
+                    from, and this is the moment someone wants to read them. */}
+                Every finding is shown against the document it came from.
+              </p>
+              {uploaded && onViewFindings && (
+                <Button size="sm" variant="outline" onClick={() => onViewFindings(uploaded)}>
+                  <SquareCode className="size-4" aria-hidden />
+                  Review findings
+                </Button>
+              )}
             </AlertDescription>
           </Alert>
         )}

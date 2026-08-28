@@ -17,7 +17,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { SpecValidationBadge } from "@/routes/project/SpecValidationBadge";
+import { SpecFindingCounts } from "@/routes/project/SpecFindingCounts";
 import { SpecValidationDialog } from "@/routes/project/SpecValidationDialog";
 import { SpecDiffDialog } from "@/routes/project/SpecDiffDialog";
 import { cn } from "@/lib/utils";
@@ -76,8 +76,13 @@ export function ProjectSpecsPage() {
   const [deleting, setDeleting] = useState<SpecVersion | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const items = useMemo(() => specs.data?.items ?? [], [specs.data]);
+
   // Newest first from the API, so the first row is the one a new run would generate from.
-  const latestId = specs.data?.[0]?.id;
+  const latestId = items[0]?.id;
+
+  // The listing is capped server-side. Saying so beats presenting a slice as the whole.
+  const hidden = (specs.data?.total ?? 0) - items.length;
 
   /**
    * What each version put in a registry. Publications carry the spec version they came from,
@@ -105,8 +110,8 @@ export function ProjectSpecsPage() {
   }, [publications.data]);
 
   const visible = useMemo(
-    () => (specs.data ?? []).filter(filters.find((f) => f.id === filter)!.matches),
-    [specs.data, filter],
+    () => items.filter(filters.find((f) => f.id === filter)!.matches),
+    [items, filter],
   );
 
   function toggle(id: string) {
@@ -119,12 +124,15 @@ export function ProjectSpecsPage() {
     );
   }
 
+  // Resolved against what is on screen, not against everything: a filter that hides a
+  // selected row must not leave Compare active on two documents nobody can see. Derived
+  // rather than pruned, so changing the filter back finds the selection still there.
   const pair = useMemo(
     () =>
       selected
-        .map((id) => (specs.data ?? []).find((s) => s.id === id))
+        .map((id) => visible.find((s) => s.id === id))
         .filter((s): s is SpecVersion => s !== undefined),
-    [selected, specs.data],
+    [selected, visible],
   );
 
   // A YAML document and a JSON one can describe the same API and still share no line. A
@@ -157,14 +165,14 @@ export function ProjectSpecsPage() {
 
   return (
     <div className="space-y-6">
-      <SpecUploadCard orgId={orgId} projectId={projectId} />
+      <SpecUploadCard orgId={orgId} projectId={projectId} onViewFindings={setOpenFor} />
 
       <QueryBoundary isLoading={specs.isLoading} error={specs.error}>
-        {specs.data?.length ? (
+        {items.length ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
               {filters.map((option) => {
-                const count = (specs.data ?? []).filter(option.matches).length;
+                const count = items.filter(option.matches).length;
 
                 return (
                   <Button
@@ -286,7 +294,7 @@ export function ProjectSpecsPage() {
                           now: as a hidden button this only worked when a spec had findings,
                           which left a clean one with no way to be read at all. */}
                       <TableCell>
-                        <SpecValidationBadge
+                        <SpecFindingCounts
                           status={spec.validationStatus}
                           information={spec.informationCount}
                           warnings={spec.warningCount}
@@ -295,7 +303,13 @@ export function ProjectSpecsPage() {
                       </TableCell>
 
                       <TableCell className="text-xs">
-                        {packages.length === 0 ? (
+                        {publications.isError ? (
+                          // Not "—": that would read as "nothing published", which is a claim
+                          // this column is in no position to make when its query failed.
+                          <span className="text-muted-foreground" title="The publications could not be loaded">
+                            unknown
+                          </span>
+                        ) : packages.length === 0 ? (
                           <span className="text-muted-foreground">—</span>
                         ) : (
                           // Also what makes the delete button honest: a published version is
@@ -368,6 +382,12 @@ export function ProjectSpecsPage() {
             {visible.length === 0 && (
               <p className="py-6 text-center text-sm text-muted-foreground">
                 No version matches this filter.
+              </p>
+            )}
+
+            {hidden > 0 && (
+              <p className="text-center text-xs text-muted-foreground">
+                Showing the {items.length} most recent of {specs.data?.total} versions.
               </p>
             )}
           </>
