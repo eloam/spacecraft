@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -38,6 +39,8 @@ export function TargetDialog({
   const add = useAddTarget(orgId, projectId);
   const update = useUpdateTarget(orgId, projectId);
 
+  // TypeScript is the only language wired end to end, so a new target can only be an npm one.
+  const registry = target ? registryLabel[target.registry] : "npm";
   const pending = add.isPending || update.isPending;
   const renaming = Boolean(target) && packageName.trim() !== target?.packageName;
 
@@ -113,20 +116,26 @@ export function TargetDialog({
               )}
             </div>
 
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
+            {/* A switch, like every other setting in the app: this takes effect when it is
+                saved, and a bare checkbox reads as one item of a list rather than a state
+                the target is in. */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="auto-publish" className="text-sm font-medium">
+                  Publish automatically
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Every new spec version is generated, built and pushed to {registry} with no
+                  human step. Off by default — publishing to a public registry cannot be undone.
+                </p>
+              </div>
+
+              <Switch
+                id="auto-publish"
                 checked={autoPublish}
-                onChange={(e) => setAutoPublish(e.target.checked)}
-                className="mt-0.5"
+                onCheckedChange={(checked) => setAutoPublish(checked)}
               />
-              <span>
-                Publish automatically on every new spec version
-                <span className="block text-xs text-muted-foreground">
-                  Off by default — publishing to a public registry cannot be undone.
-                </span>
-              </span>
-            </label>
+            </div>
           </div>
 
           <DialogFooter>

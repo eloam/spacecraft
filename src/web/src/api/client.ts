@@ -95,7 +95,7 @@ async function send(path: string, options: RequestOptions, retryOn401 = true): P
 }
 
 async function toError(response: Response): Promise<ApiError> {
-  let title = response.statusText || "Request failed";
+  let title = response.statusText || `Request failed (${response.status})`;
   let detail = "";
   let errors: Record<string, string[]> | undefined;
 
@@ -113,7 +113,10 @@ async function toError(response: Response): Promise<ApiError> {
     // Non-JSON error body (a proxy error page, say). The status alone will have to do.
   }
 
-  return new ApiError(response.status, title, detail, errors);
+  // Every call site reports `detail`, and a problem document is free to leave it out — a 405
+  // from a route that lost a verb, a 502 from a proxy in front of the API. Without this the
+  // user got a toast with nothing written in it, which says less than the status would.
+  return new ApiError(response.status, title, detail || title, errors);
 }
 
 async function parse<T>(response: Response): Promise<T> {
