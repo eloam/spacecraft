@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown, ChevronUp, CircleAlert, Info, List, RefreshCw, ShieldCheck, ShieldOff,
-  SquareCode, TriangleAlert,
+  SquareCode, TriangleAlert, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -415,8 +415,16 @@ export function SpecValidationDialog({
               </DropdownMenu>
             </div>
 
-            <Button size="xs" variant="ghost" onClick={close}>
-              Close
+            {/* An icon, like the one every other dialog closes with: the word sat in a row
+                of icon buttons and read as one more tool rather than the way out. */}
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label="Close"
+              title="Close"
+              onClick={close}
+            >
+              <X className="size-4" aria-hidden />
             </Button>
           </div>
         </div>

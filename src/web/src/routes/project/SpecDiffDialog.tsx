@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeftRight, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, ChevronUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -143,8 +143,16 @@ export function SpecDiffDialog({
               <ChevronDown className="size-4" aria-hidden />
             </Button>
 
-            <Button size="xs" variant="ghost" onClick={onClose}>
-              Close
+            {/* An icon, like the one every other dialog closes with: the word sat in a row
+                of icon buttons and read as one more tool rather than the way out. */}
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label="Close"
+              title="Close"
+              onClick={onClose}
+            >
+              <X className="size-4" aria-hidden />
             </Button>
           </div>
         </div>
