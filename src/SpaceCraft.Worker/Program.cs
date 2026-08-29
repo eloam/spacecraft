@@ -16,7 +16,7 @@ builder.Services.AddOptions<WorkerOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
+builder.Services.AddSpaceCraftInfrastructure(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddSpaceCraftPipeline(builder.Configuration, builder.Environment.IsDevelopment());
 
 // The worker decrypts registry tokens, so it must resolve the same Data Protection key ring

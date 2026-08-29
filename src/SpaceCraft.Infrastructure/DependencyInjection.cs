@@ -21,13 +21,14 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddSpaceCraftInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfigurationManager configuration,
+        bool isDevelopment)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
         // Before anything is registered: a placeholder left in place is a deployment that was
         // never finished, and every failure it causes afterwards points somewhere else.
-        configuration.ThrowIfPlaceholdersRemain();
+        configuration.RequirePlaceholdersReplaced(isDevelopment);
 
         var connectionString = configuration.GetConnectionString("Postgres")
             ?? throw new InvalidOperationException("ConnectionStrings:Postgres is not configured.");

@@ -29,7 +29,7 @@ public class OptionsValidationTests
         // an unrelated reason.
         builder.Configuration.Sources.Clear();
         builder.Configuration.AddInMemoryCollection(settings);
-        builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
+        builder.Services.AddSpaceCraftInfrastructure(builder.Configuration, isDevelopment: false);
 
         try
         {

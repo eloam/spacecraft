@@ -30,7 +30,7 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 
 // --- Services -------------------------------------------------------------------------
 
-builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
+builder.Services.AddSpaceCraftInfrastructure(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddSpaceCraftIdentity();
 builder.Services.AddSpaceCraftAuth(builder.Configuration);
 builder.Services.AddSpaceCraftCors(builder.Configuration);

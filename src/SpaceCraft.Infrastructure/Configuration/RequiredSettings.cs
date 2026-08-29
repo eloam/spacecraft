@@ -25,21 +25,36 @@ public static class RequiredSettings
 
     /// <summary>
     /// Throws if any setting still holds the placeholder, naming all of them.
+    ///
+    /// <para>
+    /// In development it blanks them instead. The marker is documentation there — a checkout
+    /// has no account behind it and is meant to run anyway — but left as a value it would be
+    /// worse than useless: <c>[REQUIRED]</c> is not blank, so every "is this configured?" in
+    /// the codebase would answer yes and pick the real transport over the one that logs.
+    /// </para>
     /// </summary>
-    public static void ThrowIfPlaceholdersRemain(this IConfiguration configuration)
+    public static void RequirePlaceholdersReplaced(
+        this IConfigurationManager configuration, bool isDevelopment)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
         // The whole tree, not a list of known keys: a setting added to appsettings.json later
         // is covered without anyone remembering to register it here.
         var unset = configuration.AsEnumerable()
-            .Where(setting => string.Equals(setting.Value, Placeholder, StringComparison.Ordinal))
+            .Where(setting => string.Equals(setting.Value, Placeholder, StringComparison.OrdinalIgnoreCase))
             .Select(setting => setting.Key)
-            .OrderBy(key => key, StringComparer.Ordinal)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (unset.Count == 0)
         {
+            return;
+        }
+
+        if (isDevelopment)
+        {
+            configuration.AddInMemoryCollection(
+                unset.Select(key => new KeyValuePair<string, string?>(key, null)));
             return;
         }
 

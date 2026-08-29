@@ -11,23 +11,27 @@ namespace SpaceCraft.UnitTests;
 /// </summary>
 public class RequiredSettingsTests
 {
-    private static IConfiguration From(params (string Key, string? Value)[] settings) =>
-        new ConfigurationBuilder()
-            .AddInMemoryCollection(settings.Select(s => new KeyValuePair<string, string?>(s.Key, s.Value)))
-            .Build();
+    private static ConfigurationManager From(params (string Key, string? Value)[] settings)
+    {
+        var configuration = new ConfigurationManager();
+        configuration.AddInMemoryCollection(
+            settings.Select(s => new KeyValuePair<string, string?>(s.Key, s.Value)));
+        return configuration;
+    }
 
     [Fact]
     public void A_configuration_with_nothing_left_to_supply_passes() =>
         Should.NotThrow(() => From(
             ("Email:Smtp:Password", "secret"),
             ("ObjectStorage:AccessKey", ""),
-            ("Jwt:SigningKey", null)).ThrowIfPlaceholdersRemain());
+            ("Jwt:SigningKey", null)).RequirePlaceholdersReplaced(isDevelopment: false));
 
     [Fact]
-    public void An_unreplaced_placeholder_stops_startup()
+    public void An_unreplaced_placeholder_stops_a_deployment()
     {
         var error = Should.Throw<InvalidOperationException>(
-            () => From(("Email:Smtp:Password", RequiredSettings.Placeholder)).ThrowIfPlaceholdersRemain());
+            () => From(("Email:Smtp:Password", RequiredSettings.Placeholder))
+                .RequirePlaceholdersReplaced(isDevelopment: false));
 
         error.Message.ShouldContain("Email:Smtp:Password");
         // Says how to set it, because the environment spells the key differently.
@@ -41,7 +45,8 @@ public class RequiredSettingsTests
         var error = Should.Throw<InvalidOperationException>(() => From(
             ("Email:Smtp:Password", RequiredSettings.Placeholder),
             ("Email:Smtp:Username", RequiredSettings.Placeholder),
-            ("ObjectStorage:SecretKey", RequiredSettings.Placeholder)).ThrowIfPlaceholdersRemain());
+            ("ObjectStorage:SecretKey", RequiredSettings.Placeholder))
+                .RequirePlaceholdersReplaced(isDevelopment: false));
 
         error.Message.ShouldContain("Email:Smtp:Password");
         error.Message.ShouldContain("Email:Smtp:Username");
@@ -49,12 +54,31 @@ public class RequiredSettingsTests
         error.Message.ShouldContain("3 settings");
     }
 
+    [Fact]
+    public void Development_reads_the_marker_as_nothing_supplied()
+    {
+        // A checkout has no account behind it and still has to run. What it must not do is
+        // treat the marker as a value: "[REQUIRED]" is not blank, so every IsConfigured in
+        // the codebase would answer yes and pick a real transport over the one that logs.
+        var configuration = From(("Email:Smtp:Password", RequiredSettings.Placeholder));
+
+        Should.NotThrow(() => configuration.RequirePlaceholdersReplaced(isDevelopment: true));
+
+        configuration["Email:Smtp:Password"].ShouldBeNullOrWhiteSpace();
+    }
+
+    [Theory]
+    [InlineData("REQUIRED")]
+    [InlineData("[REQUIRED] ")]
+    [InlineData("[REQUIRED]x")]
+    public void A_value_that_merely_resembles_the_marker_is_someones_real_setting(string value) =>
+        Should.NotThrow(() => From(("Email:Smtp:Password", value))
+            .RequirePlaceholdersReplaced(isDevelopment: false));
+
     [Theory]
     [InlineData("[required]")]
-    [InlineData("[REQUIRED] ")]
-    [InlineData("REQUIRED")]
-    public void Only_the_exact_marker_counts(string value) =>
-        // A value that merely resembles it is someone's real setting, and refusing to start
-        // over it would be worse than the problem this solves.
-        Should.NotThrow(() => From(("Email:Smtp:Password", value)).ThrowIfPlaceholdersRemain());
+    [InlineData("[Required]")]
+    public void Case_does_not_let_the_marker_through(string value) =>
+        Should.Throw<InvalidOperationException>(() => From(("Email:Smtp:Password", value))
+            .RequirePlaceholdersReplaced(isDevelopment: false));
 }
