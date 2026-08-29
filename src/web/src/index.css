@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/lora";
 
@@ -10,6 +11,10 @@
 @theme inline {
     --font-heading: 'Lora Variable', serif;
     --font-sans: 'Inter Variable', sans-serif;
+    /* Geist Mono, as the preset's own preview uses. Monospace carries a lot here — package
+       names, registry URLs, versions, the spec viewer — so the system stack was the most
+       visible thing still not matching. */
+    --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -163,5 +168,15 @@
     }
   html {
     @apply font-sans;
+    }
+  /* The preset's pointer option. A <button> is cursor:default by default, which reads as
+     inert on a control that is not — and the app is full of icon buttons where nothing else
+     signals they can be clicked. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="option"],
+  [role="menuitem"],
+  label[for] {
+    cursor: pointer;
     }
 }
