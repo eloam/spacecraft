@@ -239,23 +239,16 @@ export function ProjectTargetsPage() {
                               a named credential, or the organization's only usable one. */}
                           <TableCell className="font-mono text-xs text-muted-foreground">
                             {(() => {
-                              const usable = (credentials.data ?? []).filter((c) => !c.isRevoked);
-                              const named = target.registryCredentialId
-                                ? usable.find((c) => c.id === target.registryCredentialId)
-                                : usable.length === 1
-                                  ? usable[0]
-                                  : undefined;
+                              if (!target.registryCredentialId) {
+                                return <span className="text-muted-foreground">not published</span>;
+                              }
 
-                              if (named) return named.registryUrl;
+                              const named = (credentials.data ?? [])
+                                .filter((c) => !c.isRevoked)
+                                .find((c) => c.id === target.registryCredentialId);
 
-                              return (
-                                <span className="text-[var(--code-warning)]">
-                                  {target.registryCredentialId
-                                    ? "credential revoked"
-                                    : usable.length === 0
-                                      ? "no credential"
-                                      : "not chosen"}
-                                </span>
+                              return named ? named.registryUrl : (
+                                <span className="text-[var(--code-warning)]">credential revoked</span>
                               );
                             })()}
                           </TableCell>

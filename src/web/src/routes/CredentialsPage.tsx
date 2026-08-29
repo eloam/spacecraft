@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -60,6 +61,9 @@ export function CredentialsPage() {
 
       <QueryBoundary isLoading={isLoading} error={error}>
         {data?.length ? (
+          // Framed like the specs and targets tables: one card, one banded header.
+          <Card className="py-0">
+            <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -114,6 +118,8 @@ export function CredentialsPage() {
               ))}
             </TableBody>
           </Table>
+            </CardContent>
+          </Card>
         ) : (
           <EmptyState
             icon={<KeyRound className="size-8" />}

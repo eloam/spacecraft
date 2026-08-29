@@ -23,7 +23,9 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      // A banded header, once, here: every table in the app gets the same one rather than
+      // each page deciding, and the row of labels reads as a header instead of a first row.
+      className={cn("bg-muted/50 [&_tr]:border-b", className)}
       {...props}
     />
   )

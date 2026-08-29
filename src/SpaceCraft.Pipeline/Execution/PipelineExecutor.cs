@@ -357,48 +357,38 @@ public sealed class PipelineExecutor(
             return await FailStepAsync(run, step, $"No publisher is registered for {target.Registry}.", null, ct);
         }
 
-        // Usable is part of the question, not a check afterwards: picking the newest and then
-        // rejecting it failed the publish while a perfectly good credential sat beside it.
-        var now = DateTimeOffset.UtcNow;
-        var usable = db.RegistryCredentials.Where(c =>
-            c.OrganizationId == run.OrganizationId
-            && c.Registry == target.Registry
-            && !c.IsRevoked
-            && (c.ExpiresAt == null || c.ExpiresAt > now));
-
-        RegistryCredential? credential;
-
-        if (target.RegistryCredentialId is { } chosen)
+        // Null is not "work it out": it is a target that publishes nowhere, which the SDK
+        // target dialog states as a choice. Guessing when an organization had several
+        // credentials was how a package once landed on a registry nobody picked.
+        if (target.RegistryCredentialId is not { } chosen)
         {
-            credential = await usable.FirstOrDefaultAsync(c => c.Id == chosen, ct);
-
-            if (credential is null)
-            {
-                // Named and gone: publishing with another one would send the package somewhere
-                // nobody chose, since the endpoint travels with the credential.
-                return await FailStepAsync(
-                    run, step,
-                    "The credential this target publishes with has been revoked, has expired, "
-                    + "or no longer exists. Choose another on the SDK target.",
-                    null, ct);
-            }
+            return await FailStepAsync(
+                run, step,
+                "This SDK target does not publish. Choose a credential on the target to say "
+                + "where its packages go.",
+                null, ct);
         }
-        else
+
+        // Usable is part of the question, not a check afterwards: loading it and then
+        // rejecting it failed the publish while saying nothing about what to do instead.
+        var now = DateTimeOffset.UtcNow;
+        var credential = await db.RegistryCredentials.FirstOrDefaultAsync(
+            c => c.Id == chosen
+                && c.OrganizationId == run.OrganizationId
+                && c.Registry == target.Registry
+                && !c.IsRevoked
+                && (c.ExpiresAt == null || c.ExpiresAt > now),
+            ct);
+
+        if (credential is null)
         {
-            var candidates = await usable.OrderBy(c => c.CreatedAt).Take(2).ToListAsync(ct);
-
-            credential = candidates.Count == 1 ? candidates[0] : null;
-
-            if (credential is null)
-            {
-                return await FailStepAsync(
-                    run, step,
-                    candidates.Count == 0
-                        ? $"No usable {target.Registry} credential is configured for this organization."
-                        : $"This organization has more than one usable {target.Registry} credential, "
-                          + "and they can publish to different registries. Choose one on the SDK target.",
-                    null, ct);
-            }
+            // Named and gone: publishing with another one would send the package somewhere
+            // nobody chose, since the endpoint travels with the credential.
+            return await FailStepAsync(
+                run, step,
+                "The credential this target publishes with has been revoked, has expired, or "
+                + "no longer exists. Choose another on the SDK target.",
+                null, ct);
         }
 
         // One row per (target, version), because a registry holds one artifact per version.

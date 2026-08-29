@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
@@ -36,6 +37,8 @@ export function PublicationsPage() {
 
       <QueryBoundary isLoading={publications.isLoading} error={publications.error} rows={4}>
         {publications.data && publications.data.length > 0 ? (
+          <Card className="py-0">
+            <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -83,6 +86,8 @@ export function PublicationsPage() {
               ))}
             </TableBody>
           </Table>
+            </CardContent>
+          </Card>
         ) : (
           <EmptyState
             title="Nothing published yet"

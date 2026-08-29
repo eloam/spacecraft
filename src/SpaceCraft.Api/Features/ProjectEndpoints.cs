@@ -460,6 +460,14 @@ public static class ProjectEndpoints
             return refusal;
         }
 
+        if (request.AutoPublish && request.RegistryCredentialId is null)
+        {
+            return ApiResults.Invalid(
+                "autoPublish",
+                "A target that publishes nowhere cannot publish automatically. Choose a "
+                + "credential, or leave automatic publishing off.");
+        }
+
         SdkTarget target;
         try
         {
@@ -530,6 +538,14 @@ public static class ProjectEndpoints
                 organizationId, target.Registry, request.RegistryCredentialId, db, ct) is { } refusal)
         {
             return refusal;
+        }
+
+        if (request.AutoPublish && request.RegistryCredentialId is null)
+        {
+            return ApiResults.Invalid(
+                "autoPublish",
+                "A target that publishes nowhere cannot publish automatically. Choose a "
+                + "credential, or leave automatic publishing off.");
         }
 
         var packageName = request.PackageName?.Trim() ?? string.Empty;

@@ -3,6 +3,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -11,6 +14,9 @@ import { ApiError } from "@/api/client";
 import { useAddTarget, useCredentials, useUpdateTarget } from "@/api/queries";
 import { SdkLanguage, languageLabel, registryLabel } from "@/api/types";
 import type { SdkTarget } from "@/api/types";
+
+/** The empty choice, named: a target that publishes nowhere. */
+const NO_PUBLISH = "none";
 
 /**
  * Adds a target, or edits the one it is given.
@@ -35,12 +41,14 @@ export function TargetDialog({
   // Seeded from the row this was opened on. The caller remounts on every opening, so these
   // initial values are read again each time rather than surviving from the last one.
   const [packageName, setPackageName] = useState(target?.packageName ?? "");
-  // "" is the unset choice: with one usable credential the publish step finds it on its own,
-  // which keeps the common case free of a decision nobody has the information to make yet.
-  const [credentialId, setCredentialId] = useState(target?.registryCredentialId ?? "");
+  // "" means this target does not publish. Naming that rather than leaving it as an absence
+  // is what lets the switch below be disabled honestly: a target with nowhere to publish
+  // cannot publish automatically.
+  const [credentialId, setCredentialId] = useState(target?.registryCredentialId ?? NO_PUBLISH);
   const [autoPublish, setAutoPublish] = useState(target?.autoPublish ?? false);
   const credentials = useCredentials(orgId);
   const usable = (credentials.data ?? []).filter((c) => !c.isRevoked);
+  const publishes = credentialId !== NO_PUBLISH;
   const add = useAddTarget(orgId, projectId);
   const update = useUpdateTarget(orgId, projectId);
 
@@ -65,7 +73,7 @@ export function TargetDialog({
           targetId: target.id,
           packageName: packageName.trim(),
           autoPublish,
-          registryCredentialId: credentialId || null,
+          registryCredentialId: credentialId === NO_PUBLISH ? null : credentialId,
         },
         {
           onSuccess: () => {
@@ -84,7 +92,7 @@ export function TargetDialog({
         language: SdkLanguage.TypeScript,
         packageName,
         autoPublish,
-        registryCredentialId: credentialId || null,
+        registryCredentialId: credentialId === NO_PUBLISH ? null : credentialId,
       },
       {
         onSuccess: () => {
@@ -133,34 +141,61 @@ export function TargetDialog({
 
             <div className="space-y-2">
               <Label htmlFor="credential">Publish with</Label>
-              <select
-                id="credential"
+              <Select
                 value={credentialId}
-                onChange={(e) => setCredentialId(e.target.value)}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                onValueChange={(value) => {
+                  const chosen = (value as string | null) ?? NO_PUBLISH;
+                  setCredentialId(chosen);
+                  // Nowhere to publish means nothing to publish automatically. Left on, the
+                  // switch would promise something every run would then fail to do.
+                  if (chosen === NO_PUBLISH) setAutoPublish(false);
+                }}
               >
-                {/* Naming the consequence rather than the absence: the endpoint lives on the
-                    credential, so this choice is where the package ends up. */}
-                <option value="">
-                  {usable.length === 0
-                    ? "No credential yet — publishing will fail"
-                    : usable.length > 1
-                      ? "Choose a credential — this organization has several"
-                      : "The organization's npm credential"}
-                </option>
-                {usable.map((credential) => (
-                  <option key={credential.id} value={credential.id}>
-                    {credential.label} → {credential.registryUrl}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">
-                {usable.length === 0
-                  ? "This organization has no usable npm credential. Generating and building work without one; only publishing needs it."
-                  : usable.length > 1
-                    ? "Several credentials can publish npm packages, and they may point at different registries. Leave this unset and a run refuses rather than guessing."
-                    : "Where this SDK is published: the registry that credential points at."}
-              </p>
+                <SelectTrigger id="credential" className="h-auto w-full py-2">
+                  {/* Rendered here rather than by SelectValue: the trigger has to show the
+                      label, and SelectValue falls back to the raw value when an item's
+                      children are anything but a plain string. */}
+                  <span className="flex flex-col items-start">
+                    <span>
+                      {publishes
+                        ? (usable.find((c) => c.id === credentialId)?.label ?? "Unknown credential")
+                        : "Do not publish"}
+                    </span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {publishes
+                        ? usable.find((c) => c.id === credentialId)?.registryUrl
+                        : "Generate and build only"}
+                    </span>
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_PUBLISH}>
+                    <span className="flex flex-col items-start">
+                      <span>Do not publish</span>
+                      <span className="text-xs text-muted-foreground">
+                        Generate and build only; the artifact stays here.
+                      </span>
+                    </span>
+                  </SelectItem>
+
+                  {usable.map((credential) => (
+                    <SelectItem key={credential.id} value={credential.id}>
+                      <span className="flex flex-col items-start">
+                        <span>{credential.label}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {credential.registryUrl}
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {usable.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  This organization has no usable npm credential yet. Generating and building
+                  work without one; only publishing needs it.
+                </p>
+              )}
             </div>
 
             {/* A switch, like every other setting in the app: this takes effect when it is
@@ -180,18 +215,12 @@ export function TargetDialog({
               <Switch
                 id="auto-publish"
                 checked={autoPublish}
+                disabled={!publishes}
                 onCheckedChange={(checked) => setAutoPublish(checked)}
               />
             </div>
 
-            {/* Said before it is switched on rather than discovered four runs later: every
-                spec upload would queue a run that builds, then fails on the last step. */}
-            {autoPublish && usable.length === 0 && (
-              <p className="text-sm text-[var(--code-warning)]">
-                Nothing can be published until this organization has an npm credential. Every
-                new spec version will build and then fail at the publish step.
-              </p>
-            )}
+
           </div>
 
           <DialogFooter>
