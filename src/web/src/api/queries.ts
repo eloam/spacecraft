@@ -275,10 +275,19 @@ export function useDeleteProject(orgId: string) {
 export function useUpdateTarget(orgId: string, projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { targetId: string; packageName: string; autoPublish: boolean }) =>
+    mutationFn: (input: {
+      targetId: string;
+      packageName: string;
+      autoPublish: boolean;
+      registryCredentialId?: string | null;
+    }) =>
       api.patch<SdkTarget>(
         `/organizations/${orgId}/projects/${projectId}/targets/${input.targetId}`,
-        { packageName: input.packageName, autoPublish: input.autoPublish },
+        {
+          packageName: input.packageName,
+          autoPublish: input.autoPublish,
+          registryCredentialId: input.registryCredentialId ?? null,
+        },
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.project(orgId, projectId) }),
   });
@@ -489,6 +498,7 @@ export function useAddTarget(orgId: string, projectId: string) {
       packageName: string;
       registry?: number;
       autoPublish: boolean;
+      registryCredentialId?: string | null;
     }) => api.post<SdkTarget>(`/organizations/${orgId}/projects/${projectId}/targets`, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.project(orgId, projectId) }),
   });

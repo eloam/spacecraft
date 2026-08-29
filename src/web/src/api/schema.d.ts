@@ -2254,6 +2254,8 @@ export interface components {
             packageName: string;
             registry: null | components["schemas"]["RegistryKind"];
             autoPublish: boolean;
+            /** Format: uuid */
+            registryCredentialId?: null | string;
         };
         ArtifactDownloadResponse: {
             url: string;
@@ -2547,6 +2549,8 @@ export interface components {
             packageName: string;
             registry: components["schemas"]["RegistryKind"];
             autoPublish: boolean;
+            /** Format: uuid */
+            registryCredentialId: null | string;
             lastPublishedVersion: null | string;
             /** Format: date-time */
             lastPublishedAt: null | string;
@@ -2557,6 +2561,8 @@ export interface components {
         UpdateTargetRequest: {
             packageName: string;
             autoPublish: boolean;
+            /** Format: uuid */
+            registryCredentialId?: null | string;
         };
         UserResponse: {
             /** Format: uuid */

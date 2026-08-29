@@ -8,7 +8,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { ApiError } from "@/api/client";
-import { useAddTarget, useUpdateTarget } from "@/api/queries";
+import { useAddTarget, useCredentials, useUpdateTarget } from "@/api/queries";
 import { SdkLanguage, languageLabel, registryLabel } from "@/api/types";
 import type { SdkTarget } from "@/api/types";
 
@@ -35,7 +35,12 @@ export function TargetDialog({
   // Seeded from the row this was opened on. The caller remounts on every opening, so these
   // initial values are read again each time rather than surviving from the last one.
   const [packageName, setPackageName] = useState(target?.packageName ?? "");
+  // "" is the unset choice: with one usable credential the publish step finds it on its own,
+  // which keeps the common case free of a decision nobody has the information to make yet.
+  const [credentialId, setCredentialId] = useState(target?.registryCredentialId ?? "");
   const [autoPublish, setAutoPublish] = useState(target?.autoPublish ?? false);
+  const credentials = useCredentials(orgId);
+  const usable = (credentials.data ?? []).filter((c) => !c.isRevoked);
   const add = useAddTarget(orgId, projectId);
   const update = useUpdateTarget(orgId, projectId);
 
@@ -56,7 +61,12 @@ export function TargetDialog({
 
     if (target) {
       update.mutate(
-        { targetId: target.id, packageName: packageName.trim(), autoPublish },
+        {
+          targetId: target.id,
+          packageName: packageName.trim(),
+          autoPublish,
+          registryCredentialId: credentialId || null,
+        },
         {
           onSuccess: () => {
             toast.success(`Saved ${packageName.trim()}`);
@@ -70,7 +80,12 @@ export function TargetDialog({
 
     add.mutate(
       // TypeScript is the only language wired end to end today; the API rejects the rest.
-      { language: SdkLanguage.TypeScript, packageName, autoPublish },
+      {
+        language: SdkLanguage.TypeScript,
+        packageName,
+        autoPublish,
+        registryCredentialId: credentialId || null,
+      },
       {
         onSuccess: () => {
           toast.success(`Added ${packageName}`);
@@ -114,6 +129,34 @@ export function TargetDialog({
                   target no longer reports that release.
                 </p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="credential">Publish with</Label>
+              <select
+                id="credential"
+                value={credentialId}
+                onChange={(e) => setCredentialId(e.target.value)}
+                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                {/* Naming the consequence rather than the absence: the endpoint lives on the
+                    credential, so this choice is where the package ends up. */}
+                <option value="">
+                  {usable.length > 1
+                    ? "Choose a credential — this organization has several"
+                    : "The organization's npm credential"}
+                </option>
+                {usable.map((credential) => (
+                  <option key={credential.id} value={credential.id}>
+                    {credential.label} → {credential.registryUrl}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                {usable.length > 1
+                  ? "Several credentials can publish npm packages, and they may point at different registries. Leave this unset and a run refuses rather than guessing."
+                  : "Where this SDK is published: the registry that credential points at."}
+              </p>
             </div>
 
             {/* A switch, like every other setting in the app: this takes effect when it is

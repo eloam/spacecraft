@@ -113,13 +113,26 @@ public sealed class NpmSdkPublisher(
     }
 
     /// <summary>
-    /// npm reports an existing version as a 403 rather than a 409, so the message is the
-    /// only reliable signal. Both the modern and legacy wordings are matched.
+    /// A version that is already on the registry, which is a no-op rather than a failure:
+    /// registries are append-only, so re-running a pipeline must not report an error.
+    ///
+    /// <para>
+    /// Matched on the message because there is no status code to rely on — npmjs answers 403
+    /// where Verdaccio answers 409, and each phrases it its own way. Now that the destination
+    /// comes from the credential, every registry an organization uses ends up here, so the
+    /// list is deliberately broad: mistaking this for a failure only makes a harmless re-run
+    /// look broken.
+    /// </para>
     /// </summary>
     internal static bool IsVersionConflict(string output) =>
         output.Contains("cannot publish over the previously published version", StringComparison.OrdinalIgnoreCase)
         || output.Contains("You cannot publish over the previously published versions", StringComparison.OrdinalIgnoreCase)
-        || output.Contains("EPUBLISHCONFLICT", StringComparison.OrdinalIgnoreCase);
+        || output.Contains("EPUBLISHCONFLICT", StringComparison.OrdinalIgnoreCase)
+        // Verdaccio, and the registries that copy its wording.
+        || output.Contains("this package is already present", StringComparison.OrdinalIgnoreCase)
+        // Nexus and Artifactory both use this phrasing for a redeploy of a released version.
+        || output.Contains("cannot be republished", StringComparison.OrdinalIgnoreCase)
+        || output.Contains("version already exists", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Turns a registry URL into the .npmrc auth key npm expects.</summary>
     internal static string AuthKeyFor(string registryUrl)

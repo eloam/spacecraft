@@ -357,17 +357,48 @@ public sealed class PipelineExecutor(
             return await FailStepAsync(run, step, $"No publisher is registered for {target.Registry}.", null, ct);
         }
 
-        var credential = await db.RegistryCredentials
-            .Where(c => c.OrganizationId == run.OrganizationId && c.Registry == target.Registry && !c.IsRevoked)
-            .OrderByDescending(c => c.CreatedAt)
-            .FirstOrDefaultAsync(ct);
+        // Usable is part of the question, not a check afterwards: picking the newest and then
+        // rejecting it failed the publish while a perfectly good credential sat beside it.
+        var now = DateTimeOffset.UtcNow;
+        var usable = db.RegistryCredentials.Where(c =>
+            c.OrganizationId == run.OrganizationId
+            && c.Registry == target.Registry
+            && !c.IsRevoked
+            && (c.ExpiresAt == null || c.ExpiresAt > now));
 
-        if (credential is null || !credential.IsUsable(DateTimeOffset.UtcNow))
+        RegistryCredential? credential;
+
+        if (target.RegistryCredentialId is { } chosen)
         {
-            return await FailStepAsync(
-                run, step,
-                $"No usable {target.Registry} credential is configured for this organization.",
-                null, ct);
+            credential = await usable.FirstOrDefaultAsync(c => c.Id == chosen, ct);
+
+            if (credential is null)
+            {
+                // Named and gone: publishing with another one would send the package somewhere
+                // nobody chose, since the endpoint travels with the credential.
+                return await FailStepAsync(
+                    run, step,
+                    "The credential this target publishes with has been revoked, has expired, "
+                    + "or no longer exists. Choose another on the SDK target.",
+                    null, ct);
+            }
+        }
+        else
+        {
+            var candidates = await usable.OrderBy(c => c.CreatedAt).Take(2).ToListAsync(ct);
+
+            credential = candidates.Count == 1 ? candidates[0] : null;
+
+            if (credential is null)
+            {
+                return await FailStepAsync(
+                    run, step,
+                    candidates.Count == 0
+                        ? $"No usable {target.Registry} credential is configured for this organization."
+                        : $"This organization has more than one usable {target.Registry} credential, "
+                          + "and they can publish to different registries. Choose one on the SDK target.",
+                    null, ct);
+            }
         }
 
         // One row per (target, version), because a registry holds one artifact per version.

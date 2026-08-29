@@ -75,6 +75,11 @@ public sealed class SdkTargetConfiguration : IEntityTypeConfiguration<SdkTarget>
         builder.Property(t => t.LastPublishedVersion).HasMaxLength(64);
 
         // One target per language per project.
+        // No foreign key: a credential can be revoked and deleted while targets still name
+        // it, and the publish step reports that clearly. A cascade would silently reset them
+        // to "whichever is usable", which is the ambiguity this column exists to remove.
+        builder.Property(t => t.RegistryCredentialId);
+
         builder.HasIndex(t => new { t.ApiProjectId, t.Language }).IsUnique();
 
         // Two projects must not fight over the same package name on the same registry.

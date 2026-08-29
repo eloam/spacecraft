@@ -18,7 +18,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { TargetDialog } from "@/routes/project/TargetDialog";
 import { ApiError } from "@/api/client";
-import { useDeleteTarget, useProject, usePublications } from "@/api/queries";
+import { useCredentials, useDeleteTarget, useProject, usePublications } from "@/api/queries";
 import { PublicationStatus, languageLabel, registryLabel } from "@/api/types";
 import type { SdkTarget } from "@/api/types";
 import { timeAgo } from "@/lib/format";
@@ -74,6 +74,7 @@ export function ProjectTargetsPage() {
   const { orgId = "", projectId = "" } = useParams();
   const project = useProject(orgId, projectId);
   const publications = usePublications(orgId, projectId);
+  const credentials = useCredentials(orgId);
   const deleteTarget = useDeleteTarget(orgId, projectId);
 
   const [targetOpen, setTargetOpen] = useState(false);
@@ -178,6 +179,7 @@ export function ProjectTargetsPage() {
                       <TableHead>SDK</TableHead>
                       <TableHead className="w-32">Registry</TableHead>
                       <TableHead className="w-40">Publishing</TableHead>
+                      <TableHead className="w-48">Publishes to</TableHead>
                       <TableHead className="w-48">Latest release</TableHead>
                       <TableHead className="w-24 text-right">
                         <span className="sr-only">Actions</span>
@@ -231,6 +233,31 @@ export function ProjectTargetsPage() {
                                 Manual
                               </span>
                             )}
+                          </TableCell>
+
+                          {/* The destination, resolved the way the publish step resolves it:
+                              a named credential, or the organization's only usable one. */}
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {(() => {
+                              const usable = (credentials.data ?? []).filter((c) => !c.isRevoked);
+                              const named = target.registryCredentialId
+                                ? usable.find((c) => c.id === target.registryCredentialId)
+                                : usable.length === 1
+                                  ? usable[0]
+                                  : undefined;
+
+                              if (named) return named.registryUrl;
+
+                              return (
+                                <span className="text-[var(--code-warning)]">
+                                  {target.registryCredentialId
+                                    ? "credential revoked"
+                                    : usable.length === 0
+                                      ? "no credential"
+                                      : "not chosen"}
+                                </span>
+                              );
+                            })()}
                           </TableCell>
 
                           <TableCell>

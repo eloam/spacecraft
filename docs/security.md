@@ -188,6 +188,11 @@ The destination is on the credential, not in configuration. A token only authent
 one registry, so the two travel together: an organization publishing to its own Verdaccio,
 Nexus or Artifactory stores the endpoint beside the token that opens it.
 
+Which credential a target uses is on the target, and a run refuses rather than choosing when
+an organization has several usable ones. Before that it took the most recently created, so
+adding a credential silently redirected every target in the organization — verified by
+watching a package land on a registry nobody had picked for it.
+
 This removes an accidental safeguard. Configuration used to decide the destination, so a real
 npm token in a development database still published to the local registry. It no longer does —
 what a credential says is where its packages go, in every environment. Keep development

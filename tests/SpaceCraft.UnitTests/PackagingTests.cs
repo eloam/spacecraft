@@ -52,10 +52,25 @@ public class TarballNamingTests
 public class NpmPublisherTests
 {
     [Theory]
+    // npmjs, modern and legacy wording.
     [InlineData("npm ERR! You cannot publish over the previously published versions: 1.0.0.")]
     [InlineData("npm ERR! code EPUBLISHCONFLICT")]
+    // Verdaccio answers 409 with its own phrasing. Reachable by anyone now that the
+    // destination comes from the credential rather than from configuration.
+    [InlineData("npm error 409 Conflict - PUT http://verdaccio:4873/billing-sdk - this package is already present")]
+    [InlineData("Nexus: version already exists")]
+    [InlineData("Artifactory: release artifact cannot be republished")]
     public void An_existing_version_is_recognised_as_a_conflict(string output) =>
         NpmSdkPublisher.IsVersionConflict(output).ShouldBeTrue();
+
+    [Theory]
+    [InlineData("npm ERR! 404 Not Found - PUT http://verdaccio:4873/billing-sdk")]
+    [InlineData("npm error code ENEEDAUTH\nnpm error need auth This command requires you to be logged in")]
+    [InlineData("npm ERR! 500 Internal Server Error")]
+    public void A_failure_that_is_not_a_conflict_stays_a_failure(string output) =>
+        // Broad matching is safe only while it stays away from these: reading a refusal as
+        // "already published" would mark a package as shipped when nothing was.
+        NpmSdkPublisher.IsVersionConflict(output).ShouldBeFalse();
 
     [Fact]
     public void An_authentication_failure_is_not_a_version_conflict() =>

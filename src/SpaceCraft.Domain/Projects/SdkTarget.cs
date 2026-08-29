@@ -34,6 +34,27 @@ public sealed class SdkTarget : Entity
     public DateTimeOffset? LastPublishedAt { get; private set; }
 
     /// <summary>
+    /// Which credential publishes this target, and so — since the endpoint lives on the
+    /// credential — where its packages go.
+    ///
+    /// <para>
+    /// Null means "the organization's one usable credential for this registry", which keeps
+    /// the common case free of configuration. It stops being an answer as soon as there are
+    /// two, and the publish step says so rather than picking: before this existed it took the
+    /// most recently created one, so adding a credential silently redirected every target in
+    /// the organization.
+    /// </para>
+    /// </summary>
+    public Guid? RegistryCredentialId { get; private set; }
+
+    /// <summary>Points the target at a credential, or back at whichever one is usable.</summary>
+    public void UseCredential(Guid? registryCredentialId)
+    {
+        RegistryCredentialId = registryCredentialId;
+        Touch();
+    }
+
+    /// <summary>
     /// Points the target at a different package.
     ///
     /// The last publication is forgotten along with the old name: it went out under a package

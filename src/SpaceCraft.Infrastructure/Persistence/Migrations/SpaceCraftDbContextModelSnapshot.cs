@@ -527,6 +527,10 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("registry");
 
+                    b.Property<Guid?>("RegistryCredentialId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("registry_credential_id");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");

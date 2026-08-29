@@ -18,14 +18,23 @@ namespace SpaceCraft.Api.Features;
 /// </summary>
 public sealed record CreateProjectRequest(string Name, string? Slug, bool? StrictValidation);
 
-public sealed record AddTargetRequest(SdkLanguage Language, string PackageName, RegistryKind? Registry, bool AutoPublish);
+public sealed record AddTargetRequest(
+    SdkLanguage Language,
+    string PackageName,
+    RegistryKind? Registry,
+    bool AutoPublish,
+    /// <summary>Which credential publishes it. Null while the organization has only one.</summary>
+    Guid? RegistryCredentialId = null);
 
 /// <summary>
 /// What a target can still be changed to. Language and registry are not here: they decide
 /// which generator runs and where the result goes, so changing either would make the row
 /// describe something that was never built.
 /// </summary>
-public sealed record UpdateTargetRequest(string PackageName, bool AutoPublish);
+public sealed record UpdateTargetRequest(
+    string PackageName,
+    bool AutoPublish,
+    Guid? RegistryCredentialId = null);
 
 public sealed record TargetResponse(
     Guid Id,
@@ -33,6 +42,7 @@ public sealed record TargetResponse(
     string PackageName,
     RegistryKind Registry,
     bool AutoPublish,
+    Guid? RegistryCredentialId,
     string? LastPublishedVersion,
     DateTimeOffset? LastPublishedAt);
 
@@ -444,6 +454,12 @@ public static class ProjectEndpoints
 
         var registry = request.Registry ?? request.Language.DefaultRegistry();
 
+        if (await RejectUnusableCredentialAsync(
+                organizationId, registry, request.RegistryCredentialId, db, ct) is { } refusal)
+        {
+            return refusal;
+        }
+
         SdkTarget target;
         try
         {
@@ -459,6 +475,7 @@ public static class ProjectEndpoints
         }
 
         target.SetAutoPublish(request.AutoPublish);
+        target.UseCredential(request.RegistryCredentialId);
 
         try
         {
@@ -509,6 +526,12 @@ public static class ProjectEndpoints
             return ApiResults.NotFound("The SDK target");
         }
 
+        if (await RejectUnusableCredentialAsync(
+                organizationId, target.Registry, request.RegistryCredentialId, db, ct) is { } refusal)
+        {
+            return refusal;
+        }
+
         var packageName = request.PackageName?.Trim() ?? string.Empty;
 
         if (!string.Equals(packageName, target.PackageName, StringComparison.Ordinal))
@@ -536,6 +559,7 @@ public static class ProjectEndpoints
         }
 
         target.SetAutoPublish(request.AutoPublish);
+        target.UseCredential(request.RegistryCredentialId);
 
         try
         {
@@ -549,6 +573,45 @@ public static class ProjectEndpoints
         }
 
         return TypedResults.Ok(ToTargetResponse(target));
+    }
+
+    /// <summary>
+    /// A target may only name a credential its organization owns, for the registry it
+    /// publishes to. Checked here rather than by a foreign key: the endpoint lives on the
+    /// credential, so pointing a target at the wrong one sends packages to another company's
+    /// registry — a mistake worth refusing by name, not by constraint violation.
+    /// </summary>
+    private static async Task<IResult?> RejectUnusableCredentialAsync(
+        Guid organizationId,
+        RegistryKind registry,
+        Guid? credentialId,
+        SpaceCraftDbContext db,
+        CancellationToken ct)
+    {
+        if (credentialId is not { } id)
+        {
+            return null;
+        }
+
+        var credential = await db.RegistryCredentials
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == organizationId, ct);
+
+        if (credential is null)
+        {
+            return ApiResults.Invalid("registryCredentialId", "That credential does not exist.");
+        }
+
+        if (credential.Registry != registry)
+        {
+            return ApiResults.Invalid(
+                "registryCredentialId",
+                $"That credential publishes to {credential.Registry}, not {registry}.");
+        }
+
+        return credential.IsRevoked
+            ? ApiResults.Invalid("registryCredentialId", "That credential has been revoked.")
+            : null;
     }
 
     private static ProjectResponse ToResponse(ApiProject project, int specVersionCount) =>
@@ -569,6 +632,7 @@ public static class ProjectEndpoints
             target.PackageName,
             target.Registry,
             target.AutoPublish,
+            target.RegistryCredentialId,
             target.LastPublishedVersion,
             target.LastPublishedAt);
 }
