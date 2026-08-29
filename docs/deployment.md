@@ -121,9 +121,15 @@ once. Without that check the placeholder is just a string: it satisfies `[Requir
 every option validation, and reappears much later as a rejected SMTP password or a 403 from
 S3, with nothing tying either back to a variable nobody set.
 
-In Development the marker is blanked instead of refused, so a checkout with no account behind
-it still runs — and blanked rather than left alone, because `[REQUIRED]` is not empty and
-would otherwise select the real mail transport over the one that writes to the log.
+This holds in Development too. A checkout with no account behind it blanks these in
+`appsettings.Development.json` or user secrets, which is a deliberate act — unlike a marker
+nobody noticed.
+
+Mail is checked the same way from the other side: `Email:Smtp` wants Host, Username and
+Password **together, or none of them**. All three blank is the state of a machine with no
+relay, and selects the transport that writes to the log. One or two of them is somebody who
+started configuring a relay and stopped, and reading that as "no relay" would swallow every
+message the application sends.
 
 **In local development** none of this is needed: `appsettings.Development.json` covers it, and
 anything genuinely secret goes in user secrets:

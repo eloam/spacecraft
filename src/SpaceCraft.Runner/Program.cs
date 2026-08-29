@@ -27,7 +27,7 @@ builder.Services.AddOptions<RunnerOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-builder.Services.AddSpaceCraftInfrastructure(builder.Configuration, builder.Environment.IsDevelopment());
+builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
 builder.Services.AddSpaceCraftPipeline(builder.Configuration, builder.Environment.IsDevelopment());
 
 // The runner decrypts registry tokens, so it must resolve the same Data Protection key ring

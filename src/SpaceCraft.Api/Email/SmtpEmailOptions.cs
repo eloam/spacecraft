@@ -10,7 +10,7 @@ namespace SpaceCraft.Api.Email;
 /// SES or a self-hosted Postfix is four settings and no code. That is why the transport
 /// speaks SMTP and not a provider's REST API.
 /// </summary>
-public sealed class SmtpEmailOptions
+public sealed class SmtpEmailOptions : IValidatableObject
 {
     public const string SectionName = "Email:Smtp";
 
@@ -72,12 +72,40 @@ public sealed class SmtpEmailOptions
     [Range(0, 10)]
     public int MaxRetries { get; set; } = 3;
 
-    /// <summary>
-    /// All three, or none. Half a configuration selects the logging transport in development
-    /// and refuses to start outside it, which is the loud failure a silent one deserves.
-    /// </summary>
+    /// <summary>All three, or there is no relay to talk to.</summary>
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(Host)
         && !string.IsNullOrWhiteSpace(Username)
         && !string.IsNullOrWhiteSpace(Password);
+
+    /// <summary>
+    /// None of the three settings can be <c>[Required]</c> on its own: all of them blank is
+    /// the legitimate state of a checkout with no relay, and what selects the transport that
+    /// writes to the log.
+    ///
+    /// <para>
+    /// Some of them blank is a different thing entirely — somebody was configuring a relay
+    /// and stopped. Read as "not configured" it would swallow every message the application
+    /// sends, silently, which is why it is rejected here instead. Runs under the same
+    /// ValidateDataAnnotations as the attributes above.
+    /// </para>
+    /// </summary>
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        string[] names = [nameof(Host), nameof(Username), nameof(Password)];
+        var missing = new[] { Host, Username, Password }
+            .Select((value, index) => (Name: names[index], Blank: string.IsNullOrWhiteSpace(value)))
+            .Where(setting => setting.Blank)
+            .Select(setting => setting.Name)
+            .ToList();
+
+        if (missing.Count is > 0 and < 3)
+        {
+            yield return new ValidationResult(
+                $"Email:Smtp is half configured: {string.Join(" and ", missing)} "
+                + $"{(missing.Count == 1 ? "is" : "are")} missing. Supply all of "
+                + "Host, Username and Password, or none of them to log messages instead.",
+                names);
+        }
+    }
 }

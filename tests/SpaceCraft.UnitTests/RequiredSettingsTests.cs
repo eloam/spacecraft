@@ -24,14 +24,14 @@ public class RequiredSettingsTests
         Should.NotThrow(() => From(
             ("Email:Smtp:Password", "secret"),
             ("ObjectStorage:AccessKey", ""),
-            ("Jwt:SigningKey", null)).RequirePlaceholdersReplaced(isDevelopment: false));
+            ("Jwt:SigningKey", null)).ThrowIfPlaceholdersRemain());
 
     [Fact]
-    public void An_unreplaced_placeholder_stops_a_deployment()
+    public void An_unreplaced_placeholder_stops_startup()
     {
         var error = Should.Throw<InvalidOperationException>(
             () => From(("Email:Smtp:Password", RequiredSettings.Placeholder))
-                .RequirePlaceholdersReplaced(isDevelopment: false));
+                .ThrowIfPlaceholdersRemain());
 
         error.Message.ShouldContain("Email:Smtp:Password");
         // Says how to set it, because the environment spells the key differently.
@@ -46,25 +46,12 @@ public class RequiredSettingsTests
             ("Email:Smtp:Password", RequiredSettings.Placeholder),
             ("Email:Smtp:Username", RequiredSettings.Placeholder),
             ("ObjectStorage:SecretKey", RequiredSettings.Placeholder))
-                .RequirePlaceholdersReplaced(isDevelopment: false));
+                .ThrowIfPlaceholdersRemain());
 
         error.Message.ShouldContain("Email:Smtp:Password");
         error.Message.ShouldContain("Email:Smtp:Username");
         error.Message.ShouldContain("ObjectStorage:SecretKey");
         error.Message.ShouldContain("3 settings");
-    }
-
-    [Fact]
-    public void Development_reads_the_marker_as_nothing_supplied()
-    {
-        // A checkout has no account behind it and still has to run. What it must not do is
-        // treat the marker as a value: "[REQUIRED]" is not blank, so every IsConfigured in
-        // the codebase would answer yes and pick a real transport over the one that logs.
-        var configuration = From(("Email:Smtp:Password", RequiredSettings.Placeholder));
-
-        Should.NotThrow(() => configuration.RequirePlaceholdersReplaced(isDevelopment: true));
-
-        configuration["Email:Smtp:Password"].ShouldBeNullOrWhiteSpace();
     }
 
     [Theory]
@@ -73,12 +60,12 @@ public class RequiredSettingsTests
     [InlineData("[REQUIRED]x")]
     public void A_value_that_merely_resembles_the_marker_is_someones_real_setting(string value) =>
         Should.NotThrow(() => From(("Email:Smtp:Password", value))
-            .RequirePlaceholdersReplaced(isDevelopment: false));
+            .ThrowIfPlaceholdersRemain());
 
     [Theory]
     [InlineData("[required]")]
     [InlineData("[Required]")]
     public void Case_does_not_let_the_marker_through(string value) =>
         Should.Throw<InvalidOperationException>(() => From(("Email:Smtp:Password", value))
-            .RequirePlaceholdersReplaced(isDevelopment: false));
+            .ThrowIfPlaceholdersRemain());
 }

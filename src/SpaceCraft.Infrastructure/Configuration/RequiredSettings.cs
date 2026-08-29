@@ -27,14 +27,12 @@ public static class RequiredSettings
     /// Throws if any setting still holds the placeholder, naming all of them.
     ///
     /// <para>
-    /// In development it blanks them instead. The marker is documentation there — a checkout
-    /// has no account behind it and is meant to run anyway — but left as a value it would be
-    /// worse than useless: <c>[REQUIRED]</c> is not blank, so every "is this configured?" in
-    /// the codebase would answer yes and pick the real transport over the one that logs.
+    /// In every environment, development included. A checkout that has no account behind it
+    /// blanks these in <c>appsettings.Development.json</c> or user secrets — which is a
+    /// deliberate act, unlike a marker nobody noticed.
     /// </para>
     /// </summary>
-    public static void RequirePlaceholdersReplaced(
-        this IConfigurationManager configuration, bool isDevelopment)
+    public static void ThrowIfPlaceholdersRemain(this IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
@@ -51,16 +49,9 @@ public static class RequiredSettings
             return;
         }
 
-        if (isDevelopment)
-        {
-            configuration.AddInMemoryCollection(
-                unset.Select(key => new KeyValuePair<string, string?>(key, null)));
-            return;
-        }
-
         throw new InvalidOperationException(
             $"{unset.Count} setting{(unset.Count == 1 ? "" : "s")} still hold{(unset.Count == 1 ? "s" : "")} "
-            + $"{Placeholder} and must be supplied by the deployment: {string.Join(", ", unset)}. "
+            + $"{Placeholder} and must be supplied: {string.Join(", ", unset)}. "
             + "In the environment, nested keys use a double underscore — Email:Smtp:Password "
             + "is Email__Smtp__Password.");
     }

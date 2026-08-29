@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using SpaceCraft.Api.Email;
 using Shouldly;
 using Xunit;
@@ -37,6 +38,38 @@ public class SmtpEmailOptionsTests
 
             options.IsConfigured.ShouldBeFalse();
         }
+    }
+
+    private static List<ValidationResult> Validate(SmtpEmailOptions options)
+    {
+        var results = new List<ValidationResult>();
+        Validator.TryValidateObject(options, new ValidationContext(options), results, true);
+        return results;
+    }
+
+    [Fact]
+    public void No_relay_at_all_is_a_valid_configuration() =>
+        // How a checkout runs without an account: blank credentials select the transport that
+        // writes messages to the log.
+        Validate(new SmtpEmailOptions { Host = "", Username = "", Password = "" })
+            .ShouldBeEmpty();
+
+    [Fact]
+    public void A_complete_relay_is_a_valid_configuration() => Validate(Configured()).ShouldBeEmpty();
+
+    [Theory]
+    [InlineData("Host")]
+    [InlineData("Username")]
+    [InlineData("Password")]
+    public void Half_a_relay_is_refused_at_startup(string missing)
+    {
+        // Read as "not configured" it would swallow every message the application sends,
+        // silently. ValidateDataAnnotations runs IValidatableObject, so this stops the host.
+        var options = Configured();
+        typeof(SmtpEmailOptions).GetProperty(missing)!.SetValue(options, "");
+
+        Validate(options).ShouldHaveSingleItem()
+            .ErrorMessage.ShouldNotBeNull().ShouldContain(missing);
     }
 
     [Fact]
