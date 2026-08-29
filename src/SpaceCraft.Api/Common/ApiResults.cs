@@ -20,9 +20,6 @@ public static class ApiResults
     public static ProblemHttpResult NotFound(string what) =>
         Problem("Not found", $"{what} was not found.", StatusCodes.Status404NotFound);
 
-    public static ProblemHttpResult Forbidden(string detail = "You do not have access to this resource.") =>
-        Problem("Forbidden", detail, StatusCodes.Status403Forbidden);
-
     public static ProblemHttpResult Conflict(string detail) =>
         Problem("Conflict", detail, StatusCodes.Status409Conflict);
 

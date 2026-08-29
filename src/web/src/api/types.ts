@@ -20,7 +20,6 @@ export type SpecUpload = Schemas["SpecUploadResponse"];
 export type SpecDiagnostic = Schemas["SpecDiagnostic"];
 export type SpecContent = Schemas["SpecContentResponse"];
 export type Run = Schemas["RunResponse"];
-export type RunStep = Schemas["StepResponse"];
 export type Credential = Schemas["CredentialResponse"];
 export type Publication = Schemas["PublicationResponse"];
 

@@ -13,7 +13,6 @@ import type {
   SpecDiagnostic,
   SpecList,
   SpecUpload,
-  User,
 } from "./types";
 import { useAuthStore } from "@/stores/auth";
 
@@ -423,15 +422,6 @@ export function useLogout() {
       useAuthStore.getState().clear();
       queryClient.clear();
     },
-  });
-}
-
-export function useMe(enabled: boolean) {
-  return useQuery({
-    queryKey: keys.me,
-    queryFn: () => api.get<User>("/auth/me"),
-    enabled,
-    staleTime: 5 * 60 * 1000,
   });
 }
 

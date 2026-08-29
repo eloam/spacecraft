@@ -37,4 +37,3 @@ export const useAuthStore = create<AuthState>()(
   ),
 );
 
-export const isAuthenticated = () => useAuthStore.getState().accessToken !== null;
