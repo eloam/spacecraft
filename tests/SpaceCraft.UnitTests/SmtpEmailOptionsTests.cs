@@ -95,6 +95,12 @@ public class SmtpEmailOptionsTests
             .ErrorMessage.ShouldNotBeNull().ShouldContain("TLS");
 
     [Fact]
+    public void Revocation_is_required_unless_an_environment_says_otherwise() =>
+        // The default is the deployed stance, not the convenient one: Development turns it
+        // off because macOS cannot complete the check, and that override is written down.
+        new SmtpEmailOptions().RequireCertificateRevocation.ShouldBeTrue();
+
+    [Fact]
     public void The_default_port_is_the_submission_one() =>
         // 587 with STARTTLS. Port 25 is accepted by relays but blocked on egress by most
         // hosting providers, so defaulting to it would fail only once deployed.

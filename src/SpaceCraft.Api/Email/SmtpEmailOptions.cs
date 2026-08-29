@@ -66,21 +66,19 @@ public sealed class SmtpEmailOptions : IValidatableObject
     /// Whether the relay's certificate must come with a positive answer on revocation.
     ///
     /// <para>
-    /// Off by default, which accepts a revocation check that could not be carried out — the
-    /// state of every connection on macOS and in any container with no route to an OCSP
-    /// responder. It is also what the rest of this application already does: .NET's TLS
-    /// stack does not check revocation at all unless asked, so the calls to Object Storage
-    /// and to package registries never have. MailKit is stricter than the platform, and
-    /// leaving it that way made SMTP the one connection that failed on a silent responder.
+    /// On, because a deployment that cannot get an answer about its relay's certificate
+    /// should say so rather than shrug. Development turns it off: .NET on macOS, and any
+    /// container with no route to an OCSP responder, never completes the check, so a
+    /// perfectly good certificate is rejected and no mail leaves the machine.
     /// </para>
     ///
     /// <para>
-    /// Turn it on where the responder is reachable and the answer is worth having. Nothing
-    /// else is affected either way: an expired certificate, an untrusted root, a mismatched
-    /// name and a revocation that comes back positive are refused in both modes.
+    /// Revocation is requested in both modes. What this decides is only what happens when no
+    /// answer comes back — an expired certificate, an untrusted root, a mismatched name and a
+    /// revocation that comes back positive are refused either way.
     /// </para>
     /// </summary>
-    public bool RequireCertificateRevocation { get; set; }
+    public bool RequireCertificateRevocation { get; set; } = true;
 
     /// <summary>Ceiling for one delivery including every retry.</summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
