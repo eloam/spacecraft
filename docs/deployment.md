@@ -125,6 +125,11 @@ This holds in Development too. A checkout with no account behind it blanks these
 `appsettings.Development.json` or user secrets, which is a deliberate act — unlike a marker
 nobody noticed.
 
+`Email:Smtp:Port` and `UseImplicitTls` have to agree — 465 and 2465 expect TLS from the first
+byte, 25, 587 and 2587 upgrade with STARTTLS. Crossed, neither side reports an error: the
+client waits for a greeting the server will not send until it sees TLS, and the send ends as
+a timeout several retries later with nothing naming the cause.
+
 Mail is checked the same way from the other side: `Email:Smtp` wants Host, Username and
 Password **together, or none of them**. All three blank is the state of a machine with no
 relay, and selects the transport that writes to the log. One or two of them is somebody who

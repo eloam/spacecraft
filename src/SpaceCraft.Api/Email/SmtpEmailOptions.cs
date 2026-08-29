@@ -99,6 +99,23 @@ public sealed class SmtpEmailOptions : IValidatableObject
             .Select(setting => setting.Name)
             .ToList();
 
+        // A port and a handshake that contradict each other produce no error and no mail: the
+        // client waits for a greeting the server will not send until it sees TLS, or offers
+        // TLS to a server already speaking it. It ends as a timeout, several retries later,
+        // with nothing naming the cause.
+        int[] implicitTlsPorts = [465, 2465];
+
+        if (implicitTlsPorts.Contains(Port) != UseImplicitTls)
+        {
+            yield return new ValidationResult(
+                UseImplicitTls
+                    ? $"Email:Smtp:UseImplicitTls is on, which belongs to port 465 or 2465, not {Port}. "
+                      + "Ports 25, 587 and 2587 upgrade with STARTTLS — turn it off."
+                    : $"Email:Smtp:Port {Port} expects TLS from the first byte. "
+                      + "Set UseImplicitTls to true, or use 587 to upgrade with STARTTLS.",
+                [nameof(Port), nameof(UseImplicitTls)]);
+        }
+
         if (missing.Count is > 0 and < 3)
         {
             yield return new ValidationResult(

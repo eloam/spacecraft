@@ -75,6 +75,7 @@ public static class EmailServiceExtensions
         // dispatcher does the work, so response time never depends on what was found.
         services.AddSingleton(typeof(BackgroundWorkQueue<>));
 
+        services.AddHostedService<EmailTransportAnnouncement>();
         services.AddSingleton<IEmailSender, QueuedEmailSender>();
         services.AddHostedService<EmailDispatcher>();
         services.AddHostedService<PasswordResetDispatcher>();

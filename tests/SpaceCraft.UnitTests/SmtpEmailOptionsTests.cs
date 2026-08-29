@@ -7,9 +7,11 @@ namespace SpaceCraft.UnitTests;
 
 public class SmtpEmailOptionsTests
 {
-    private static SmtpEmailOptions Configured() => new()
+    private static SmtpEmailOptions Configured(int port = 587, bool implicitTls = false) => new()
     {
         Host = "smtp.tem.scaleway.com",
+        Port = port,
+        UseImplicitTls = implicitTls,
         Username = "a-project-id",
         Password = "secret",
     };
@@ -71,6 +73,26 @@ public class SmtpEmailOptionsTests
         Validate(options).ShouldHaveSingleItem()
             .ErrorMessage.ShouldNotBeNull().ShouldContain(missing);
     }
+
+    [Theory]
+    [InlineData(587, false)]
+    [InlineData(2587, false)]
+    [InlineData(25, false)]
+    [InlineData(465, true)]
+    [InlineData(2465, true)]
+    public void A_port_matched_to_its_handshake_is_accepted(int port, bool implicitTls) =>
+        Validate(Configured(port, implicitTls)).ShouldBeEmpty();
+
+    [Theory]
+    [InlineData(465, false)]
+    [InlineData(2465, false)]
+    [InlineData(587, true)]
+    public void A_port_that_contradicts_its_handshake_is_refused(int port, bool implicitTls) =>
+        // Neither side errors: the client waits for a greeting that needs TLS first, or
+        // offers TLS to a server already speaking it. It ends as a timeout several retries
+        // later, with nothing on screen naming the cause.
+        Validate(Configured(port, implicitTls)).ShouldHaveSingleItem()
+            .ErrorMessage.ShouldNotBeNull().ShouldContain("TLS");
 
     [Fact]
     public void The_default_port_is_the_submission_one() =>
