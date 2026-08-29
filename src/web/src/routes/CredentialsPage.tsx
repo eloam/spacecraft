@@ -26,6 +26,9 @@ import { RegistryKind, registryLabel } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
+/** The public npm registry: the default, and what the field shows until told otherwise. */
+const NPM_REGISTRY = "https://registry.npmjs.org";
+
 export function CredentialsPage() {
   const { orgId = "" } = useParams();
   const { data, isLoading, error } = useCredentials(orgId);
@@ -60,8 +63,9 @@ export function CredentialsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Registry</TableHead>
+                <TableHead>Kind</TableHead>
                 <TableHead>Label</TableHead>
+                <TableHead>Publishes to</TableHead>
                 <TableHead>Token</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last used</TableHead>
@@ -73,6 +77,11 @@ export function CredentialsPage() {
                 <TableRow key={credential.id}>
                   <TableCell>{registryLabel[credential.registry]}</TableCell>
                   <TableCell>{credential.label}</TableCell>
+                  {/* The destination is a property of the token, so it belongs beside it: two
+                      npm credentials in one organization can point at different registries. */}
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {credential.registryUrl}
+                  </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     ••••{credential.lastFour}
                   </TableCell>
@@ -136,9 +145,13 @@ function AddCredentialDialog({
 }) {
   const [label, setLabel] = useState("");
   const [token, setToken] = useState("");
+  // Prefilled rather than left blank: the public registry is what almost everyone wants, and
+  // an empty field would make people wonder whether it is required.
+  const [registryUrl, setRegistryUrl] = useState(NPM_REGISTRY);
   // Beside the field that caused them, not in a toast: a rejected token is something to look
   // at while fixing it, and a notification is gone by the time the value is read back.
-  const [errors, setErrors] = useState<{ label?: string; token?: string; form?: string }>({});
+  const [errors, setErrors] = useState<
+    { label?: string; token?: string; registryUrl?: string; form?: string }>({});
   const create = useCreateCredential(orgId);
 
   function submit(event: React.FormEvent) {
@@ -146,12 +159,13 @@ function AddCredentialDialog({
     setErrors({});
 
     create.mutate(
-      { registry: RegistryKind.Npm, label, token },
+      { registry: RegistryKind.Npm, label, token, registryUrl },
       {
         onSuccess: () => {
           toast.success("Credential stored");
           setLabel("");
           setToken("");
+          setRegistryUrl(NPM_REGISTRY);
           onOpenChange(false);
         },
         onError: (err) => {
@@ -160,11 +174,16 @@ function AddCredentialDialog({
             return;
           }
 
-          const field = { label: err.fieldError("label"), token: err.fieldError("token") };
+          const field = {
+            label: err.fieldError("label"),
+            token: err.fieldError("token"),
+            registryUrl: err.fieldError("registryUrl"),
+          };
 
           // A failure the API did not attribute to a field — a 409, a 500 — still has to be
           // said somewhere, or the dialog just sits there having apparently done nothing.
-          setErrors(field.label || field.token ? field : { form: err.detail });
+          setErrors(
+            field.label || field.token || field.registryUrl ? field : { form: err.detail });
         },
       },
     );
@@ -220,6 +239,32 @@ function AddCredentialDialog({
               />
               {errors.token && (
                 <p id="token-error" className="text-sm text-destructive">{errors.token}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="registry-url">Registry</Label>
+              <Input
+                id="registry-url"
+                value={registryUrl}
+                onChange={(e) => {
+                  setRegistryUrl(e.target.value);
+                  setErrors((current) => ({ ...current, registryUrl: undefined }));
+                }}
+                placeholder={NPM_REGISTRY}
+                aria-invalid={Boolean(errors.registryUrl)}
+                aria-describedby={errors.registryUrl ? "registry-url-error" : undefined}
+                autoComplete="off"
+              />
+              {errors.registryUrl ? (
+                <p id="registry-url-error" className="text-sm text-destructive">
+                  {errors.registryUrl}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Where packages using this token are published. Point it at a private registry
+                  — Verdaccio, Nexus, Artifactory — to keep them off the public one.
+                </p>
               )}
             </div>
 

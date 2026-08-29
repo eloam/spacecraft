@@ -42,7 +42,7 @@ public sealed partial class NpmSdkBuilder(
                 "--no-audit",
                 "--no-fund",
                 "--loglevel", "warn",
-                "--registry", _options.NpmRegistry,
+                "--registry", _options.DependencyRegistry,
             ],
             WorkingDirectory = request.WorkspaceRoot,
             WorkingSubdirectory = request.SourceDirectory,

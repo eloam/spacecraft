@@ -99,7 +99,8 @@ Email__Smtp__FromName=SpaceCraft
 
 # Pipeline — baked into the runner image, override only to change it
 Pipeline__Sandbox=PlatformIsolated
-Pipeline__NpmRegistry=https://registry.npmjs.org
+# Where dependencies are resolved from. Publishing goes wherever each credential says.
+Pipeline__DependencyRegistry=https://registry.npmjs.org
 
 # Public URLs and CORS
 PublicUrls__Api=https://api.yourdomain
@@ -186,11 +187,13 @@ Two prerequisites are not configuration and cannot be worked around:
 
 - **The sending domain must be verified** in the Scaleway console (SPF, DKIM, MX) or every
   email is rejected.
-- **The Data Protection key ring must be persisted and shared** between the API and the
-  runner. The API encrypts registry tokens; the runner decrypts them to publish. A key ring
-  local to each container means the runner cannot read what the API wrote — and losing it
-  makes every stored token permanently unreadable. This is the one piece of the deployment
-  still to build.
+- **The Data Protection key ring lives in Postgres**, shared by the API that encrypts
+  registry tokens and the runner that decrypts them to publish. A ring local to each
+  container meant the runner could not read what the API wrote, which surfaced as "the key
+  was not found in the key ring" in the middle of a publish, after a build had succeeded.
+  It is still **unencrypted at rest**: `ProtectKeysWithCertificate` or a KMS-backed
+  `IXmlEncryptor` is the remaining step, and until then a database dump carries the keys that
+  open every stored token.
 
 ## Latency to expect
 

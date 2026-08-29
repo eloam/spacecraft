@@ -181,3 +181,19 @@ This is defensible for TypeScript, where `--ignore-scripts` is the control that 
 becomes a real decision for Gradle — whose build file *is* executable code — and for Python's
 `setup.py`. Adding either means moving to one job per step, so each gets its own container and
 its own limits, and confirming what the platform guarantees about egress.
+
+## Where a package is published
+
+The destination is on the credential, not in configuration. A token only authenticates against
+one registry, so the two travel together: an organization publishing to its own Verdaccio,
+Nexus or Artifactory stores the endpoint beside the token that opens it.
+
+This removes an accidental safeguard. Configuration used to decide the destination, so a real
+npm token in a development database still published to the local registry. It no longer does —
+what a credential says is where its packages go, in every environment. Keep development
+credentials pointed at a local registry, and never store a public-registry token in a database
+you are willing to experiment with.
+
+`Pipeline:DependencyRegistry` is a different thing and stays in configuration: it is where
+`npm install` resolves the generated package's dependencies from, which must not follow a
+customer's private registry.

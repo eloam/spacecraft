@@ -594,7 +594,7 @@ export function useCredentials(orgId: string) {
 export function useCreateCredential(orgId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { registry: number; label: string; token: string }) =>
+    mutationFn: (input: { registry: number; label: string; token: string; registryUrl?: string }) =>
       api.post<Credential>(`/organizations/${orgId}/credentials`, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.credentials(orgId) }),
   });

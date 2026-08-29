@@ -43,7 +43,7 @@ public sealed class NpmSdkPublisher(
         var npmrcPath = Path.Combine(artifactHostDirectory, ".npmrc");
         await File.WriteAllTextAsync(
             npmrcPath,
-            $"{AuthKeyFor(_options.NpmRegistry)}=${{SPACECRAFT_NPM_TOKEN}}\nregistry={_options.NpmRegistry}\n",
+            $"{AuthKeyFor(request.RegistryUrl)}=${{SPACECRAFT_NPM_TOKEN}}\nregistry={request.RegistryUrl}\n",
             ct);
 
         try
@@ -82,7 +82,7 @@ public sealed class NpmSdkPublisher(
                 {
                     Kind = PublishResultKind.Succeeded,
                     Output = result.Output,
-                    RegistryUrl = BuildRegistryUrl(request.PackageName, request.Version),
+                    RegistryUrl = BuildRegistryUrl(request.RegistryUrl, request.PackageName, request.Version),
                 };
             }
 
@@ -96,7 +96,7 @@ public sealed class NpmSdkPublisher(
                 {
                     Kind = PublishResultKind.AlreadyExists,
                     Output = result.Output,
-                    RegistryUrl = BuildRegistryUrl(request.PackageName, request.Version),
+                    RegistryUrl = BuildRegistryUrl(request.RegistryUrl, request.PackageName, request.Version),
                 };
             }
 
@@ -129,10 +129,14 @@ public sealed class NpmSdkPublisher(
         return $"//{uri.Authority}{path}/:_authToken";
     }
 
-    private string BuildRegistryUrl(string packageName, string version) =>
-        _options.NpmRegistry.Contains("registry.npmjs.org", StringComparison.OrdinalIgnoreCase)
+    /// <summary>
+    /// Where a human goes to look at what was just published. npmjs serves its packages from
+    /// a different host than its API; every other registry serves them from its own.
+    /// </summary>
+    private static string BuildRegistryUrl(string registryUrl, string packageName, string version) =>
+        registryUrl.Contains("registry.npmjs.org", StringComparison.OrdinalIgnoreCase)
             ? $"https://www.npmjs.com/package/{packageName}/v/{version}"
-            : $"{_options.NpmRegistry.TrimEnd('/')}/{packageName}";
+            : $"{registryUrl.TrimEnd('/')}/{packageName}";
 
     private static void TryDelete(string path)
     {

@@ -54,6 +54,27 @@ public sealed class Publication : Entity
     public string? FailureReason { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
 
+    /// <summary>
+    /// Points an existing record at the run retrying it, and clears what the last attempt
+    /// concluded.
+    ///
+    /// <para>
+    /// A registry holds one artifact per version, so (target, version) is unique here too.
+    /// Without this, an attempt that never reached the registry — a lost credential, a
+    /// crashed runner — left a Pending row that made every retry of that version fail on the
+    /// unique index, with a raw database error rather than anything a reader could act on.
+    /// </para>
+    /// </summary>
+    public void Retry(Guid pipelineRunId)
+    {
+        PipelineRunId = pipelineRunId;
+        Status = PublicationStatus.Pending;
+        FailureReason = null;
+        RegistryUrl = null;
+        CompletedAt = null;
+        Touch();
+    }
+
     public void Succeed(string? registryUrl)
     {
         Status = PublicationStatus.Succeeded;

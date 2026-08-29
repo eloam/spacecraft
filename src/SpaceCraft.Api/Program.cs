@@ -43,7 +43,10 @@ builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.I
 // ephemeral in a container, which would make every stored token unreadable after a restart —
 // so it must be persisted (and KMS-wrapped) outside Development.
 builder.Services.AddDataProtection()
-    .SetApplicationName("spacecraft");
+    .SetApplicationName("spacecraft")
+    // Shared through Postgres: the API encrypts registry tokens and the runner
+    // decrypts them from another container, with no filesystem between them.
+    .PersistKeysToDbContext<SpaceCraftDbContext>();
 
 builder.Services.AddProblemDetails();
 // Runs before the default handler, which would answer 500 to a request the caller malformed.

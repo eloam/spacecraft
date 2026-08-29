@@ -20,16 +20,27 @@ public sealed class RegistryCredential : Entity
         RegistryKind registry,
         string label,
         byte[] cipherText,
-        string lastFour)
+        string lastFour,
+        string? registryUrl = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(label);
         ArgumentNullException.ThrowIfNull(cipherText);
+
+        var endpoint = string.IsNullOrWhiteSpace(registryUrl)
+            ? RegistryEndpoints.DefaultFor(registry)
+            : registryUrl.Trim().TrimEnd('/');
+
+        if (!RegistryEndpoints.IsValid(endpoint))
+        {
+            throw new ArgumentException($"'{registryUrl}' is not an absolute http or https URL.", nameof(registryUrl));
+        }
 
         OrganizationId = organizationId;
         Registry = registry;
         Label = label;
         CipherText = cipherText;
         LastFour = lastFour;
+        RegistryUrl = endpoint;
     }
 
     public Guid OrganizationId { get; private set; }
@@ -43,6 +54,14 @@ public sealed class RegistryCredential : Entity
 
     /// <summary>Last four characters of the token, so operators can tell two tokens apart.</summary>
     public string LastFour { get; private set; } = null!;
+
+    /// <summary>
+    /// Where this token publishes. On the credential rather than in configuration because it
+    /// is the client's decision, not the deployment's: two organizations can push the same
+    /// kind of package to different registries, and a token only authenticates against the
+    /// one it was issued for. Not a secret — the token is.
+    /// </summary>
+    public string RegistryUrl { get; private set; } = null!;
 
     public DateTimeOffset? LastUsedAt { get; private set; }
     public DateTimeOffset? ExpiresAt { get; private set; }

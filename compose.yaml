@@ -124,7 +124,9 @@ services:
       ObjectStorage__AccessKey: "spacecraft"
       ObjectStorage__SecretKey: "spacecraft-dev-secret"
       ObjectStorage__ForcePathStyle: "true"
-      Pipeline__NpmRegistry: "http://verdaccio:4873"
+      # Where dependencies are resolved from, not where packages go: that is on the
+      # credential now. Verdaccio proxies npmjs, so this also keeps builds off the wire.
+      Pipeline__DependencyRegistry: "http://verdaccio:4873"
       # One run per invocation, so the container is as single-use here as the job is there.
       Runner__MaxRunsPerInvocation: "1"
       # Nothing triggers the runner locally the way the API triggers a job in production, so

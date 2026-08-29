@@ -370,10 +370,22 @@ public sealed class PipelineExecutor(
                 null, ct);
         }
 
-        var publication = new Publication(
-            run.OrganizationId, run.Id, target.Id, target.Registry, target.PackageName, version);
+        // One row per (target, version), because a registry holds one artifact per version.
+        // A retry of the same version reuses it rather than inserting a second.
+        var publication = await db.Publications
+            .FirstOrDefaultAsync(p => p.SdkTargetId == target.Id && p.Version == version, ct);
 
-        db.Publications.Add(publication);
+        if (publication is null)
+        {
+            publication = new Publication(
+                run.OrganizationId, run.Id, target.Id, target.Registry, target.PackageName, version);
+
+            db.Publications.Add(publication);
+        }
+        else
+        {
+            publication.Retry(run.Id);
+        }
         await db.SaveChangesAsync(ct);
 
         var artifactFileName = Path.GetFileName(run.ArtifactStorageKey!);
@@ -386,6 +398,7 @@ public sealed class PipelineExecutor(
             ArtifactFileName = artifactFileName,
             PackageName = target.PackageName,
             Version = version,
+            RegistryUrl = credential.RegistryUrl,
             Token = secretProtector.Unprotect(credential.CipherText),
         }, ct);
 

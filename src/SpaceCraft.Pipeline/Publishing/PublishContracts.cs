@@ -18,6 +18,13 @@ public sealed record PublishRequest
     public required string Version { get; init; }
 
     /// <summary>
+    /// Where to publish. Comes from the credential, not from configuration: the token only
+    /// authenticates against this registry, so the two travel together or neither means
+    /// anything.
+    /// </summary>
+    public required string RegistryUrl { get; init; }
+
+    /// <summary>
     /// Decrypted registry token. Held only for the duration of this call, never logged,
     /// and always listed in the sandbox's redaction set.
     /// </summary>

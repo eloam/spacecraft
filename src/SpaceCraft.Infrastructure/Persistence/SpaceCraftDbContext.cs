@@ -5,13 +5,32 @@ using SpaceCraft.Domain.Projects;
 using SpaceCraft.Domain.Registries;
 using SpaceCraft.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Infrastructure.Persistence;
 
 public sealed class SpaceCraftDbContext(DbContextOptions<SpaceCraftDbContext> options)
-    : IdentityDbContext<SpaceCraftUser, SpaceCraftRole, Guid>(options)
+    : IdentityDbContext<SpaceCraftUser, SpaceCraftRole, Guid>(options), IDataProtectionKeyContext
 {
+    /// <summary>
+    /// The Data Protection key ring, shared by every process that touches a registry token.
+    ///
+    /// <para>
+    /// In the database rather than on disk because the API encrypts those tokens and the
+    /// runner decrypts them, from separate containers with no shared filesystem. A ring local
+    /// to each meant the runner could not read what the API had written — which surfaced as
+    /// "the key was not found in the key ring" in the middle of a publish, after a build had
+    /// already succeeded.
+    /// </para>
+    ///
+    /// <para>
+    /// It also makes the ring survive a restart: an ephemeral one would make every stored
+    /// token permanently unreadable each time a container was replaced.
+    /// </para>
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
     public DbSet<ApiProject> ApiProjects => Set<ApiProject>();

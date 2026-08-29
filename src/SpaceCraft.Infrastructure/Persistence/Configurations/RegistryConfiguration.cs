@@ -13,6 +13,7 @@ public sealed class RegistryCredentialConfiguration : IEntityTypeConfiguration<R
 
         builder.Property(c => c.Label).HasMaxLength(120).IsRequired();
         builder.Property(c => c.LastFour).HasMaxLength(4).IsRequired();
+        builder.Property(c => c.RegistryUrl).HasMaxLength(512).IsRequired();
 
         // Encrypted bytes. There is deliberately no plaintext column anywhere in the schema.
         builder.Property(c => c.CipherText).HasColumnType("bytea").IsRequired();

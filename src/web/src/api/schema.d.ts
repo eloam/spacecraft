@@ -2283,6 +2283,7 @@ export interface components {
             token: string;
             /** Format: date-time */
             expiresAt: null | string;
+            registryUrl?: null | string;
         };
         CreateOrganizationRequest: {
             name: string;
@@ -2304,6 +2305,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             registry: components["schemas"]["RegistryKind"];
+            registryUrl: string;
             label: string;
             lastFour: string;
             isRevoked: boolean;

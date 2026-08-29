@@ -10,7 +10,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features;
 
-public sealed record CreateCredentialRequest(RegistryKind Registry, string Label, string Token, DateTimeOffset? ExpiresAt);
+public sealed record CreateCredentialRequest(
+    RegistryKind Registry,
+    string Label,
+    string Token,
+    DateTimeOffset? ExpiresAt,
+    /// <summary>Where this token publishes. Empty means the public registry for its kind.</summary>
+    string? RegistryUrl = null);
 
 /// <summary>
 /// Deliberately has no token field. There is no endpoint anywhere that returns a stored
@@ -19,6 +25,7 @@ public sealed record CreateCredentialRequest(RegistryKind Registry, string Label
 public sealed record CredentialResponse(
     Guid Id,
     RegistryKind Registry,
+    string RegistryUrl,
     string Label,
     string LastFour,
     bool IsRevoked,
@@ -68,7 +75,10 @@ public static class CredentialEndpoints
             .Where(c => c.OrganizationId == organizationId)
             .OrderBy(c => c.Registry).ThenByDescending(c => c.CreatedAt)
             .Select(c => new CredentialResponse(
-                c.Id, c.Registry, c.Label, c.LastFour, c.IsRevoked, c.ExpiresAt, c.LastUsedAt, c.CreatedAt))
+                c.Id,
+                c.Registry,
+                c.RegistryUrl,
+                c.Label, c.LastFour, c.IsRevoked, c.ExpiresAt, c.LastUsedAt, c.CreatedAt))
             .ToListAsync(ct);
 
         return TypedResults.Ok(credentials);
@@ -119,13 +129,23 @@ public static class CredentialEndpoints
                 + "check that the whole value was pasted.");
         }
 
+        if (!string.IsNullOrWhiteSpace(request.RegistryUrl)
+            && !RegistryEndpoints.IsValid(request.RegistryUrl.Trim()))
+        {
+            return ApiResults.Invalid(
+                nameof(request.RegistryUrl),
+                $"'{request.RegistryUrl}' is not an absolute http or https URL. Leave it empty "
+                + $"to publish to {RegistryEndpoints.DefaultFor(request.Registry)}.");
+        }
+
         // Encrypted here and never again held in plaintext outside the publish step.
         var credential = new RegistryCredential(
             organizationId,
             request.Registry,
             request.Label.Trim(),
             protector.Protect(token),
-            token[^4..]);
+            token[^4..],
+            request.RegistryUrl);
 
         credential.SetExpiry(request.ExpiresAt);
 
@@ -135,7 +155,7 @@ public static class CredentialEndpoints
         return TypedResults.Created(
             $"/api/v1/organizations/{organizationId}/credentials/{credential.Id}",
             new CredentialResponse(
-                credential.Id, credential.Registry, credential.Label, credential.LastFour,
+                credential.Id, credential.Registry, credential.RegistryUrl, credential.Label, credential.LastFour,
                 credential.IsRevoked, credential.ExpiresAt, credential.LastUsedAt, credential.CreatedAt));
     }
 
