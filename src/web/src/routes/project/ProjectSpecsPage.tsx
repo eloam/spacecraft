@@ -238,10 +238,14 @@ export function ProjectSpecsPage() {
                       disabled={count === 0 && id !== "all"}
                       onClick={() => setFilter(id)}
                       className={cn(
-                        "flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-xs transition-colors",
+                        // font-medium on every one, not just the selected: a weight that
+                        // changes on click is a width that changes on click, and each
+                        // selection nudged the buttons beside it. Background and colour say
+                        // which is active without moving anything.
+                        "flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-xs font-medium transition-colors",
                         "disabled:cursor-not-allowed disabled:opacity-40",
                         filter === id
-                          ? "bg-secondary font-medium text-secondary-foreground"
+                          ? "bg-secondary text-secondary-foreground"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >

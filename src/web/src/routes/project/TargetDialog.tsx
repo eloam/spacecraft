@@ -159,7 +159,10 @@ export function TargetDialog({
                 >
                   {/* Rendered here rather than by SelectValue, which falls back to the raw
                       value when an item's children are anything but a plain string. */}
-                  <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
+                  {/* flex-1: the block always takes the room left by the chevron, so choosing a
+                      shorter or longer option cannot resize it — and the truncation is
+                      measured against a box that never moves. */}
+                  <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
                     <span className="w-full truncate leading-tight">
                       {publishes
                         ? (usable.find((c) => c.id === credentialId)?.label ?? "Unknown credential")
