@@ -4,7 +4,6 @@ using SpaceCraft.Api.Extensions;
 using SpaceCraft.Api.Features;
 using SpaceCraft.Infrastructure;
 using SpaceCraft.Infrastructure.Persistence;
-using SpaceCraft.Pipeline;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
@@ -35,7 +34,6 @@ builder.Services.AddSpaceCraftIdentity();
 builder.Services.AddSpaceCraftAuth(builder.Configuration);
 builder.Services.AddSpaceCraftCors(builder.Configuration);
 builder.Services.AddSpaceCraftRateLimiting(builder.Configuration);
-builder.Services.AddSpaceCraftPipeline(builder.Configuration);
 
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<SpaceCraft.Api.Features.Deletion.ResourceDeleter>();

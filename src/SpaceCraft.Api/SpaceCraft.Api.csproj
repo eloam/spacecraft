@@ -6,7 +6,6 @@
   <ItemGroup>
     <ProjectReference Include="../SpaceCraft.Domain/SpaceCraft.Domain.csproj" />
     <ProjectReference Include="../SpaceCraft.Infrastructure/SpaceCraft.Infrastructure.csproj" />
-    <ProjectReference Include="../SpaceCraft.Pipeline/SpaceCraft.Pipeline.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MailKit" />

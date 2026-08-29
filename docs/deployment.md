@@ -77,7 +77,6 @@ Jwt__Issuer=spacecraft
 Jwt__Audience=spacecraft-api
 
 # Scaleway account — shared by every service that talks to it
-Scaleway__ProjectId=…
 
 # Object storage — its own IAM key, distinct from the email one
 ObjectStorage__BucketName=spacecraft
@@ -163,9 +162,9 @@ dotnet user-secrets set "Email:Smtp:Password" "<secret key>" --project src/Space
 ```
 
 **Two API keys, one project.** Transactional Email and Object Storage each get their own IAM
-application, so a key that can send mail cannot read the bucket and vice versa. Both live in the
-Scaleway project named by `Scaleway__ProjectId` — that is the only thing they share, and it is
-why the project id is not filed under either service.
+application, so a key that can send mail cannot read the bucket and vice versa. Both belong to
+the same Scaleway project, but nothing here needs to know its id: the mail relay takes it as
+an SMTP username like any other credential, and the bucket authenticates with its own key pair.
 
 **A bucket per environment.** Development and production use separate buckets, created once in
 the console; nothing creates them at startup. Scope the development key to the development
