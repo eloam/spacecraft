@@ -32,8 +32,20 @@ public sealed record CredentialResponse(
     DateTimeOffset? ExpiresAt,
     DateTimeOffset? LastUsedAt,
     DateTimeOffset CreatedAt,
-    /// <summary>How many SDK targets publish with it — what deleting it would break.</summary>
-    int TargetsUsing);
+    /// <summary>
+    /// The SDK targets that publish with it, with the project each belongs to — what deleting
+    /// this credential would break, named rather than counted.
+    /// </summary>
+    IReadOnlyList<CredentialUsageResponse> UsedBy);
+
+/// <summary>One SDK target that publishes with a credential, and where it lives.</summary>
+public sealed record CredentialUsageResponse(
+    Guid TargetId,
+    string PackageName,
+    SdkLanguage Language,
+    Guid ProjectId,
+    string ProjectName,
+    string ProjectSlug);
 
 public static class CredentialEndpoints
 {
@@ -83,24 +95,46 @@ public static class CredentialEndpoints
             return ApiResults.NotFoundOrForbidden();
         }
 
+        // Two queries rather than one: a per-row subquery joining another table is not
+        // something EF can translate, and the usages are a handful of rows for an
+        // organization — cheaper to fetch once and stitch than to make the database repeat it.
         var credentials = await db.RegistryCredentials
             .AsNoTracking()
             .Where(c => c.OrganizationId == organizationId)
-            .OrderBy(c => c.Registry).ThenByDescending(c => c.CreatedAt)
-            .Select(c => new CredentialResponse(
-                c.Id,
-                c.Registry,
-                c.RegistryUrl,
-                c.Label,
-                c.LastFour,
-                c.IsRevoked,
-                c.ExpiresAt,
-                c.LastUsedAt,
-                c.CreatedAt,
-                db.SdkTargets.Count(t => t.RegistryCredentialId == c.Id)))
+            .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(ct);
 
-        return TypedResults.Ok(credentials);
+        var usages = await db.SdkTargets
+            .AsNoTracking()
+            .Where(t => t.RegistryCredentialId != null)
+            .Join(db.ApiProjects.Where(p => p.OrganizationId == organizationId),
+                t => t.ApiProjectId, p => p.Id,
+                (t, p) => new
+                {
+                    t.RegistryCredentialId,
+                    Usage = new CredentialUsageResponse(
+                        t.Id, t.PackageName, t.Language, p.Id, p.Name, p.Slug),
+                })
+            .ToListAsync(ct);
+
+        var byCredential = usages
+            .GroupBy(u => u.RegistryCredentialId!.Value)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<CredentialUsageResponse>)g
+                    .Select(u => u.Usage)
+                    .OrderBy(u => u.ProjectName)
+                    .ThenBy(u => u.PackageName)
+                    .ToList());
+
+        var response = credentials
+            .Select(c => new CredentialResponse(
+                c.Id, c.Registry, c.RegistryUrl, c.Label, c.LastFour, c.IsRevoked,
+                c.ExpiresAt, c.LastUsedAt, c.CreatedAt,
+                byCredential.GetValueOrDefault(c.Id, [])))
+            .ToList();
+
+        return TypedResults.Ok(response);
     }
 
     private static async Task<IResult> CreateAsync(
@@ -176,7 +210,7 @@ public static class CredentialEndpoints
             new CredentialResponse(
                 credential.Id, credential.Registry, credential.RegistryUrl, credential.Label,
                 credential.LastFour, credential.IsRevoked, credential.ExpiresAt,
-                credential.LastUsedAt, credential.CreatedAt, TargetsUsing: 0));
+                credential.LastUsedAt, credential.CreatedAt, UsedBy: []));
     }
 
     private static async Task<CredentialResponse> ToResponseAsync(
@@ -190,7 +224,7 @@ public static class CredentialEndpoints
             credential.ExpiresAt,
             credential.LastUsedAt,
             credential.CreatedAt,
-            (await TargetsUsingAsync(credential.OrganizationId, credential.Id, db, ct)).Count);
+            await UsedByAsync(credential.OrganizationId, credential.Id, db, ct));
 
     private static async Task<IResult> RestoreAsync(
         Guid organizationId,
@@ -249,14 +283,18 @@ public static class CredentialEndpoints
             return ApiResults.NotFound("The credential");
         }
 
-        var users = await TargetsUsingAsync(organizationId, credentialId, db, ct);
+        var users = await UsedByAsync(organizationId, credentialId, db, ct);
 
         if (users.Count > 0)
         {
+            // Named with their project: two projects can publish packages of the same name to
+            // different registries, so the package alone does not say where to go and fix it.
+            var named = users.Select(u => $"{u.PackageName} ({u.ProjectName})");
+
             return ApiResults.Conflict(
-                $"{users.Count} SDK target{(users.Count == 1 ? " still publishes" : "s still publish")} with this "
-                + $"credential: {string.Join(", ", users)}. Point them elsewhere first, or set "
-                + "them not to publish.");
+                $"{users.Count} SDK target{(users.Count == 1 ? " still publishes" : "s still publish")} "
+                + $"with this credential: {string.Join(", ", named)}. Point them elsewhere first, "
+                + "or set them not to publish.");
         }
 
         db.RegistryCredentials.Remove(credential);
@@ -265,15 +303,20 @@ public static class CredentialEndpoints
         return TypedResults.NoContent();
     }
 
-    /// <summary>Package names of the targets that publish with a credential, for a message.</summary>
-    private static Task<List<string>> TargetsUsingAsync(
+    /// <summary>
+    /// The targets that publish with a credential, each with the project it belongs to.
+    /// Scoped to the organization, so a credential can never report a target from another.
+    /// </summary>
+    private static Task<List<CredentialUsageResponse>> UsedByAsync(
         Guid organizationId, Guid credentialId, SpaceCraftDbContext db, CancellationToken ct) =>
         db.SdkTargets
             .AsNoTracking()
-            .Where(t => t.RegistryCredentialId == credentialId
-                && db.ApiProjects.Any(p => p.Id == t.ApiProjectId && p.OrganizationId == organizationId))
-            .Select(t => t.PackageName)
-            .OrderBy(name => name)
+            .Where(t => t.RegistryCredentialId == credentialId)
+            .Join(db.ApiProjects.Where(p => p.OrganizationId == organizationId),
+                t => t.ApiProjectId, p => p.Id,
+                (t, p) => new CredentialUsageResponse(
+                    t.Id, t.PackageName, t.Language, p.Id, p.Name, p.Slug))
+            .OrderBy(u => u.ProjectName).ThenBy(u => u.PackageName)
             .ToListAsync(ct);
 
     private static async Task<IResult> RevokeAsync(

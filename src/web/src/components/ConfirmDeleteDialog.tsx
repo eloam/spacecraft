@@ -22,6 +22,7 @@ export function ConfirmDeleteDialog({
   description,
   confirmText,
   consequences,
+  details,
   isPending,
   error,
   onConfirm,
@@ -32,6 +33,8 @@ export function ConfirmDeleteDialog({
   description: string;
   confirmText?: string;
   consequences?: string[];
+  /** Rendered under the consequences, for what a list of names says better than a count. */
+  details?: React.ReactNode;
   isPending?: boolean;
   error?: string | null;
   onConfirm: () => void;
@@ -63,6 +66,8 @@ export function ConfirmDeleteDialog({
             ))}
           </ul>
         )}
+
+        {details}
 
         {confirmText && (
           <div className="space-y-2">

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
-import { Ban, KeyRound, MoreHorizontal, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { ArrowRight, Ban, KeyRound, MoreHorizontal, Package, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,7 @@ import {
   useRevokeCredential,
 } from "@/api/queries";
 import { timeAgo } from "@/lib/format";
-import { RegistryKind, registryLabel } from "@/api/types";
+import { RegistryKind, languageLabel, registryLabel } from "@/api/types";
 // Named explicitly: the DOM has its own Credential, and the global would win.
 import type { Credential } from "@/api/types";
 import { ApiError } from "@/api/client";
@@ -210,10 +210,46 @@ export function CredentialsPage() {
         confirmText={deleting?.label}
         consequences={[
           "The token itself is not revoked at the registry — do that there too",
-          deleting?.targetsUsing
-            ? `${deleting.targetsUsing} SDK target${deleting.targetsUsing === 1 ? " publishes" : "s publish"} with it — deleting will be refused`
-            : "No SDK target publishes with it",
+          ...(deleting?.usedBy.length ? [] : ["No SDK target publishes with it"]),
         ]}
+        details={
+          deleting?.usedBy.length ? (
+            // Named, grouped and linked rather than counted: "2 targets" leaves someone
+            // hunting through projects for which ones, and the answer is one click away.
+            <div className="space-y-2 rounded-2xl border bg-muted/40 p-3">
+              <p className="text-sm font-medium">
+                Publishing with this credential — deletion is refused until these move
+              </p>
+              <ul className="space-y-1">
+                {deleting.usedBy.map((use) => (
+                  <li key={use.targetId}>
+                    <Link
+                      to={`/orgs/${orgId}/projects/${use.projectSlug}/targets`}
+                      onClick={() => setDeleting(null)}
+                      className="group flex items-center justify-between gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-background"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Package className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                        <span className="min-w-0">
+                          <span className="block truncate font-mono text-xs">
+                            {use.packageName}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {use.projectName} · {languageLabel[use.language]}
+                          </span>
+                        </span>
+                      </span>
+                      <ArrowRight
+                        className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                        aria-hidden
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null
+        }
         isPending={remove.isPending}
         error={deleteError}
         onConfirm={() =>

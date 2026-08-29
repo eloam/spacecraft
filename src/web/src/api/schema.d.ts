@@ -2420,8 +2420,17 @@ export interface components {
             lastUsedAt: null | string;
             /** Format: date-time */
             createdAt: string;
-            /** Format: int32 */
-            targetsUsing: number;
+            usedBy: components["schemas"]["CredentialUsageResponse"][];
+        };
+        CredentialUsageResponse: {
+            /** Format: uuid */
+            targetId: string;
+            packageName: string;
+            language: components["schemas"]["SdkLanguage"];
+            /** Format: uuid */
+            projectId: string;
+            projectName: string;
+            projectSlug: string;
         };
         DeleteAccountRequest: {
             password: string;
