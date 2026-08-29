@@ -1,15 +1,19 @@
+using MailKit.Net.Smtp;
+using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Retry;
+using Polly.Timeout;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Scaleway;
-using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Api.Email;
 
 public static class EmailServiceExtensions
 {
     /// <summary>
-    /// Wires mail delivery: Scaleway Transactional Email when credentials are present,
-    /// otherwise the log. Endpoints are unaffected either way — they see
-    /// <see cref="IEmailSender"/> and the queue behind it.
+    /// Wires mail delivery: an SMTP relay when credentials are present, otherwise the log.
+    /// Endpoints are unaffected either way — they see <see cref="IEmailSender"/> and the
+    /// queue behind it.
     /// </summary>
     public static IServiceCollection AddSpaceCraftEmail(
         this IServiceCollection services, IConfiguration configuration, bool isDevelopment)
@@ -17,56 +21,58 @@ public static class EmailServiceExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        // The key and the project id stay optional — empty is what selects the logging
-        // transport in development. Everything else about a send is checked at startup.
-        services.AddOptions<ScalewayEmailOptions>()
-            .Bind(configuration.GetSection(ScalewayEmailOptions.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
         services.AddOptions<ScalewayOptions>()
             .Bind(configuration.GetSection(ScalewayOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        var options = new ScalewayEmailOptions();
-        configuration.GetSection(ScalewayEmailOptions.SectionName).Bind(options);
+        // The host and the password stay optional — empty is what selects the logging
+        // transport in development. Everything else about a send is checked at startup.
+        services.AddOptions<SmtpEmailOptions>()
+            .Bind(configuration.GetSection(SmtpEmailOptions.SectionName))
+            .PostConfigure<IOptions<ScalewayOptions>>((smtp, scaleway) =>
+            {
+                // Scaleway's SMTP username is the project id, and that id already lives in one
+                // place for the whole account. Any other relay sets Email:Smtp:Username and
+                // wins, which is what keeps this transport portable.
+                if (string.IsNullOrWhiteSpace(smtp.Username))
+                {
+                    smtp.Username = scaleway.Value.ProjectId;
+                }
+            })
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
-        var scaleway = new ScalewayOptions();
-        configuration.GetSection(ScalewayOptions.SectionName).Bind(scaleway);
+        var options = new SmtpEmailOptions();
+        configuration.GetSection(SmtpEmailOptions.SectionName).Bind(options);
 
-        // Both halves, from two sections: the key belongs to this service, the project to the
-        // account. Sending needs them together.
-        if (options.IsConfigured && scaleway.IsConfigured)
+        if (options.IsConfigured)
         {
-            services.AddHttpClient<IEmailTransport, ScalewayEmailTransport>((provider, client) =>
-                {
-                    var settings = provider.GetRequiredService<IOptions<ScalewayEmailOptions>>().Value;
+            // Same shape as the resilience handler the HTTP clients get, expressed directly
+            // because there is no HttpClient to hang it off: retry with jittered backoff so a
+            // recovering relay is not stampeded by the whole queue at once, and a per-attempt
+            // timeout so one hung socket does not hold the total.
+            services.AddKeyedSingleton<ResiliencePipeline>(
+                SmtpEmailTransport.PipelineKey,
+                (_, _) => new ResiliencePipelineBuilder()
+                    .AddTimeout(new TimeoutStrategyOptions { Timeout = options.Timeout })
+                    .AddRetry(new RetryStrategyOptions
+                    {
+                        MaxRetryAttempts = options.MaxRetries,
+                        BackoffType = DelayBackoffType.Exponential,
+                        UseJitter = true,
+                        // A rejected recipient or a refused password will be rejected again;
+                        // only transport-level trouble is worth a second attempt.
+                        ShouldHandle = new PredicateBuilder()
+                            .Handle<IOException>()
+                            .Handle<SmtpProtocolException>()
+                            .Handle<TimeoutRejectedException>()
+                            .Handle<SmtpCommandException>(IsTransient),
+                    })
+                    .AddTimeout(new TimeoutStrategyOptions { Timeout = options.AttemptTimeout })
+                    .Build());
 
-                    client.BaseAddress = new Uri(settings.BaseUrl);
-
-                    // The pipeline below owns timeouts. Leaving HttpClient's own timeout in
-                    // place too would cut a retry short and surface as a confusing cancellation.
-                    client.Timeout = Timeout.InfiniteTimeSpan;
-                    client.DefaultRequestHeaders.Add("X-Auth-Token", settings.ApiKey);
-                })
-                .AddStandardResilienceHandler(pipeline =>
-                {
-                    // Retries 5xx, 408 and 429 with exponential backoff and jitter — the
-                    // jitter is what stops every queued message stampeding the provider the
-                    // moment it recovers. The circuit breaker then stops hammering an outage
-                    // instead of burning the queue against a dead endpoint.
-                    pipeline.Retry.MaxRetryAttempts = options.MaxRetries;
-                    pipeline.Retry.UseJitter = true;
-
-                    pipeline.AttemptTimeout.Timeout = options.AttemptTimeout;
-                    pipeline.TotalRequestTimeout.Timeout = options.Timeout;
-
-                    // Must exceed the attempt timeout, and the breaker's sampling window has
-                    // to be at least twice the attempt timeout or the handler refuses to build.
-                    pipeline.CircuitBreaker.SamplingDuration =
-                        TimeSpan.FromTicks(options.AttemptTimeout.Ticks * 2);
-                });
+            services.AddSingleton<IEmailTransport, SmtpEmailTransport>();
         }
         else if (isDevelopment)
         {
@@ -78,8 +84,8 @@ public static class EmailServiceExtensions
             // reset links and waitlist confirmations would be written to the log store in
             // clear text, and nobody would receive them.
             throw new InvalidOperationException(
-                "No email transport is configured. Set Email:Scaleway:ApiKey and "
-                + "Scaleway:ProjectId, or run in Development to log messages instead.");
+                "No email transport is configured. Set Email:Smtp:Host and Email:Smtp:Password, "
+                + "or run in Development to log messages instead.");
         }
 
         // One queue type, three uses. Each endpoint enqueues unconditionally and a
@@ -93,4 +99,12 @@ public static class EmailServiceExtensions
 
         return services;
     }
+
+    /// <summary>
+    /// 4xx is the relay saying "not now" — greylisting, a rate limit, a full mailbox. 5xx is
+    /// it saying "not ever", and retrying a permanent rejection only spends the budget that a
+    /// real outage would have needed.
+    /// </summary>
+    private static bool IsTransient(SmtpCommandException exception) =>
+        (int)exception.StatusCode is >= 400 and < 500;
 }

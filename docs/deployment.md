@@ -87,10 +87,13 @@ ObjectStorage__AccessKey=…
 ObjectStorage__SecretKey=…
 
 # Email — startup fails without these outside Development
-Email__Scaleway__ApiKey=…
-Email__Scaleway__Region=fr-par
-Email__Scaleway__FromEmail=noreply@yourdomain
-Email__Scaleway__FromName=SpaceCraft
+# SMTP rather than a provider API: the relay is swappable without touching code.
+# Username defaults to Scaleway:ProjectId, which is what Scaleway uses as an SMTP login.
+Email__Smtp__Host=smtp.tem.scaleway.com
+Email__Smtp__Port=587
+Email__Smtp__Password=…
+Email__Smtp__FromEmail=noreply@yourdomain
+Email__Smtp__FromName=SpaceCraft
 
 # Pipeline — baked into the runner image, override only to change it
 Pipeline__Sandbox=PlatformIsolated
@@ -114,7 +117,7 @@ image, or `Pipeline:Sandbox=None`, rather than running degraded.
 anything genuinely secret goes in user secrets:
 
 ```bash
-dotnet user-secrets set "Email:Scaleway:ApiKey" "<secret key>" --project src/SpaceCraft.Api
+dotnet user-secrets set "Email:Smtp:Password" "<secret key>" --project src/SpaceCraft.Api
 ```
 
 **Two API keys, one project.** Transactional Email and Object Storage each get their own IAM

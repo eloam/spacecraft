@@ -192,7 +192,7 @@ key, a production connection string — goes in user secrets, which live outside
 tree:
 
 ```bash
-dotnet user-secrets set "Email:Scaleway:ApiKey" "<secret key>" --project src/SpaceCraft.Api
+dotnet user-secrets set "Email:Smtp:Password" "<secret key>" --project src/SpaceCraft.Api
 ```
 
 A `pre-commit` hook refuses any commit that puts a non-empty `ApiKey`, `SecretKey`,
@@ -241,5 +241,5 @@ These are known and deliberate, not oversights:
   means a persisted, KMS-wrapped store both can reach — a container-local key ring makes
   every stored token unreadable to it.
 - **The mail sending domain must be verified with Scaleway** (SPF, DKIM, MX) before anything
-  is delivered, and `Email:Scaleway:ApiKey`/`ProjectId` must be set — the API refuses to start
+  is delivered, and `Email:Smtp:Host`/`Password` must be set — the API refuses to start
   without them outside Development.

@@ -109,7 +109,7 @@ Scaleway Transactional Email, called at
 `POST /transactional-email/v1alpha1/regions/{region}/emails` with the API key in
 `X-Auth-Token`. Two deployment prerequisites are not optional: the sending domain must be
 verified in the Scaleway console (SPF, DKIM and MX records) or every send is rejected, and
-`Email:Scaleway:ApiKey`/`ProjectId` must be set — startup fails without them rather than
+`Email:Smtp:Host`/`Password` must be set — startup fails without them rather than
 quietly writing reset links to the log.
 
 Message bodies are never logged by this transport. A reset link is a bearer credential, and
