@@ -86,7 +86,7 @@ public sealed class SmtpEmailTransport(
         using var client = new SmtpClient
         {
             ServerCertificateValidationCallback = (_, _, chain, errors) =>
-                IsAcceptable(errors, chain?.ChainStatus),
+                IsAcceptable(errors, chain?.ChainStatus, _options.RequireCertificateRevocation),
         };
 
         // SecureSocketOptions.Auto would fall back to plaintext against a relay that fails to
@@ -105,25 +105,21 @@ public sealed class SmtpEmailTransport(
     }
 
     /// <summary>
-    /// Full certificate validation, with one exception: a revocation check that could not be
-    /// carried out.
+    /// Full certificate validation, and — unless
+    /// <see cref="SmtpEmailOptions.RequireCertificateRevocation"/> says otherwise — one
+    /// exception: a revocation check that could not be carried out.
     ///
     /// <para>
-    /// MailKit asks for revocation and rejects the connection when the answer does not come
-    /// back — which is the norm on macOS, and in any container with no route to an OCSP
-    /// responder. Refusing there means password resets stop the day a responder has a bad
-    /// hour, so this soft-fails that one condition, as browsers do.
-    /// </para>
-    ///
-    /// <para>
-    /// Everything else still refuses: a name that does not match, an expired certificate, an
-    /// untrusted root, and a revocation that came back positive. Turning MailKit's
-    /// <c>CheckCertificateRevocation</c> off would have been one line and would have accepted
-    /// a certificate known to be revoked.
+    /// Revocation is always requested. What the setting decides is what happens when no
+    /// answer comes back, which on macOS and in a container without a route to an OCSP
+    /// responder is every time. Nothing else moves: an expired certificate, an untrusted
+    /// root, a mismatched name and a revocation that came back positive are refused in
+    /// both modes.
     /// </para>
     /// </summary>
     /// <remarks>Public so the rule can be tested; there is no other caller.</remarks>
-    public static bool IsAcceptable(SslPolicyErrors errors, X509ChainStatus[]? chainStatus)
+    public static bool IsAcceptable(
+        SslPolicyErrors errors, X509ChainStatus[]? chainStatus, bool requireRevocation)
     {
         if (errors == SslPolicyErrors.None)
         {
@@ -131,7 +127,7 @@ public sealed class SmtpEmailTransport(
         }
 
         // A missing certificate or a mismatched name is never negotiable.
-        if (errors != SslPolicyErrors.RemoteCertificateChainErrors)
+        if (requireRevocation || errors != SslPolicyErrors.RemoteCertificateChainErrors)
         {
             return false;
         }

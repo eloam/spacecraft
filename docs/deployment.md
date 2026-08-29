@@ -125,11 +125,16 @@ This holds in Development too. A checkout with no account behind it blanks these
 `appsettings.Development.json` or user secrets, which is a deliberate act — unlike a marker
 nobody noticed.
 
-The relay's certificate is validated in full, with one exception: a revocation check that
-could not be carried out is accepted, as browsers do. macOS and containers with no route to an
-OCSP responder cannot complete one, and refusing there stops password resets the day a
-responder has a bad hour. A revocation that comes back positive, an expired certificate, an
-untrusted root or a mismatched name all still refuse.
+The relay's certificate is validated in full. Revocation is always requested; what
+`Email__Smtp__RequireCertificateRevocation` decides is what happens when no answer comes back,
+which on macOS and in a container with no route to an OCSP responder is every time.
+
+It is off by default, matching the rest of the application rather than MailKit: .NET's TLS
+stack does not check revocation unless asked, so the calls to Object Storage and to package
+registries never have, and leaving SMTP stricter made it the one connection that failed on a
+silent responder. Turn it on where a responder is reachable. Nothing else moves either way —
+an expired certificate, an untrusted root, a mismatched name and a revocation that comes back
+positive are refused in both modes.
 
 `Email:Smtp:Port` and `UseImplicitTls` have to agree — 465 and 2465 expect TLS from the first
 byte, 25, 587 and 2587 upgrade with STARTTLS. Crossed, neither side reports an error: the

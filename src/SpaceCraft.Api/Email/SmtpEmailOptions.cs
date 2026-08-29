@@ -62,6 +62,26 @@ public sealed class SmtpEmailOptions : IValidatableObject
     [Required]
     public string FromName { get; set; } = "SpaceCraft";
 
+    /// <summary>
+    /// Whether the relay's certificate must come with a positive answer on revocation.
+    ///
+    /// <para>
+    /// Off by default, which accepts a revocation check that could not be carried out — the
+    /// state of every connection on macOS and in any container with no route to an OCSP
+    /// responder. It is also what the rest of this application already does: .NET's TLS
+    /// stack does not check revocation at all unless asked, so the calls to Object Storage
+    /// and to package registries never have. MailKit is stricter than the platform, and
+    /// leaving it that way made SMTP the one connection that failed on a silent responder.
+    /// </para>
+    ///
+    /// <para>
+    /// Turn it on where the responder is reachable and the answer is worth having. Nothing
+    /// else is affected either way: an expired certificate, an untrusted root, a mismatched
+    /// name and a revocation that comes back positive are refused in both modes.
+    /// </para>
+    /// </summary>
+    public bool RequireCertificateRevocation { get; set; }
+
     /// <summary>Ceiling for one delivery including every retry.</summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
 
