@@ -241,5 +241,5 @@ These are known and deliberate, not oversights:
   means a persisted, KMS-wrapped store both can reach — a container-local key ring makes
   every stored token unreadable to it.
 - **The mail sending domain must be verified with Scaleway** (SPF, DKIM, MX) before anything
-  is delivered, and `Email:Smtp:Host`/`Password` must be set — the API refuses to start
+  is delivered, and `Email:Smtp:Host`/`Username`/`Password` must be set — the API refuses to start
   without them outside Development.

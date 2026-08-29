@@ -87,10 +87,12 @@ ObjectStorage__AccessKey=…
 ObjectStorage__SecretKey=…
 
 # Email — startup fails without these outside Development
-# SMTP rather than a provider API: the relay is swappable without touching code.
-# Username defaults to Scaleway:ProjectId, which is what Scaleway uses as an SMTP login.
+# SMTP rather than a provider API: the relay is swappable without touching code, and
+# nothing below is derived from one. Scaleway's username is the id of the project the
+# sending domain belongs to.
 Email__Smtp__Host=smtp.tem.scaleway.com
 Email__Smtp__Port=587
+Email__Smtp__Username=…
 Email__Smtp__Password=…
 Email__Smtp__FromEmail=noreply@yourdomain
 Email__Smtp__FromName=SpaceCraft

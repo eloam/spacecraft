@@ -38,15 +38,16 @@ public sealed class SmtpEmailOptions
     public bool UseImplicitTls { get; set; }
 
     /// <summary>
-    /// Left empty for Scaleway: the composition root fills it from <c>Scaleway:ProjectId</c>,
-    /// because that is what Scaleway uses as an SMTP username and the id already lives in one
-    /// place for the whole account. Any other relay sets this explicitly and wins.
+    /// SMTP login. Scaleway wants the id of the project the sending domain belongs to, other
+    /// relays want an address or an account name — which is exactly why it is written here
+    /// rather than derived from something provider-shaped.
     /// </summary>
     public string? Username { get; set; }
 
     /// <summary>
-    /// Secret key of an IAM API key with Transactional Email write permission, for Scaleway.
-    /// Never logged, and never included in an error message.
+    /// SMTP password — an API key's secret for a relay that authenticates that way, an
+    /// account password for one that does not. Never logged, and never included in an error
+    /// message.
     /// </summary>
     public string? Password { get; set; }
 
@@ -72,9 +73,11 @@ public sealed class SmtpEmailOptions
     public int MaxRetries { get; set; } = 3;
 
     /// <summary>
-    /// A relay to talk to and a password to say it with. The username is not part of this:
-    /// it has a default, and a blank one would only be caught at the first send.
+    /// All three, or none. Half a configuration selects the logging transport in development
+    /// and refuses to start outside it, which is the loud failure a silent one deserves.
     /// </summary>
     public bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(Host) && !string.IsNullOrWhiteSpace(Password);
+        !string.IsNullOrWhiteSpace(Host)
+        && !string.IsNullOrWhiteSpace(Username)
+        && !string.IsNullOrWhiteSpace(Password);
 }

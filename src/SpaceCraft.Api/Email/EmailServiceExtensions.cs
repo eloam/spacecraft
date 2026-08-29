@@ -1,10 +1,8 @@
 using MailKit.Net.Smtp;
-using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
 using Polly.Timeout;
 using SpaceCraft.Api.Common;
-using SpaceCraft.Infrastructure.Scaleway;
 
 namespace SpaceCraft.Api.Email;
 
@@ -21,25 +19,10 @@ public static class EmailServiceExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddOptions<ScalewayOptions>()
-            .Bind(configuration.GetSection(ScalewayOptions.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
-        // The host and the password stay optional — empty is what selects the logging
-        // transport in development. Everything else about a send is checked at startup.
+        // The credentials stay optional — empty is what selects the logging transport in
+        // development. Everything else about a send is checked at startup.
         services.AddOptions<SmtpEmailOptions>()
             .Bind(configuration.GetSection(SmtpEmailOptions.SectionName))
-            .PostConfigure<IOptions<ScalewayOptions>>((smtp, scaleway) =>
-            {
-                // Scaleway's SMTP username is the project id, and that id already lives in one
-                // place for the whole account. Any other relay sets Email:Smtp:Username and
-                // wins, which is what keeps this transport portable.
-                if (string.IsNullOrWhiteSpace(smtp.Username))
-                {
-                    smtp.Username = scaleway.Value.ProjectId;
-                }
-            })
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
@@ -84,7 +67,7 @@ public static class EmailServiceExtensions
             // reset links and waitlist confirmations would be written to the log store in
             // clear text, and nobody would receive them.
             throw new InvalidOperationException(
-                "No email transport is configured. Set Email:Smtp:Host and Email:Smtp:Password, "
+                "No email transport is configured. Set Email:Smtp:Host, Username and Password, "
                 + "or run in Development to log messages instead.");
         }
 

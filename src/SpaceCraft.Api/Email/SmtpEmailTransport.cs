@@ -31,9 +31,8 @@ public sealed class SmtpEmailTransport(
     private readonly SmtpEmailOptions _options = options.Value;
 
     // Non-null by construction: the composition root only registers this transport once the
-    // relay is configured. Read into fields so that a gap — an empty Scaleway:ProjectId
-    // leaving the username unset, say — fails when the transport is resolved rather than at
-    // the first password reset somebody is waiting on.
+    // relay is configured. Read into fields so that a gap fails when the transport is
+    // resolved rather than at the first password reset somebody is waiting on.
     private readonly string _host = Required(options.Value.Host, "Email:Smtp:Host");
     private readonly string _username = Required(options.Value.Username, "Email:Smtp:Username");
     private readonly string _password = Required(options.Value.Password, "Email:Smtp:Password");

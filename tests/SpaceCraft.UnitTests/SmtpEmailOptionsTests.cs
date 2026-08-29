@@ -1,5 +1,4 @@
 using SpaceCraft.Api.Email;
-using SpaceCraft.Infrastructure.Scaleway;
 using Shouldly;
 using Xunit;
 
@@ -7,36 +6,38 @@ namespace SpaceCraft.UnitTests;
 
 public class SmtpEmailOptionsTests
 {
+    private static SmtpEmailOptions Configured() => new()
+    {
+        Host = "smtp.tem.scaleway.com",
+        Username = "a-project-id",
+        Password = "secret",
+    };
+
     /// <summary>
-    /// A relay to talk to and a password to say it with. The username is not part of it: it
-    /// defaults to the account's project id, so requiring it here would refuse a perfectly
-    /// good Scaleway configuration.
+    /// A relay to reach, a name to give it and a password to say it with. All three are
+    /// written down: nothing about them is derived from a particular provider, which is what
+    /// lets the relay be swapped without touching code.
     /// </summary>
     [Fact]
-    public void A_host_and_a_password_are_what_make_the_transport_usable() =>
-        new SmtpEmailOptions { Host = "smtp.tem.scaleway.com", Password = "secret" }
-            .IsConfigured.ShouldBeTrue();
-
-    [Fact]
-    public void A_project_id_is_what_makes_the_account_usable() =>
-        new ScalewayOptions { ProjectId = "project" }.IsConfigured.ShouldBeTrue();
+    public void A_host_a_username_and_a_password_are_what_make_the_transport_usable() =>
+        Configured().IsConfigured.ShouldBeTrue();
 
     [Theory]
-    [InlineData("", "secret")]
-    [InlineData("   ", "secret")]
-    [InlineData(null, "secret")]
-    [InlineData("smtp.tem.scaleway.com", "")]
-    [InlineData("smtp.tem.scaleway.com", "   ")]
-    [InlineData("smtp.tem.scaleway.com", null)]
-    public void Half_a_configuration_does_not_count(string? host, string? password) =>
-        new SmtpEmailOptions { Host = host, Password = password }.IsConfigured.ShouldBeFalse();
+    [InlineData("Host")]
+    [InlineData("Username")]
+    [InlineData("Password")]
+    public void Half_a_configuration_does_not_count(string missing)
+    {
+        // Silently sending nothing is the failure this prevents: an incomplete relay selects
+        // the logging transport in development, and refuses to start outside it.
+        foreach (var blank in new[] { "", "   ", null })
+        {
+            var options = Configured();
+            typeof(SmtpEmailOptions).GetProperty(missing)!.SetValue(options, blank);
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData(null)]
-    public void A_blank_project_id_does_not_count_as_configured(string? value) =>
-        new ScalewayOptions { ProjectId = value }.IsConfigured.ShouldBeFalse();
+            options.IsConfigured.ShouldBeFalse();
+        }
+    }
 
     [Fact]
     public void The_default_port_is_the_submission_one() =>
