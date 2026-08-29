@@ -142,9 +142,11 @@ export function TargetDialog({
                 {/* Naming the consequence rather than the absence: the endpoint lives on the
                     credential, so this choice is where the package ends up. */}
                 <option value="">
-                  {usable.length > 1
-                    ? "Choose a credential — this organization has several"
-                    : "The organization's npm credential"}
+                  {usable.length === 0
+                    ? "No credential yet — publishing will fail"
+                    : usable.length > 1
+                      ? "Choose a credential — this organization has several"
+                      : "The organization's npm credential"}
                 </option>
                 {usable.map((credential) => (
                   <option key={credential.id} value={credential.id}>
@@ -153,9 +155,11 @@ export function TargetDialog({
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">
-                {usable.length > 1
-                  ? "Several credentials can publish npm packages, and they may point at different registries. Leave this unset and a run refuses rather than guessing."
-                  : "Where this SDK is published: the registry that credential points at."}
+                {usable.length === 0
+                  ? "This organization has no usable npm credential. Generating and building work without one; only publishing needs it."
+                  : usable.length > 1
+                    ? "Several credentials can publish npm packages, and they may point at different registries. Leave this unset and a run refuses rather than guessing."
+                    : "Where this SDK is published: the registry that credential points at."}
               </p>
             </div>
 
@@ -179,6 +183,15 @@ export function TargetDialog({
                 onCheckedChange={(checked) => setAutoPublish(checked)}
               />
             </div>
+
+            {/* Said before it is switched on rather than discovered four runs later: every
+                spec upload would queue a run that builds, then fails on the last step. */}
+            {autoPublish && usable.length === 0 && (
+              <p className="text-sm text-[var(--code-warning)]">
+                Nothing can be published until this organization has an npm credential. Every
+                new spec version will build and then fail at the publish step.
+              </p>
+            )}
           </div>
 
           <DialogFooter>
