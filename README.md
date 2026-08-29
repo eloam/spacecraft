@@ -44,8 +44,9 @@ installs and type-checks in a consumer project under `strict`.
                         └──────────────┘         └───────────────┘
                                │                        │
                         ┌──────▼────────────────────────▼───────┐
-                        │  Scaleway Object Storage              │
+                        │  Object Storage (S3)                  │
                         │  orgs/{org}/projects/{project}/…      │
+                        │  Scaleway deployed · MinIO locally    │
                         └───────────────────────────────────────┘
 ```
 
@@ -139,24 +140,15 @@ Requires .NET 10 SDK, Node 20+, and Docker.
 docker compose up -d
 ```
 
-Postgres and a local [Verdaccio](https://verdaccio.org) npm registry come up. Verdaccio
-matters: it lets the publish step be exercised end to end without pushing anything
-irreversible to npmjs.org.
+Postgres, [MinIO](https://min.io) and a local [Verdaccio](https://verdaccio.org) npm registry
+come up, and a one-shot container creates the bucket. Verdaccio matters: it lets the publish
+step be exercised end to end without pushing anything irreversible to npmjs.org.
 
-Object storage is **not** local. Development and production each use their own Scaleway
-bucket, so the S3 implementation that runs here is the one that runs in production —
-path-style addressing, presigned URLs and copy semantics all included. Create the development
-bucket in the console, then put the project id and an API key of its own in user secrets:
-
-```bash
-dotnet user-secrets set "Scaleway:ProjectId"      "<project id>" --project src/SpaceCraft.Api
-dotnet user-secrets set "ObjectStorage:AccessKey" "<access key>" --project src/SpaceCraft.Api
-dotnet user-secrets set "ObjectStorage:SecretKey" "<secret key>" --project src/SpaceCraft.Api
-```
-
-The same three values are needed by the worker and the runner. The key is distinct from the
-Transactional Email one — same Scaleway project, its own IAM application, so a key that can
-read the bucket cannot send mail.
+Object storage is local, and needs no account. Staging and production point at Scaleway
+instead — the application cannot tell the difference, since it speaks the S3 API to whatever
+`ObjectStorage:ServiceUrl` names. One setting differs and is already set for you:
+`ForcePathStyle`, because MinIO serves bucket-in-path where Scaleway and AWS serve
+virtual-hosted style.
 
 ```bash
 dotnet ef database update --project src/SpaceCraft.Infrastructure --startup-project src/SpaceCraft.Api
@@ -178,6 +170,7 @@ npm run dev --prefix src/web
 
 - App — http://localhost:5173
 - API reference (Scalar) — http://localhost:8080/scalar
+- MinIO console — http://localhost:9001 (`spacecraft` / `spacecraft-dev-secret`)
 - Verdaccio — http://localhost:4873
 
 The API and worker run on the host rather than in containers: the worker launches Docker

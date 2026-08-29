@@ -15,7 +15,7 @@ minutes a function-style platform typically permits.
 | Lease reaper | Serverless Job | same image | `--reap`, cron `* * * * *` |
 | Migrations | Serverless Job | same image | `--migrate`, once per release |
 | Database | Managed Database for PostgreSQL | — | — |
-| Specs, artifacts, logs | Object Storage | — | S3-compatible |
+| Specs, artifacts, logs | Object Storage | — | S3-compatible; MinIO in development |
 | Email | Transactional Email | — | API |
 
 One image serves the runner, the reaper and the migration step; they differ only by argument.
