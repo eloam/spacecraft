@@ -94,17 +94,29 @@ public static class CredentialEndpoints
         }
 
         var token = request.Token?.Trim();
-        if (string.IsNullOrWhiteSpace(token) || token.Length < 8)
+        if (string.IsNullOrWhiteSpace(token))
         {
             return ApiResults.Invalid(nameof(request.Token), "Provide the registry token.");
         }
 
+        // Told apart from an empty field on purpose. Both used to answer "Provide the registry
+        // token", which reads as "you left it blank" to somebody who did type something, and
+        // sends them looking at the form rather than at what they pasted.
         if (request.Registry == RegistryKind.Npm && !LooksLikeNpmToken(token))
         {
             return ApiResults.Invalid(
                 nameof(request.Token),
-                "This does not look like an npm token. Use an automation token (npm_...): "
-                + "granular or classic publish tokens with 2FA enabled will fail on an unattended publish.");
+                $"'{token[..Math.Min(4, token.Length)]}…' does not look like an npm token. Use an "
+                + "automation token (npm_...): granular or classic publish tokens with 2FA enabled "
+                + "will fail on an unattended publish.");
+        }
+
+        if (token.Length < 8)
+        {
+            return ApiResults.Invalid(
+                nameof(request.Token),
+                $"That token is {token.Length} characters. A registry token is far longer — "
+                + "check that the whole value was pasted.");
         }
 
         // Encrypted here and never again held in plaintext outside the publish step.

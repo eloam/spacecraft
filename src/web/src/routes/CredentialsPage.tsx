@@ -136,10 +136,15 @@ function AddCredentialDialog({
 }) {
   const [label, setLabel] = useState("");
   const [token, setToken] = useState("");
+  // Beside the field that caused them, not in a toast: a rejected token is something to look
+  // at while fixing it, and a notification is gone by the time the value is read back.
+  const [errors, setErrors] = useState<{ label?: string; token?: string; form?: string }>({});
   const create = useCreateCredential(orgId);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
+    setErrors({});
+
     create.mutate(
       { registry: RegistryKind.Npm, label, token },
       {
@@ -149,8 +154,18 @@ function AddCredentialDialog({
           setToken("");
           onOpenChange(false);
         },
-        onError: (err) =>
-          toast.error(err instanceof ApiError ? err.detail : "Could not store the credential."),
+        onError: (err) => {
+          if (!(err instanceof ApiError)) {
+            setErrors({ form: "Could not store the credential." });
+            return;
+          }
+
+          const field = { label: err.fieldError("label"), token: err.fieldError("token") };
+
+          // A failure the API did not attribute to a field — a 409, a 500 — still has to be
+          // said somewhere, or the dialog just sits there having apparently done nothing.
+          setErrors(field.label || field.token ? field : { form: err.detail });
+        },
       },
     );
   }
@@ -172,10 +187,18 @@ function AddCredentialDialog({
               <Input
                 id="label"
                 value={label}
-                onChange={(e) => setLabel(e.target.value)}
+                onChange={(e) => {
+                  setLabel(e.target.value);
+                  setErrors((current) => ({ ...current, label: undefined }));
+                }}
                 placeholder="npm automation token (acme)"
+                aria-invalid={Boolean(errors.label)}
+                aria-describedby={errors.label ? "label-error" : undefined}
                 autoFocus
               />
+              {errors.label && (
+                <p id="label-error" className="text-sm text-destructive">{errors.label}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -184,11 +207,23 @@ function AddCredentialDialog({
                 id="token"
                 type="password"
                 value={token}
-                onChange={(e) => setToken(e.target.value)}
+                onChange={(e) => {
+                  // Cleared as it is retyped: leaving the field red while somebody corrects it
+                  // says the new value is wrong too, which nothing has checked yet.
+                  setToken(e.target.value);
+                  setErrors((current) => ({ ...current, token: undefined }));
+                }}
                 placeholder="npm_…"
+                aria-invalid={Boolean(errors.token)}
+                aria-describedby={errors.token ? "token-error" : undefined}
                 autoComplete="off"
               />
+              {errors.token && (
+                <p id="token-error" className="text-sm text-destructive">{errors.token}</p>
+              )}
             </div>
+
+            {errors.form && <p className="text-sm text-destructive">{errors.form}</p>}
           </div>
 
           <DialogFooter>
