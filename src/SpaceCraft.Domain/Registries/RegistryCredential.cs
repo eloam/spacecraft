@@ -88,6 +88,17 @@ public sealed class RegistryCredential : Entity
         Touch();
     }
 
+    /// <summary>
+    /// Undoes a revocation. The token itself was never destroyed — revoking only stopped this
+    /// application from using it — so a revocation made by mistake is reversible here. What it
+    /// cannot undo is a token revoked at the registry, which stays useless whatever this says.
+    /// </summary>
+    public void Restore()
+    {
+        IsRevoked = false;
+        Touch();
+    }
+
     public void Rotate(byte[] cipherText, string lastFour)
     {
         ArgumentNullException.ThrowIfNull(cipherText);

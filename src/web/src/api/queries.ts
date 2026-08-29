@@ -610,6 +610,24 @@ export function useCreateCredential(orgId: string) {
   });
 }
 
+export function useRestoreCredential(orgId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (credentialId: string) =>
+      api.post<Credential>(`/organizations/${orgId}/credentials/${credentialId}/restore`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.credentials(orgId) }),
+  });
+}
+
+export function useDeleteCredential(orgId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (credentialId: string) =>
+      api.delete<void>(`/organizations/${orgId}/credentials/${credentialId}/permanently`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.credentials(orgId) }),
+  });
+}
+
 export function useRevokeCredential(orgId: string) {
   const queryClient = useQueryClient();
   return useMutation({

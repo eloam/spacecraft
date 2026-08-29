@@ -31,7 +31,9 @@ public sealed record CredentialResponse(
     bool IsRevoked,
     DateTimeOffset? ExpiresAt,
     DateTimeOffset? LastUsedAt,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    /// <summary>How many SDK targets publish with it — what deleting it would break.</summary>
+    int TargetsUsing);
 
 public static class CredentialEndpoints
 {
@@ -49,6 +51,17 @@ public static class CredentialEndpoints
             .Produces<CredentialResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .WithSummary("Stores an encrypted registry token.");
+
+        group.MapPost("/{credentialId:guid}/restore", RestoreAsync)
+            .Produces<CredentialResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Undoes a revocation, so the credential can publish again.");
+
+        group.MapDelete("/{credentialId:guid}/permanently", DeleteAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Deletes a credential, unless an SDK target still publishes with it.");
 
         group.MapDelete("/{credentialId:guid}", RevokeAsync)
             .Produces(StatusCodes.Status204NoContent)
@@ -78,7 +91,13 @@ public static class CredentialEndpoints
                 c.Id,
                 c.Registry,
                 c.RegistryUrl,
-                c.Label, c.LastFour, c.IsRevoked, c.ExpiresAt, c.LastUsedAt, c.CreatedAt))
+                c.Label,
+                c.LastFour,
+                c.IsRevoked,
+                c.ExpiresAt,
+                c.LastUsedAt,
+                c.CreatedAt,
+                db.SdkTargets.Count(t => t.RegistryCredentialId == c.Id)))
             .ToListAsync(ct);
 
         return TypedResults.Ok(credentials);
@@ -155,9 +174,107 @@ public static class CredentialEndpoints
         return TypedResults.Created(
             $"/api/v1/organizations/{organizationId}/credentials/{credential.Id}",
             new CredentialResponse(
-                credential.Id, credential.Registry, credential.RegistryUrl, credential.Label, credential.LastFour,
-                credential.IsRevoked, credential.ExpiresAt, credential.LastUsedAt, credential.CreatedAt));
+                credential.Id, credential.Registry, credential.RegistryUrl, credential.Label,
+                credential.LastFour, credential.IsRevoked, credential.ExpiresAt,
+                credential.LastUsedAt, credential.CreatedAt, TargetsUsing: 0));
     }
+
+    private static async Task<CredentialResponse> ToResponseAsync(
+        RegistryCredential credential, SpaceCraftDbContext db, CancellationToken ct) =>
+        new(credential.Id,
+            credential.Registry,
+            credential.RegistryUrl,
+            credential.Label,
+            credential.LastFour,
+            credential.IsRevoked,
+            credential.ExpiresAt,
+            credential.LastUsedAt,
+            credential.CreatedAt,
+            (await TargetsUsingAsync(credential.OrganizationId, credential.Id, db, ct)).Count);
+
+    private static async Task<IResult> RestoreAsync(
+        Guid organizationId,
+        Guid credentialId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        CancellationToken ct)
+    {
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var credential = await db.RegistryCredentials
+            .FirstOrDefaultAsync(c => c.Id == credentialId && c.OrganizationId == organizationId, ct);
+
+        if (credential is null)
+        {
+            return ApiResults.NotFound("The credential");
+        }
+
+        credential.Restore();
+        await db.SaveChangesAsync(ct);
+
+        return TypedResults.Ok(await ToResponseAsync(credential, db, ct));
+    }
+
+    /// <summary>
+    /// Removes the record for good, which revoking does not.
+    ///
+    /// <para>
+    /// Refused while an SDK target still names it: the endpoint lives on the credential, so
+    /// deleting it leaves those targets pointing at nothing and every publish failing with a
+    /// message about a credential nobody can look up any more.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> DeleteAsync(
+        Guid organizationId,
+        Guid credentialId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        CancellationToken ct)
+    {
+        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        var credential = await db.RegistryCredentials
+            .FirstOrDefaultAsync(c => c.Id == credentialId && c.OrganizationId == organizationId, ct);
+
+        if (credential is null)
+        {
+            return ApiResults.NotFound("The credential");
+        }
+
+        var users = await TargetsUsingAsync(organizationId, credentialId, db, ct);
+
+        if (users.Count > 0)
+        {
+            return ApiResults.Conflict(
+                $"{users.Count} SDK target{(users.Count == 1 ? " still publishes" : "s still publish")} with this "
+                + $"credential: {string.Join(", ", users)}. Point them elsewhere first, or set "
+                + "them not to publish.");
+        }
+
+        db.RegistryCredentials.Remove(credential);
+        await db.SaveChangesAsync(ct);
+
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>Package names of the targets that publish with a credential, for a message.</summary>
+    private static Task<List<string>> TargetsUsingAsync(
+        Guid organizationId, Guid credentialId, SpaceCraftDbContext db, CancellationToken ct) =>
+        db.SdkTargets
+            .AsNoTracking()
+            .Where(t => t.RegistryCredentialId == credentialId
+                && db.ApiProjects.Any(p => p.Id == t.ApiProjectId && p.OrganizationId == organizationId))
+            .Select(t => t.PackageName)
+            .OrderBy(name => name)
+            .ToListAsync(ct);
 
     private static async Task<IResult> RevokeAsync(
         Guid organizationId,

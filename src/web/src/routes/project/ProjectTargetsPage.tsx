@@ -191,7 +191,7 @@ export function ProjectTargetsPage() {
                       const release = releases.get(target.id);
 
                       return (
-                        <TableRow key={target.id}>
+                        <TableRow key={target.id} className="group">
                           {/* Language and package name together: they name one thing, and as
                               two columns the eye had to join them back up on every row. */}
                           <TableCell>
@@ -203,7 +203,17 @@ export function ProjectTargetsPage() {
                                 )}
                                 aria-hidden
                               />
-                              <span className="font-medium">{languageLabel[target.language]}</span>
+                              {/* The obvious thing to click on a row that has settings, and
+                                  the one part of it that did nothing. Underlined on row hover
+                                  rather than its own: the pointer is somewhere on the row long
+                                  before it reaches ten characters of label. */}
+                              <button
+                                type="button"
+                                onClick={() => openDialog(target)}
+                                className="cursor-pointer rounded-sm font-medium group-hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                              >
+                                {languageLabel[target.language]}
+                              </button>
                             </div>
                             <p className="pl-4 font-mono text-xs text-muted-foreground">
                               {target.packageName}

@@ -118,7 +118,7 @@ export function TargetDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-5 py-4">
             <div className="space-y-2">
               <Label htmlFor="package-name">Package name</Label>
               <Input
@@ -151,7 +151,7 @@ export function TargetDialog({
                   if (chosen === NO_PUBLISH) setAutoPublish(false);
                 }}
               >
-                <SelectTrigger id="credential" className="h-auto w-full py-2">
+                <SelectTrigger id="credential" className="h-auto w-full py-2 [&>span]:gap-0.5">
                   {/* Rendered here rather than by SelectValue: the trigger has to show the
                       label, and SelectValue falls back to the raw value when an item's
                       children are anything but a plain string. */}

@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { KeyRound, Plus, Trash2 } from "lucide-react";
+import { Ban, KeyRound, MoreHorizontal, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -21,9 +25,13 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import {
   useCreateCredential,
   useCredentials,
+  useDeleteCredential,
+  useRestoreCredential,
   useRevokeCredential,
 } from "@/api/queries";
 import { RegistryKind, registryLabel } from "@/api/types";
+// Named explicitly: the DOM has its own Credential, and the global would win.
+import type { Credential } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
@@ -34,6 +42,10 @@ export function CredentialsPage() {
   const { orgId = "" } = useParams();
   const { data, isLoading, error } = useCredentials(orgId);
   const revoke = useRevokeCredential(orgId);
+  const restore = useRestoreCredential(orgId);
+  const remove = useDeleteCredential(orgId);
+  const [deleting, setDeleting] = useState<Credential | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
   return (
@@ -98,21 +110,55 @@ export function CredentialsPage() {
                     {credential.lastUsedAt ? new Date(credential.lastUsedAt).toLocaleString() : "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    {!credential.isRevoked && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Revoke ${credential.label}`}
-                        onClick={() =>
-                          revoke.mutate(credential.id, {
-                            onSuccess: () => toast.success("Credential revoked"),
-                            onError: () => toast.error("Could not revoke the credential."),
-                          })
-                        }
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={<Button size="icon-sm" variant="ghost" />}
+                        aria-label={`Actions for ${credential.label}`}
                       >
-                        <Trash2 className="size-4" aria-hidden />
-                      </Button>
-                    )}
+                        <MoreHorizontal className="size-4" aria-hidden />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        {credential.isRevoked ? (
+                          // Revoking never destroyed the token, so undoing it is honest.
+                          <DropdownMenuItem
+                            onClick={() =>
+                              restore.mutate(credential.id, {
+                                onSuccess: () => toast.success("Credential restored"),
+                                onError: () => toast.error("Could not restore the credential."),
+                              })
+                            }
+                          >
+                            <RotateCcw className="size-4" aria-hidden />
+                            Restore
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              revoke.mutate(credential.id, {
+                                onSuccess: () => toast.success("Credential revoked"),
+                                onError: () => toast.error("Could not revoke the credential."),
+                              })
+                            }
+                          >
+                            <Ban className="size-4" aria-hidden />
+                            Revoke
+                          </DropdownMenuItem>
+                        )}
+
+                        <DropdownMenuSeparator />
+
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => {
+                            setDeleteError(null);
+                            setDeleting(credential);
+                          }}
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                          Delete permanently
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -136,6 +182,40 @@ export function CredentialsPage() {
       </QueryBoundary>
 
       <AddCredentialDialog orgId={orgId} open={open} onOpenChange={setOpen} />
+
+      <ConfirmDeleteDialog
+        open={deleting !== null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setDeleting(null);
+            setDeleteError(null);
+          }
+        }}
+        title="Delete this credential?"
+        description="The record is removed for good. Revoking, which is reversible, only stops this application from using it."
+        confirmText={deleting?.label}
+        consequences={[
+          "The token itself is not revoked at the registry — do that there too",
+          deleting?.targetsUsing
+            ? `${deleting.targetsUsing} SDK target${deleting.targetsUsing === 1 ? " publishes" : "s publish"} with it — deleting will be refused`
+            : "No SDK target publishes with it",
+        ]}
+        isPending={remove.isPending}
+        error={deleteError}
+        onConfirm={() =>
+          deleting &&
+          remove.mutate(deleting.id, {
+            onSuccess: () => {
+              toast.success("Credential deleted");
+              setDeleting(null);
+            },
+            onError: (error) =>
+              setDeleteError(
+                error instanceof ApiError ? error.detail : "Could not delete the credential.",
+              ),
+          })
+        }
+      />
     </div>
   );
 }
