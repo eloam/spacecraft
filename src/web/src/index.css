@@ -9,7 +9,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: 'Lora Variable', serif;
+    --font-heading: 'Inter Variable', sans-serif;
     --font-sans: 'Inter Variable', sans-serif;
     /* Geist Mono, as the preset's own preview uses. Monospace carries a lot here — package
        names, registry URLs, versions, the spec viewer — so the system stack was the most
