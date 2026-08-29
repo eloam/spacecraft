@@ -115,6 +115,12 @@ RateLimits__CredentialWindow=00:15:00
 Startup fails fast on a missing signing key, missing email credentials, an unpinned generator
 image, or `Pipeline:Sandbox=None`, rather than running degraded.
 
+It also refuses to start while any setting still reads `[REQUIRED]` — the marker
+`appsettings.json` uses for what a deployment must supply — and names every one of them at
+once. Without that check the placeholder is just a string: it satisfies `[Required]`, passes
+every option validation, and reappears much later as a rejected SMTP password or a 403 from
+S3, with nothing tying either back to a variable nobody set.
+
 **In local development** none of this is needed: `appsettings.Development.json` covers it, and
 anything genuinely secret goes in user secrets:
 

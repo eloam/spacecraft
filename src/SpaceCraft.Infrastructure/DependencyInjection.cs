@@ -1,5 +1,6 @@
 using Amazon.Runtime;
 using Amazon.S3;
+using SpaceCraft.Infrastructure.Configuration;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.OpenApi;
 using SpaceCraft.Infrastructure.Persistence;
@@ -23,6 +24,10 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+
+        // Before anything is registered: a placeholder left in place is a deployment that was
+        // never finished, and every failure it causes afterwards points somewhere else.
+        configuration.ThrowIfPlaceholdersRemain();
 
         var connectionString = configuration.GetConnectionString("Postgres")
             ?? throw new InvalidOperationException("ConnectionStrings:Postgres is not configured.");

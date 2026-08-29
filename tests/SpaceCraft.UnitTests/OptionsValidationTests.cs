@@ -22,6 +22,12 @@ public class OptionsValidationTests
     private static async Task<Exception?> StartWith(Dictionary<string, string?> settings)
     {
         var builder = Host.CreateApplicationBuilder();
+
+        // Hermetic: the default sources pull in the API's appsettings.json, which is copied
+        // beside the test binary. These tests are about what a given set of settings does,
+        // so inheriting a file that changes underneath them is only a way to fail later for
+        // an unrelated reason.
+        builder.Configuration.Sources.Clear();
         builder.Configuration.AddInMemoryCollection(settings);
         builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
 
