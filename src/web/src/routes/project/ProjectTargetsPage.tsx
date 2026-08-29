@@ -247,7 +247,7 @@ export function ProjectTargetsPage() {
 
                           {/* The destination, resolved the way the publish step resolves it:
                               a named credential, or the organization's only usable one. */}
-                          <TableCell className="font-mono text-xs text-muted-foreground">
+                          <TableCell className="text-xs">
                             {(() => {
                               if (!target.registryCredentialId) {
                                 return <span className="text-muted-foreground">not published</span>;
@@ -257,8 +257,25 @@ export function ProjectTargetsPage() {
                                 .filter((c) => !c.isRevoked)
                                 .find((c) => c.id === target.registryCredentialId);
 
-                              return named ? named.registryUrl : (
-                                <span className="text-[var(--code-warning)]">credential revoked</span>
+                              if (!named) {
+                                return (
+                                  <span className="text-[var(--code-warning)]">credential revoked</span>
+                                );
+                              }
+
+                              // Name over address, like the picker that chose it: the label is
+                              // what someone recognises, the URL is what they check. Capped so
+                              // a long registry path cannot widen the whole table.
+                              return (
+                                <div className="max-w-[16rem]">
+                                  <p className="truncate">{named.label}</p>
+                                  <p
+                                    className="truncate font-mono text-xs text-muted-foreground"
+                                    title={named.registryUrl}
+                                  >
+                                    {named.registryUrl}
+                                  </p>
+                                </div>
                               );
                             })()}
                           </TableCell>

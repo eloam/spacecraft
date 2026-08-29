@@ -29,6 +29,7 @@ import {
   useRestoreCredential,
   useRevokeCredential,
 } from "@/api/queries";
+import { timeAgo } from "@/lib/format";
 import { RegistryKind, registryLabel } from "@/api/types";
 // Named explicitly: the DOM has its own Credential, and the global would win.
 import type { Credential } from "@/api/types";
@@ -94,9 +95,13 @@ export function CredentialsPage() {
                   <TableCell>{registryLabel[credential.registry]}</TableCell>
                   <TableCell>{credential.label}</TableCell>
                   {/* The destination is a property of the token, so it belongs beside it: two
-                      npm credentials in one organization can point at different registries. */}
+                      npm credentials in one organization can point at different registries.
+                      Capped and truncated: a registry path can be arbitrarily long, and one
+                      of them widened the table until every other column needed scrolling. */}
                   <TableCell className="font-mono text-xs text-muted-foreground">
-                    {credential.registryUrl}
+                    <span className="block max-w-[14rem] truncate xl:max-w-[24rem]" title={credential.registryUrl}>
+                      {credential.registryUrl}
+                    </span>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     ••••{credential.lastFour}
@@ -106,8 +111,17 @@ export function CredentialsPage() {
                       {credential.isRevoked ? "Revoked" : "Active"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {credential.lastUsedAt ? new Date(credential.lastUsedAt).toLocaleString() : "—"}
+                  {/* Relative, like the specs table: this column is scanned for recency, and
+                      a full timestamp on every row cost more width than it was worth. */}
+                  <TableCell
+                    className="text-xs whitespace-nowrap text-muted-foreground"
+                    title={
+                      credential.lastUsedAt
+                        ? new Date(credential.lastUsedAt).toLocaleString()
+                        : undefined
+                    }
+                  >
+                    {credential.lastUsedAt ? timeAgo(credential.lastUsedAt) : "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>

@@ -151,28 +151,36 @@ export function TargetDialog({
                   if (chosen === NO_PUBLISH) setAutoPublish(false);
                 }}
               >
-                <SelectTrigger id="credential" className="h-auto w-full py-2 [&>span]:gap-0.5">
-                  {/* Rendered here rather than by SelectValue: the trigger has to show the
-                      label, and SelectValue falls back to the raw value when an item's
-                      children are anything but a plain string. */}
-                  <span className="flex flex-col items-start">
-                    <span>
+                <SelectTrigger
+                  id="credential"
+                  // Two lines, so the fixed height goes and the padding matches an Input's
+                  // rhythm rather than pressing the text against the border.
+                  className="h-auto w-full items-center py-2 whitespace-normal"
+                >
+                  {/* Rendered here rather than by SelectValue, which falls back to the raw
+                      value when an item's children are anything but a plain string. */}
+                  <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
+                    <span className="w-full truncate leading-tight">
                       {publishes
                         ? (usable.find((c) => c.id === credentialId)?.label ?? "Unknown credential")
                         : "Do not publish"}
                     </span>
-                    <span className="font-mono text-xs text-muted-foreground">
+                    <span
+                      className="w-full truncate font-mono text-xs leading-tight text-muted-foreground"
+                      title={usable.find((c) => c.id === credentialId)?.registryUrl}
+                    >
                       {publishes
                         ? usable.find((c) => c.id === credentialId)?.registryUrl
                         : "Generate and build only"}
                     </span>
                   </span>
                 </SelectTrigger>
+
                 <SelectContent>
                   <SelectItem value={NO_PUBLISH}>
-                    <span className="flex flex-col items-start">
-                      <span>Do not publish</span>
-                      <span className="text-xs text-muted-foreground">
+                    <span className="flex min-w-0 flex-col items-start gap-0.5 py-0.5">
+                      <span className="leading-tight">Do not publish</span>
+                      <span className="text-xs leading-tight text-muted-foreground">
                         Generate and build only; the artifact stays here.
                       </span>
                     </span>
@@ -180,9 +188,12 @@ export function TargetDialog({
 
                   {usable.map((credential) => (
                     <SelectItem key={credential.id} value={credential.id}>
-                      <span className="flex flex-col items-start">
-                        <span>{credential.label}</span>
-                        <span className="font-mono text-xs text-muted-foreground">
+                      <span className="flex min-w-0 flex-col items-start gap-0.5 py-0.5">
+                        <span className="w-full truncate leading-tight">{credential.label}</span>
+                        <span
+                          className="w-full truncate font-mono text-xs leading-tight text-muted-foreground"
+                          title={credential.registryUrl}
+                        >
                           {credential.registryUrl}
                         </span>
                       </span>
