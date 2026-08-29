@@ -1,15 +1,16 @@
 namespace SpaceCraft.Infrastructure.Scaleway;
 
 /// <summary>
-/// Facts about the Scaleway account itself, shared by every service that talks to it.
+/// Facts about the Scaleway account itself, kept in one place rather than filed under a
+/// service: the project a sending domain belongs to is the same project the buckets belong
+/// to, and filing it under the mail settings made it look like a mail setting.
 ///
-/// These are deliberately not filed under one service. The project a sending domain belongs
-/// to is the same project the buckets belong to; filing it under the mail settings made it
-/// look like a mail setting and left the next Scaleway-facing feature to ask for it again
-/// somewhere else.
-///
-/// It is also Scaleway's SMTP username, which is why the mail transport reads it from here
-/// rather than asking for it twice.
+/// <para>
+/// Nothing binds this today. Mail moved to SMTP, where the login is written down rather than
+/// derived from a provider, and Object Storage authenticates with its own key pair — so the
+/// project id is now a fact a person needs when configuring the console, not one the
+/// application reads. It is kept as the record of which project everything lives in.
+/// </para>
 ///
 /// API keys stay per service, one IAM application each, so a key that can send mail cannot
 /// also read the bucket.
