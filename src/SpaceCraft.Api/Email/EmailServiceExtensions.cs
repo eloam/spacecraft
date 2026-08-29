@@ -29,6 +29,17 @@ public static class EmailServiceExtensions
         var options = new SmtpEmailOptions();
         configuration.GetSection(SmtpEmailOptions.SectionName).Bind(options);
 
+        if (options.Security == SmtpSecurity.None && !isDevelopment)
+        {
+            // Not a validation attribute, because the options class cannot know where it is
+            // running. A relay reached in the clear is a relay on this machine; anywhere else
+            // the credentials and every reset link cross the network readable.
+            throw new InvalidOperationException(
+                "Email:Smtp:Security is None, which sends the password and every message "
+                + "unencrypted. That is only allowed in Development — use StartTls on port "
+                + "587 or ImplicitTls on 465.");
+        }
+
         if (options.IsConfigured)
         {
             // Same shape as the resilience handler the HTTP clients get, expressed directly

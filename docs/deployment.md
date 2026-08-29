@@ -92,6 +92,7 @@ ObjectStorage__SecretKey=…
 # sending domain belongs to.
 Email__Smtp__Host=smtp.tem.scaleway.com
 Email__Smtp__Port=587
+Email__Smtp__Security=StartTls
 Email__Smtp__Username=…
 Email__Smtp__Password=…
 Email__Smtp__FromEmail=noreply@yourdomain
@@ -137,7 +138,13 @@ container too if it has no route to a responder, and know what that buys you.
 Nothing else moves either way: an expired certificate, an untrusted root, a mismatched name
 and a revocation that comes back positive are refused in both modes.
 
-`Email:Smtp:Port` and `UseImplicitTls` have to agree — 465 and 2465 expect TLS from the first
+`Email:Smtp:Security` is `StartTls`, `ImplicitTls` or `None`. `None` sends the password and
+every message in the clear and is **refused outside Development**, where it exists for a relay
+on the same machine with no certificate. It has to be written down — no missing setting can
+ever mean plaintext, and MailKit's opportunistic `Auto` is deliberately not offered, since it
+fails open on exactly the connection that matters.
+
+`Email:Smtp:Port` and `Security` have to agree — 465 and 2465 expect TLS from the first
 byte, 25, 587 and 2587 upgrade with STARTTLS. Crossed, neither side reports an error: the
 client waits for a greeting the server will not send until it sees TLS, and the send ends as
 a timeout several retries later with nothing naming the cause.

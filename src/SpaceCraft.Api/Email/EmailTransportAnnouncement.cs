@@ -26,8 +26,16 @@ public sealed class EmailTransportAnnouncement(
             // first thing to check when a relay refuses the login.
             logger.LogInformation(
                 "Email is sent over SMTP via {Host}:{Port} as {Username} using {Security}",
-                settings.Host, settings.Port, settings.Username,
-                settings.UseImplicitTls ? "implicit TLS" : "STARTTLS");
+                settings.Host, settings.Port, settings.Username, settings.Security);
+
+            if (settings.Security == SmtpSecurity.None)
+            {
+                // Loud, every start: the credentials and every message cross the network
+                // readable. Development is the only place this is a reasonable trade.
+                logger.LogWarning(
+                    "SMTP is unencrypted. Email:Smtp:Security is None, which is only meant "
+                    + "for a relay on this machine.");
+            }
         }
         else
         {

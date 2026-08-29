@@ -89,14 +89,25 @@ public sealed class SmtpEmailTransport(
                 IsAcceptable(errors, chain?.ChainStatus, _options.RequireCertificateRevocation),
         };
 
-        // SecureSocketOptions.Auto would fall back to plaintext against a relay that fails to
-        // advertise STARTTLS, and send the password in the clear. Both values below refuse.
-        var security = _options.UseImplicitTls
-            ? SecureSocketOptions.SslOnConnect
-            : SecureSocketOptions.StartTls;
+        // SecureSocketOptions.Auto is deliberately absent: it falls back to plaintext against
+        // a relay that fails to advertise STARTTLS and sends the password in the clear. Going
+        // without encryption is a configured decision here, never a fallback.
+        var security = _options.Security switch
+        {
+            SmtpSecurity.ImplicitTls => SecureSocketOptions.SslOnConnect,
+            SmtpSecurity.None => SecureSocketOptions.None,
+            _ => SecureSocketOptions.StartTls,
+        };
 
         await client.ConnectAsync(_host, _options.Port, security, ct);
-        await client.AuthenticateAsync(_username, _password, ct);
+
+        // A development inbox accepts anything and advertises no AUTH at all; offering
+        // credentials to one throws rather than being ignored.
+        if (client.Capabilities.HasFlag(SmtpCapabilities.Authentication))
+        {
+            await client.AuthenticateAsync(_username, _password, ct);
+        }
+
         await client.SendAsync(mail, ct);
 
         // Quit properly rather than dropping the socket: a relay counts an abandoned

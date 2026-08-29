@@ -7,11 +7,12 @@ namespace SpaceCraft.UnitTests;
 
 public class SmtpEmailOptionsTests
 {
-    private static SmtpEmailOptions Configured(int port = 587, bool implicitTls = false) => new()
+    private static SmtpEmailOptions Configured(
+        int port = 587, SmtpSecurity security = SmtpSecurity.StartTls) => new()
     {
         Host = "smtp.tem.scaleway.com",
         Port = port,
-        UseImplicitTls = implicitTls,
+        Security = security,
         Username = "a-project-id",
         Password = "secret",
     };
@@ -75,23 +76,32 @@ public class SmtpEmailOptionsTests
     }
 
     [Theory]
-    [InlineData(587, false)]
-    [InlineData(2587, false)]
-    [InlineData(25, false)]
-    [InlineData(465, true)]
-    [InlineData(2465, true)]
-    public void A_port_matched_to_its_handshake_is_accepted(int port, bool implicitTls) =>
-        Validate(Configured(port, implicitTls)).ShouldBeEmpty();
+    [InlineData(587, SmtpSecurity.StartTls)]
+    [InlineData(2587, SmtpSecurity.StartTls)]
+    [InlineData(25, SmtpSecurity.StartTls)]
+    [InlineData(465, SmtpSecurity.ImplicitTls)]
+    [InlineData(2465, SmtpSecurity.ImplicitTls)]
+    public void A_port_matched_to_its_handshake_is_accepted(int port, SmtpSecurity security) =>
+        Validate(Configured(port, security)).ShouldBeEmpty();
 
     [Theory]
-    [InlineData(465, false)]
-    [InlineData(2465, false)]
-    [InlineData(587, true)]
-    public void A_port_that_contradicts_its_handshake_is_refused(int port, bool implicitTls) =>
+    [InlineData(1025)]
+    [InlineData(2525)]
+    [InlineData(587)]
+    public void An_unencrypted_relay_answers_on_whatever_port_it_likes(int port) =>
+        // No convention to check against: it is somebody's own container. Whether plaintext
+        // is allowed at all is decided where the environment is known, not here.
+        Validate(Configured(port, SmtpSecurity.None)).ShouldBeEmpty();
+
+    [Theory]
+    [InlineData(465, SmtpSecurity.StartTls)]
+    [InlineData(2465, SmtpSecurity.StartTls)]
+    [InlineData(587, SmtpSecurity.ImplicitTls)]
+    public void A_port_that_contradicts_its_handshake_is_refused(int port, SmtpSecurity security) =>
         // Neither side errors: the client waits for a greeting that needs TLS first, or
         // offers TLS to a server already speaking it. It ends as a timeout several retries
         // later, with nothing on screen naming the cause.
-        Validate(Configured(port, implicitTls)).ShouldHaveSingleItem()
+        Validate(Configured(port, security)).ShouldHaveSingleItem()
             .ErrorMessage.ShouldNotBeNull().ShouldContain("TLS");
 
     [Fact]
@@ -99,6 +109,11 @@ public class SmtpEmailOptionsTests
         // The default is the deployed stance, not the convenient one: Development turns it
         // off because macOS cannot complete the check, and that override is written down.
         new SmtpEmailOptions().RequireCertificateRevocation.ShouldBeTrue();
+
+    [Fact]
+    public void Encryption_is_the_default_and_must_be_opted_out_of() =>
+        // None has to be written down. A missing setting can never mean plaintext.
+        new SmtpEmailOptions().Security.ShouldBe(SmtpSecurity.StartTls);
 
     [Fact]
     public void The_default_port_is_the_submission_one() =>

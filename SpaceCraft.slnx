@@ -5,9 +5,9 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/Solution Items/">
+    <File Path="compose.yaml" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
-    <File Path="docker-compose.yml" />
     <File Path="docs/deployment.md" />
     <File Path="docs/security.md" />
     <File Path="dotnet.config" />

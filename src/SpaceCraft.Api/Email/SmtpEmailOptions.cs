@@ -29,13 +29,11 @@ public sealed class SmtpEmailOptions : IValidatableObject
     public int Port { get; set; } = 587;
 
     /// <summary>
-    /// True for implicit TLS, where the connection is encrypted before the first byte of
-    /// SMTP. False for STARTTLS, which upgrades a plaintext connection.
-    ///
-    /// Either is encrypted; what is refused in both cases is falling back to plaintext when
-    /// the upgrade fails, which is how an SMTP client silently leaks a password.
+    /// How the connection is encrypted. What is never done is falling back to plaintext when
+    /// an upgrade fails, which is how an SMTP client silently leaks a password — choosing
+    /// <see cref="SmtpSecurity.None"/> is a decision written down, not a fallback.
     /// </summary>
-    public bool UseImplicitTls { get; set; }
+    public SmtpSecurity Security { get; set; } = SmtpSecurity.StartTls;
 
     /// <summary>
     /// SMTP login. Scaleway wants the id of the project the sending domain belongs to, other
@@ -123,15 +121,17 @@ public sealed class SmtpEmailOptions : IValidatableObject
         // with nothing naming the cause.
         int[] implicitTlsPorts = [465, 2465];
 
-        if (implicitTlsPorts.Contains(Port) != UseImplicitTls)
+        // Only the two encrypted modes are pinned to ports. A plaintext relay is somebody's
+        // own container on whatever port they picked, and has no convention to check against.
+        if (Security != SmtpSecurity.None && implicitTlsPorts.Contains(Port) != (Security == SmtpSecurity.ImplicitTls))
         {
             yield return new ValidationResult(
-                UseImplicitTls
-                    ? $"Email:Smtp:UseImplicitTls is on, which belongs to port 465 or 2465, not {Port}. "
-                      + "Ports 25, 587 and 2587 upgrade with STARTTLS — turn it off."
+                Security == SmtpSecurity.ImplicitTls
+                    ? $"Email:Smtp:Security is ImplicitTls, which belongs to port 465 or 2465, not {Port}. "
+                      + "Ports 25, 587 and 2587 upgrade with StartTls."
                     : $"Email:Smtp:Port {Port} expects TLS from the first byte. "
-                      + "Set UseImplicitTls to true, or use 587 to upgrade with STARTTLS.",
-                [nameof(Port), nameof(UseImplicitTls)]);
+                      + "Set Security to ImplicitTls, or use 587 to upgrade with StartTls.",
+                [nameof(Port), nameof(Security)]);
         }
 
         if (missing.Count is > 0 and < 3)

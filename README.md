@@ -140,8 +140,11 @@ Requires .NET 10 SDK, Node 20+, and Docker.
 docker compose up -d
 ```
 
-Postgres, [MinIO](https://min.io) and a local [Verdaccio](https://verdaccio.org) npm registry
-come up, and a one-shot container creates the bucket. Verdaccio matters: it lets the publish
+Postgres, [MinIO](https://min.io), [Mailpit](https://mailpit.axllent.org) and a local
+[Verdaccio](https://verdaccio.org) npm registry come up, and a one-shot container creates the
+bucket. Mail is delivered to Mailpit and read at http://localhost:8025 — the real transport
+runs, MIME and SMTP conversation included, and nothing leaves the machine. It has no
+certificate, which is why `Email:Smtp:Security` is `None` locally and refused anywhere else. Verdaccio matters: it lets the publish
 step be exercised end to end without pushing anything irreversible to npmjs.org.
 
 If you set `ObjectStorage:AccessKey` and `SecretKey` in user secrets when storage was on
@@ -180,6 +183,7 @@ npm run dev --prefix src/web
 - App — http://localhost:5173
 - API reference (Scalar) — http://localhost:8080/scalar
 - MinIO console — http://localhost:9001 (`spacecraft` / `spacecraft-dev-secret`)
+- Mailpit inbox — http://localhost:8025
 - Verdaccio — http://localhost:4873
 
 The API and worker run on the host rather than in containers: the worker launches Docker
