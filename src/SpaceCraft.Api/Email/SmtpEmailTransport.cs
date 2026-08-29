@@ -1,3 +1,5 @@
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -81,7 +83,11 @@ public sealed class SmtpEmailTransport(
 
     private async Task DeliverAsync(MimeMessage mail, CancellationToken ct)
     {
-        using var client = new SmtpClient();
+        using var client = new SmtpClient
+        {
+            ServerCertificateValidationCallback = (_, _, chain, errors) =>
+                IsAcceptable(errors, chain?.ChainStatus),
+        };
 
         // SecureSocketOptions.Auto would fall back to plaintext against a relay that fails to
         // advertise STARTTLS, and send the password in the clear. Both values below refuse.
@@ -96,5 +102,42 @@ public sealed class SmtpEmailTransport(
         // Quit properly rather than dropping the socket: a relay counts an abandoned
         // connection against the sender, and some rate-limit on it.
         await client.DisconnectAsync(true, ct);
+    }
+
+    /// <summary>
+    /// Full certificate validation, with one exception: a revocation check that could not be
+    /// carried out.
+    ///
+    /// <para>
+    /// MailKit asks for revocation and rejects the connection when the answer does not come
+    /// back — which is the norm on macOS, and in any container with no route to an OCSP
+    /// responder. Refusing there means password resets stop the day a responder has a bad
+    /// hour, so this soft-fails that one condition, as browsers do.
+    /// </para>
+    ///
+    /// <para>
+    /// Everything else still refuses: a name that does not match, an expired certificate, an
+    /// untrusted root, and a revocation that came back positive. Turning MailKit's
+    /// <c>CheckCertificateRevocation</c> off would have been one line and would have accepted
+    /// a certificate known to be revoked.
+    /// </para>
+    /// </summary>
+    /// <remarks>Public so the rule can be tested; there is no other caller.</remarks>
+    public static bool IsAcceptable(SslPolicyErrors errors, X509ChainStatus[]? chainStatus)
+    {
+        if (errors == SslPolicyErrors.None)
+        {
+            return true;
+        }
+
+        // A missing certificate or a mismatched name is never negotiable.
+        if (errors != SslPolicyErrors.RemoteCertificateChainErrors)
+        {
+            return false;
+        }
+
+        return chainStatus is { Length: > 0 } && chainStatus.All(status =>
+            status.Status is X509ChainStatusFlags.RevocationStatusUnknown
+                or X509ChainStatusFlags.OfflineRevocation);
     }
 }
