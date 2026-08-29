@@ -268,6 +268,8 @@ export function ProjectTargetsPage() {
                                   variant="ghost"
                                   aria-label={`Open ${target.packageName} on ${registryLabel[target.registry]}`}
                                   title={`Open on ${registryLabel[target.registry]}`}
+                                  // Renders an anchor, so Base UI must not assume a button.
+                                  nativeButton={false}
                                   render={
                                     <a
                                       href={release.url}

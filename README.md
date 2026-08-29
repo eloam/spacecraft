@@ -144,6 +144,15 @@ Postgres, [MinIO](https://min.io) and a local [Verdaccio](https://verdaccio.org)
 come up, and a one-shot container creates the bucket. Verdaccio matters: it lets the publish
 step be exercised end to end without pushing anything irreversible to npmjs.org.
 
+If you set `ObjectStorage:AccessKey` and `SecretKey` in user secrets when storage was on
+Scaleway, **remove them** — user secrets are read after `appsettings.Development.json`, so the
+old Scaleway keys win and MinIO refuses a key it has never heard of:
+
+```bash
+dotnet user-secrets remove "ObjectStorage:AccessKey" --project src/SpaceCraft.Api
+dotnet user-secrets remove "ObjectStorage:SecretKey" --project src/SpaceCraft.Api
+```
+
 Object storage is local, and needs no account. Staging and production point at Scaleway
 instead — the application cannot tell the difference, since it speaks the S3 API to whatever
 `ObjectStorage:ServiceUrl` names. One setting differs and is already set for you:

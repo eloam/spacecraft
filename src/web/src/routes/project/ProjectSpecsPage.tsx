@@ -401,6 +401,10 @@ export function ProjectSpecsPage() {
                             variant="ghost"
                             aria-label={`Runs generated from spec #${spec.sequence}`}
                             title="Runs generated from this version"
+                            // This one navigates, so it renders an anchor. Base UI assumes a
+                            // native button unless told, and warns that it is dropping button
+                            // semantics — semantics a link should not have had anyway.
+                            nativeButton={false}
                             render={<Link to={`/orgs/${orgId}/projects/${projectId}/runs?spec=${spec.id}`} />}
                           >
                             <History className="size-4" aria-hidden />

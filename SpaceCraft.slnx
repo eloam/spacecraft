@@ -1,0 +1,29 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="docker-compose.yml" />
+    <File Path="docs/deployment.md" />
+    <File Path="docs/security.md" />
+    <File Path="dotnet.config" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/SpaceCraft.Api/SpaceCraft.Api.csproj" />
+    <Project Path="src/SpaceCraft.Domain/SpaceCraft.Domain.csproj" />
+    <Project Path="src/SpaceCraft.Infrastructure/SpaceCraft.Infrastructure.csproj" />
+    <Project Path="src/SpaceCraft.Pipeline/SpaceCraft.Pipeline.csproj" />
+    <Project Path="src/SpaceCraft.Runner/SpaceCraft.Runner.csproj" />
+    <Project Path="src/SpaceCraft.Worker/SpaceCraft.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SpaceCraft.IntegrationTests/SpaceCraft.IntegrationTests.csproj" />
+    <Project Path="tests/SpaceCraft.UnitTests/SpaceCraft.UnitTests.csproj" />
+  </Folder>
+</Solution>
