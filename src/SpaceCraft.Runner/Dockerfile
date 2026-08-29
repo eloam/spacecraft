@@ -1,6 +1,6 @@
 # Image for running SDK pipelines as a one-shot job.
 #
-# In SandboxMode.PlatformIsolated there are no nested containers, so every toolchain the
+# Steps run in this image's own process, so every toolchain the
 # pipeline shells out to has to be present here: the Kiota CLI to generate, and Node to
 # install, compile and publish. That is what makes this image large — and it is the trade
 # for being able to run where a Docker daemon is not available.
@@ -39,6 +39,12 @@ ARG NODE_VERSION
 
 # Node, taken from the official image rather than a distro package, so the version is the
 # one we tested against.
+# Npgsql probes for GSSAPI on every connection. Without it the probe fails to stderr, outside
+# the logger, on every start — noise that would hide a real fault later.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
@@ -50,10 +56,7 @@ ENV PATH="/opt/kiota:${PATH}"
 COPY --from=build /app /app
 WORKDIR /app
 
-# The platform provides the boundary here; declaring it explicitly is what keeps
-# PipelineOptions.Validate from refusing to start.
-ENV Pipeline__Sandbox=PlatformIsolated \
-    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1
 
 # npm and the generator both need a writable home; the workspace root is where runs unpack.

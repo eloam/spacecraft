@@ -57,14 +57,12 @@ public sealed class KiotaDependencyProvider(
             return cached;
         }
 
-        var (executable, prefix) = KiotaSdkGenerator.KiotaInvocation(_options.Sandbox);
 
         var result = await runner.RunAsync(new CommandRequest
         {
-            Executable = executable,
-            Arguments = [.. prefix, "info", "--openapi", specRelativePath, "--language", language.KiotaName(), "--json"],
+            Executable = "kiota",
+            Arguments = ["info", "--openapi", specRelativePath, "--language", language.KiotaName(), "--json"],
             WorkingDirectory = workspaceRoot,
-            Image = _options.KiotaImage,
             Network = NetworkPolicy.None,
             Timeout = TimeSpan.FromMinutes(2),
             Environment = new Dictionary<string, string>(StringComparer.Ordinal)

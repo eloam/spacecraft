@@ -1,9 +1,8 @@
-# Development infrastructure only.
+# Development environment.
 #
-# The API and the worker deliberately run on the host (`dotnet run`) rather than in
-# containers here: the worker launches Docker containers of its own for every pipeline
-# step, and running it inside a container would mean docker-in-docker or mounting the
-# host socket into it — a large amount of privilege for no development benefit.
+# The runner runs here, from the same image the Serverless Job deploys, executing pipeline
+# steps in-process exactly as it will in production. The API stays on the host (`dotnet run`)
+# because that is what you are editing.
 
 name: spacecraft
 
@@ -102,6 +101,38 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # The pipeline, from the image production deploys. Same entrypoint, same toolchain, same
+  # in-process execution — so a run that works here works there, and one that does not fails
+  # here first.
+  runner:
+    build:
+      context: .
+      dockerfile: src/SpaceCraft.Runner/Dockerfile
+    command: ["--drain"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      verdaccio:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"
+      ObjectStorage__ServiceUrl: "http://minio:9000"
+      ObjectStorage__BucketName: "openapi-bucket"
+      ObjectStorage__AccessKey: "spacecraft"
+      ObjectStorage__SecretKey: "spacecraft-dev-secret"
+      ObjectStorage__ForcePathStyle: "true"
+      Pipeline__NpmRegistry: "http://verdaccio:4873"
+      # One run per invocation, so the container is as single-use here as the job is there.
+      Runner__MaxRunsPerInvocation: "1"
+      # Nothing triggers the runner locally the way the API triggers a job in production, so
+      # it watches the queue itself: a minute of waiting, then exit, then restart. One run per
+      # container either way — the isolation is the same, only the trigger differs.
+      Runner__EmptyQueueGrace: "00:01:00"
+      Database__MigrateOnStartup: "false"
+    restart: always
 
 volumes:
   postgres-data:

@@ -61,7 +61,6 @@ public sealed class NpmSdkPublisher(
                 ],
                 WorkingDirectory = request.WorkspaceRoot,
                 WorkingSubdirectory = request.ArtifactDirectory,
-                Image = _options.NodeImage,
                 Network = NetworkPolicy.Registry,
                 Timeout = _options.PublishTimeout,
                 Environment = new Dictionary<string, string>(StringComparer.Ordinal)

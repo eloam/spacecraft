@@ -11,7 +11,7 @@ minutes a function-style platform typically permits.
 | Component | Scaleway product | Image | Invocation |
 |---|---|---|---|
 | API | Serverless Container | `src/SpaceCraft.Api/Dockerfile` | HTTP, scale-to-zero |
-| Pipeline runner | Serverless Job | `src/SpaceCraft.Runner/Dockerfile` | `--run <id>` from the API, or `--drain` |
+| Pipeline runner | Serverless Job | `src/SpaceCraft.Runner/Dockerfile` | `--run <id>`, one job per run |
 | Lease reaper | Serverless Job | same image | `--reap`, cron `* * * * *` |
 | Migrations | Serverless Job | same image | `--migrate`, once per release |
 | Database | Managed Database for PostgreSQL | — | — |
@@ -42,11 +42,11 @@ on the Keycloak Admin API — 382 KB of spec, 11,000 lines of generated models:
 Allocate **1 GiB** for the runner job. 512 MiB fits the measurement but leaves nothing for a
 larger spec, and the failure mode is an OOM kill mid-build rather than a clear error.
 
-`SandboxMode.PlatformIsolated` is set in the runner image: nested containers are unavailable,
-so pipeline steps run in-process and the toolchains are baked in. See
-[security.md](security.md) for exactly which controls that gives up — the loss of
-`--network none` during generation matters most, and it matters much more the day a language
-whose build system executes code (Gradle, Maven, `setup.py`) is added.
+Pipeline steps run in the runner's own process, with Kiota and Node baked into its image. The
+isolation is the job's: one execution per container, torn down afterwards — which holds only
+while a job runs a single run, so trigger `--run <id>` per run rather than draining a queue.
+See [security.md](security.md) for what that gives up, and for why it becomes a real decision
+the day a language whose build system executes code (Gradle, Maven, `setup.py`) is added.
 
 ## Order of operations for a release
 

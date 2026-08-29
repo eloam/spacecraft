@@ -13,37 +13,19 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddSpaceCraftPipeline(
         this IServiceCollection services,
-        IConfiguration configuration,
-        bool isDevelopment)
+        IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.Configure<PipelineOptions>(configuration.GetSection(PipelineOptions.SectionName));
 
-        // Fail at startup rather than the first time a run executes untrusted code unsandboxed.
         services.AddOptions<PipelineOptions>()
             .ValidateDataAnnotations()
-            .Validate(options =>
-            {
-                options.Validate(isDevelopment);
-                return true;
-            })
             .ValidateOnStart();
 
-        var sandbox = configuration
-            .GetSection(PipelineOptions.SectionName)
-            .GetValue("Sandbox", defaultValue: SandboxMode.Container);
-
-        // PlatformIsolated and None both execute in-process; they differ in what the operator
-        // is asserting about the host, which Validate enforces rather than the wiring.
-        if (sandbox.UsesContainers())
-        {
-            services.AddSingleton<ICommandRunner, DockerCommandRunner>();
-        }
-        else
-        {
-            services.AddSingleton<ICommandRunner, LocalCommandRunner>();
-        }
+        // Steps run in this process. The boundary is the job that hosts it: one execution per
+        // container, torn down afterwards, which is what the deployment provides.
+        services.AddSingleton<ICommandRunner, LocalCommandRunner>();
 
         services.AddSingleton<IKiotaDependencyProvider, KiotaDependencyProvider>();
 

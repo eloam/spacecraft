@@ -1,7 +1,13 @@
 namespace SpaceCraft.Pipeline.Sandbox;
 
 /// <summary>
-/// What a sandboxed step may reach over the network.
+/// What a step is meant to reach over the network.
+///
+/// <para>
+/// Declarative only: steps share the job's network, so nothing enforces this. It is kept
+/// because it records intent — the day steps move to one container each, it is what says
+/// which of them may have egress.
+/// </para>
 /// </summary>
 public enum NetworkPolicy
 {
@@ -19,7 +25,7 @@ public enum NetworkPolicy
 }
 
 /// <summary>
-/// One command to run under isolation.
+/// One command to run.
 /// </summary>
 public sealed record CommandRequest
 {
@@ -36,11 +42,6 @@ public sealed record CommandRequest
     /// (build writes its tarball into ../artifact) while running inside the package dir.
     /// </summary>
     public string? WorkingSubdirectory { get; init; }
-
-    /// <summary>
-    /// Container image providing the toolchain. Ignored by the local runner.
-    /// </summary>
-    public string? Image { get; init; }
 
     public NetworkPolicy Network { get; init; } = NetworkPolicy.None;
 
@@ -59,8 +60,4 @@ public sealed record CommandRequest
     /// passed through <see cref="Environment"/> must also appear here.
     /// </summary>
     public IReadOnlyList<string> SecretsToRedact { get; init; } = [];
-
-    public long MemoryLimitBytes { get; init; } = 2L * 1024 * 1024 * 1024;
-
-    public double CpuLimit { get; init; } = 2.0;
 }

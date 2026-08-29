@@ -20,10 +20,8 @@
     <Project Path="src/SpaceCraft.Infrastructure/SpaceCraft.Infrastructure.csproj" />
     <Project Path="src/SpaceCraft.Pipeline/SpaceCraft.Pipeline.csproj" />
     <Project Path="src/SpaceCraft.Runner/SpaceCraft.Runner.csproj" />
-    <Project Path="src/SpaceCraft.Worker/SpaceCraft.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/SpaceCraft.IntegrationTests/SpaceCraft.IntegrationTests.csproj" />
     <Project Path="tests/SpaceCraft.UnitTests/SpaceCraft.UnitTests.csproj" />
   </Folder>
 </Solution>

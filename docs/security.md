@@ -92,7 +92,7 @@ puts it on a queue, and returns. The waitlist signup endpoint works the same way
 same reason — it had the identical flaw, measured at 3.5 ms for an already-confirmed address
 against 7.5 ms for a new one, which answered "is this address already signed up?" despite the
 deliberately identical response. Looking the account up and issuing a token happen on a
-background worker. Identical responses are only half the defence: when the registered branch
+background runner. Identical responses are only half the defence: when the registered branch
 also read the database and wrote a token while the unregistered branch returned immediately,
 the two took 21.5 ms and 4.6 ms — a reliable account oracle in spite of identical bodies.
 Measured again after the work moved off the request thread, medians were 0.71 ms and 0.81 ms
@@ -137,7 +137,7 @@ Stored objects go too: specs, build artifacts and step logs are blobs whose only
 the row being deleted. A blob that cannot be removed is logged and the delete continues — a
 wasted object is better than a half-deleted organization.
 
-A delete is refused while any run in scope is queued or running, since a worker holding a
+A delete is refused while any run in scope is queued or running, since a runner holding a
 lease would carry on against rows that no longer exist and report its failure nowhere.
 
 ## Known gaps
@@ -153,29 +153,31 @@ lease would carry on against rows that no longer exist and report its failure no
 - The GitHub webhook receiver is not built. When it is, it must verify the
   `X-Hub-Signature-256` HMAC and use a GitHub App installation token, not an OAuth token.
 - There is no per-organization quota on pipeline runs; a tenant can currently occupy every
-  worker slot.
+  runner slot.
 
-## Running without nested containers
+## Where pipeline steps run
 
-`SandboxMode.PlatformIsolated` executes pipeline steps in-process instead of in throwaway
-Docker containers, for hosts where a Docker daemon is unavailable — a serverless job, a
-single-use pod, a microVM. The isolation is then the platform's, not ours, and that is a
-real change to the threat model rather than a configuration detail:
+Steps run in the runner's own process, with Kiota and Node baked into its image. The isolation
+is the job's: one execution per container, created for that run and destroyed afterwards.
 
-| Control | `Container` | `PlatformIsolated` |
-|---|---|---|
-| `--network none` during generate and build | yes | not available |
-| Dropped capabilities, read-only rootfs | yes | whatever the platform provides |
-| CPU / memory / PID ceilings per step | per step | per job, set by the platform |
-| Blast radius of a hostile build | one container | the whole job |
+That assertion holds only while **one job runs one run**. Draining several runs through a
+single invocation puts other tenants' specs in the same process, sharing `/tmp` and whatever
+the previous run left behind — so runs are triggered individually, and the development
+compose sets `Runner__MaxRunsPerInvocation=1` to match.
 
-What still holds in both: `npm install --ignore-scripts`, no registry credentials during
-build, output scrubbing, and a wall-clock timeout per command.
+What the job does not give, that a container per step would:
+
+| Control | Available |
+|---|---|
+| `--network none` during generate and build | no |
+| Dropped capabilities, read-only rootfs | whatever the platform provides |
+| CPU / memory / PID ceilings | per job, not per step |
+| Blast radius of a hostile build | the whole job |
+
+What holds regardless: `npm install --ignore-scripts`, no registry credentials during build,
+output scrubbing, and a wall-clock timeout per command.
 
 This is defensible for TypeScript, where `--ignore-scripts` is the control that matters. It
 becomes a real decision for Gradle — whose build file *is* executable code — and for Python's
-`setup.py`. Before adding those languages on a platform-isolated host, confirm what the
-platform actually guarantees, in particular whether egress can be denied.
-
-`SandboxMode.None` is the same execution path with no such assertion, and startup refuses it
-outside Development.
+`setup.py`. Adding either means moving to one job per step, so each gets its own container and
+its own limits, and confirming what the platform guarantees about egress.

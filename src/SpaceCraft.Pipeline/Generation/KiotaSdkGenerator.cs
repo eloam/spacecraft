@@ -32,14 +32,13 @@ public sealed partial class KiotaSdkGenerator(
 
         var clientName = request.ClientClassName ?? DeriveClientName(request.ApiTitle, request.PackageName);
 
-        var (executable, prefix) = KiotaInvocation(_options.Sandbox);
 
         var command = new CommandRequest
         {
-            Executable = executable,
+            // Installed as a dotnet tool in the runner image and on its PATH.
+            Executable = "kiota",
             Arguments =
             [
-                .. prefix,
                 "generate",
                 "--openapi", request.SpecFilePath,
                 "--language", request.Language.KiotaName(),
@@ -50,7 +49,6 @@ public sealed partial class KiotaSdkGenerator(
                 "--log-level", "Warning",
             ],
             WorkingDirectory = request.WorkspaceRoot,
-            Image = _options.KiotaImage,
             // Generation reads a local file and writes local files. It needs no egress —
             // external $refs were already rejected at validation time.
             Network = NetworkPolicy.None,
@@ -83,18 +81,6 @@ public sealed partial class KiotaSdkGenerator(
             Output = result.Output,
         };
     }
-
-    /// <summary>
-    /// How to invoke the Kiota CLI.
-    /// <para>
-    /// The official container image is distroless and ships no <c>kiota</c> executable — it
-    /// is a .NET assembly launched as <c>dotnet kiota.dll</c> from /app. On a developer
-    /// machine with sandboxing disabled, the globally installed CLI is a plain <c>kiota</c>
-    /// binary instead.
-    /// </para>
-    /// </summary>
-    internal static (string Executable, string[] Prefix) KiotaInvocation(SandboxMode sandbox) =>
-        sandbox.UsesContainers() ? ("dotnet", ["/app/kiota.dll"]) : ("kiota", []);
 
     /// <summary>
     /// Turns "Keycloak Admin REST API" into "KeycloakAdminRestApiClient" — a valid
