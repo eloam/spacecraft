@@ -237,28 +237,27 @@ export function RunPage() {
                       </TableCell>
 
                       <TableCell>
+                        {/* This run first, the target underneath. Borrowed from the SDK
+                            targets table, the cell led with the target's mode and corrected
+                            itself below — backwards on a page about one run, and it asked
+                            the reader to know that the first line was not about it.
+
+                            "on"/"off" rather than "published": whether it went out is what
+                            the Publish step says, and this says what the run was asked to
+                            do, which is the thing the target can disagree with. */}
                         <div className="flex flex-col gap-0.5">
-                          {run.data.targetAutoPublish ? (
-                            <span className="flex items-center gap-1.5 text-xs">
+                          <span className="flex items-center gap-1.5 text-xs">
+                            {run.data.publishRequested ? (
                               <Zap className="size-3.5 text-[var(--code-warning)]" aria-hidden />
-                              Automatic
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1.5 text-xs">
+                            ) : (
                               <Hand className="size-3.5 text-[var(--success)]" aria-hidden />
-                              Manual
-                            </span>
-                          )}
-                          {/* The column describes the target, as it does on the SDK targets
-                              table. This run may have been told otherwise, and without
-                              saying so the page read "Automatic" a few centimetres above
-                              "Publish · Skipped" — two true statements that together say
-                              something false. */}
-                          {run.data.publishRequested !== run.data.targetAutoPublish && (
-                            <span className="text-[11px] text-[var(--code-warning)]">
-                              overridden — this run {run.data.publishRequested ? "published" : "did not publish"}
-                            </span>
-                          )}
+                            )}
+                            Publishing {run.data.publishRequested ? "on" : "off"}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            Target publishes{" "}
+                            {run.data.targetAutoPublish ? "automatically" : "manually"}
+                          </span>
                         </div>
                       </TableCell>
 
