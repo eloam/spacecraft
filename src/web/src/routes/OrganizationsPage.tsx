@@ -39,7 +39,11 @@ export function OrganizationsPage() {
               <Item
                 key={org.id}
                 variant="outline"
-                className="h-full flex-col items-stretch bg-card"
+                // Item's own hover is bg-muted, which in light is the ground exactly: a
+                // white tile turned page-colour and read as having sunk into the background
+                // rather than lifted. Half strength keeps it between the card and the ground
+                // in light and above the card in dark, and the border carries the rest.
+                className="h-full flex-col items-stretch bg-card [a]:hover:bg-muted/50 hover:border-foreground/20"
                 render={<Link to={`/orgs/${org.slug}`} />}
               >
                 <ItemContent className="gap-1">
