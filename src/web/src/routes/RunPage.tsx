@@ -9,7 +9,7 @@ import { Item, ItemActions, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { QueryBoundary } from "@/components/QueryBoundary";
-import { RunStatusBadge, StepStatusIcon } from "@/components/StatusBadge";
+import { RunStatusIcon, StepStatusIcon } from "@/components/StatusBadge";
 import { api } from "@/api/client";
 import { useCancelRun, useRun, useStepLog } from "@/api/queries";
 import { StepStatus, isTerminal, languageLabel, registryLabel, stepKindLabel, stepStatusLabel } from "@/api/types";
@@ -80,7 +80,11 @@ export function RunPage() {
 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="font-heading text-2xl font-medium tracking-tight">
+            <h1 className="flex items-center gap-2.5 font-heading text-2xl font-medium tracking-tight">
+              {/* The state as its icon, at the title's size: a pill in the row of actions
+                  competed with the heading it qualifies, and the word it carried is the
+                  first thing the steps below spell out anyway. */}
+              {run.data && <RunStatusIcon status={run.data.status} className="size-6" />}
               Pipeline run
               {run.data && (
                 <>
@@ -120,7 +124,6 @@ export function RunPage() {
               only while it has not finished. */}
           {run.data && (
             <div className="flex shrink-0 items-center gap-2">
-              <RunStatusBadge status={run.data.status} />
               {run.data.attemptCount > 1 && (
                 <span className="text-xs text-muted-foreground">
                   attempt {run.data.attemptCount}
@@ -190,7 +193,10 @@ export function RunPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow>
+                    {/* Nothing to click here — one row describing the run, not a list
+                        to pick from. The primitive lifts a row on hover because rows
+                        are usually targets; this one is a fact. */}
+                    <TableRow className="hover:bg-transparent">
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <LanguageMark language={run.data.targetLanguage} />

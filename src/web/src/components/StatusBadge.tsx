@@ -54,6 +54,32 @@ export function RunStatusBadge({ status }: { status: number }) {
   }
 }
 
+/**
+ * A run's status as its icon alone, sized by the caller.
+ *
+ * For places where the state belongs beside a title rather than in a row of controls: a pill
+ * there competes with the heading it qualifies, and the word it carries is already the first
+ * thing the steps below spell out. The colour and the shape survive; only the label moves to
+ * the accessible name.
+ */
+export function RunStatusIcon({ status, className }: { status: number; className?: string }) {
+  const label = runStatusLabel[status] ?? "Unknown";
+  const shared = cn("shrink-0", className);
+
+  switch (status) {
+    case RunStatus.Succeeded:
+      return <CheckCircle2 className={cn(shared, "text-emerald-600 dark:text-emerald-400")} aria-label={label} />;
+    case RunStatus.Failed:
+      return <XCircle className={cn(shared, "text-destructive")} aria-label={label} />;
+    case RunStatus.Running:
+      return <Spinner className={cn(shared, "text-blue-600 dark:text-blue-400")} aria-label={label} />;
+    case RunStatus.Cancelled:
+      return <MinusCircle className={cn(shared, "text-muted-foreground")} aria-label={label} />;
+    default:
+      return <CircleDashed className={cn(shared, "text-muted-foreground")} aria-label={label} />;
+  }
+}
+
 export function StepStatusIcon({ status }: { status: number }) {
   const label = stepStatusLabel[status] ?? "Unknown";
 
