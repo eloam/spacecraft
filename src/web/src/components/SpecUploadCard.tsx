@@ -88,8 +88,10 @@ export function SpecUploadCard({
             if (file) send(file);
           }}
           className={cn(
-            "rounded-2xl border border-dashed transition-colors",
-            dragging && "border-foreground/40 bg-muted/50",
+            "rounded-2xl border border-dashed bg-card transition-colors",
+            // One rung up from the card it sits at, so the change still reads once the
+            // panel has a surface of its own.
+            dragging && "border-foreground/40 bg-muted",
           )}
         >
           <EmptyHeader>

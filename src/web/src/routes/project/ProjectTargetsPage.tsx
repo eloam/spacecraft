@@ -380,7 +380,7 @@ export function ProjectTargetsPage() {
           </div>
         ) : (
           <EmptyState
-            icon={<Package />}
+            icon={<Package aria-hidden />}
             title="No SDK targets"
             description="A target says which language to emit and which package name to publish it under."
             action={

@@ -39,7 +39,7 @@ export function OrganizationsPage() {
               <Item
                 key={org.id}
                 variant="muted"
-                className="h-full flex-col items-stretch"
+                className="h-full flex-col items-stretch border-border"
                 render={<Link to={`/orgs/${org.slug}`} />}
               >
                 <ItemContent className="gap-1">
@@ -62,7 +62,7 @@ export function OrganizationsPage() {
           </div>
         ) : (
           <EmptyState
-            icon={<Building2 />}
+            icon={<Building2 aria-hidden />}
             title="No organizations yet"
             description="Create one to start tracking an API and publishing SDKs from it."
             action={

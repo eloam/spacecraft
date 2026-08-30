@@ -101,13 +101,13 @@ export function ProjectRunsPage() {
           // Distinguished from an empty project: nothing ran from *this* version, which is
           // an answer rather than an absence.
           <EmptyState
-            icon={<Play />}
+            icon={<Play aria-hidden />}
             title="No run from this version"
             description="Nothing has been generated from this document yet."
           />
         ) : (
           <EmptyState
-            icon={<Play />}
+            icon={<Play aria-hidden />}
             title="No runs yet"
             description="Upload a spec and add a target, then generate your first SDK."
           />

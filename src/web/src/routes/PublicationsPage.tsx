@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, PackageCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -90,6 +90,7 @@ export function PublicationsPage() {
           </Card>
         ) : (
           <EmptyState
+            icon={<PackageCheck aria-hidden />}
             title="Nothing published yet"
             description="Generate an SDK with publishing enabled and it will appear here."
           />

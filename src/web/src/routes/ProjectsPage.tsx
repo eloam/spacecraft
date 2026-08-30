@@ -60,7 +60,7 @@ export function ProjectsPage() {
               <Item
                 key={project.id}
                 variant="muted"
-                className="h-full flex-col items-stretch"
+                className="h-full flex-col items-stretch border-border"
                 render={<Link to={`/orgs/${orgId}/projects/${project.slug}`} />}
               >
                 <ItemContent className="gap-1">
@@ -93,7 +93,7 @@ export function ProjectsPage() {
           </div>
         ) : (
           <EmptyState
-            icon={<FolderGit2 />}
+            icon={<FolderGit2 aria-hidden />}
             title="No projects yet"
             description="Create a project, then upload the OpenAPI document describing its API."
             action={

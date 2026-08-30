@@ -202,7 +202,7 @@ export function CredentialsPage() {
           </Card>
         ) : (
           <EmptyState
-            icon={<KeyRound />}
+            icon={<KeyRound aria-hidden />}
             title="No credentials"
             description="Add a registry token so pipeline runs can publish the SDKs they build."
             action={
