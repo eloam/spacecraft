@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Trash2 } from "lucide-react";
+import { FolderGit2, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,7 +82,11 @@ export function ProjectSettingsPage() {
         hasData={project.data !== undefined}
         rows={3}
       >
-        <SettingsSection title="General" description="How this project is named.">
+        <SettingsSection
+          icon={<FolderGit2 />}
+          title="General"
+          description="How this project is named."
+        >
           <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
             <FieldGroup>
               <Field data-invalid={!!form.formState.errors.name}>
@@ -121,6 +125,7 @@ export function ProjectSettingsPage() {
         </SettingsSection>
 
         <SettingsSection
+          icon={<ShieldCheck />}
           title="Validation"
           description="What an uploaded document has to satisfy before an SDK is generated from it."
         >
@@ -169,6 +174,7 @@ export function ProjectSettingsPage() {
         </SettingsSection>
 
         <DangerSection
+          icon={<Trash2 />}
           title="Delete project"
           description="Removes the project and everything recorded under it."
         >

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DangerSection } from "@/components/SettingsSections";
 import {
   Dialog, DialogClose, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
@@ -39,16 +39,17 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
     );
 
   return (
-    <Card className="border-destructive/40">
-      <CardHeader>
-        <CardTitle className="text-destructive">Delete account</CardTitle>
-        <CardDescription>
-          Permanently removes your account and your membership of{" "}
-          {organizationCount} organization{organizationCount === 1 ? "" : "s"}. This cannot be
-          undone.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <DangerSection
+      icon={<Trash2 />}
+      title="Delete account"
+      description={
+        <>
+          Permanently removes your account and your membership of {organizationCount}{" "}
+          organization{organizationCount === 1 ? "" : "s"}. This cannot be undone.
+        </>
+      }
+    >
+      <div className="space-y-3">
         {blocked && (
           <div className="flex gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
             <ShieldAlert className="size-4 shrink-0 text-destructive" aria-hidden />
@@ -114,8 +115,8 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </CardContent>
-    </Card>
+      </div>
+    </DangerSection>
   );
 }
 

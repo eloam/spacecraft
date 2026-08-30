@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Laptop, LogOut } from "lucide-react";
+import { KeyRound, Laptop, LogOut, MonitorSmartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import {
   Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle,
 } from "@/components/ui/item";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ApiError } from "@/api/client";
 import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from "@/api/queries";
@@ -71,14 +71,11 @@ function PasswordCard() {
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Password</CardTitle>
-        <CardDescription>
-          Changing it signs out every other session, but not this one.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <SettingsSection
+      icon={<KeyRound />}
+      title="Password"
+      description="Changing it signs out every other session, but not this one."
+    >
         <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
           <FieldGroup>
             {(["currentPassword", "newPassword", "confirmPassword"] as const).map((field) => (
@@ -109,8 +106,7 @@ function PasswordCard() {
             {change.isPending ? "Changing…" : "Change password"}
           </Button>
         </form>
-      </CardContent>
-    </Card>
+    </SettingsSection>
   );
 }
 
@@ -122,14 +118,12 @@ function SessionsCard() {
   const others = sessions.data?.filter((s) => !s.isCurrent) ?? [];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Active sessions</CardTitle>
-        <CardDescription>
-          Each sign-in is a session. Revoke any you do not recognise.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <SettingsSection
+      icon={<MonitorSmartphone />}
+      title="Active sessions"
+      description="Each sign-in is a session. Revoke any you do not recognise."
+    >
+      <div className="space-y-3">
         {/* A failed load used to fall straight through to an empty list: this card of all
             of them would then read as "no other sessions are open", which is a security
             claim the app cannot make when it never heard back. Every revoke below
@@ -208,8 +202,8 @@ function SessionsCard() {
             </Button>
           )}
         </QueryBoundary>
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsSection>
   );
 }
 

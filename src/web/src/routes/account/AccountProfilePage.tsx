@@ -1,3 +1,4 @@
+import { User } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SettingsSection } from "@/components/SettingsSections";
 import { ApiError } from "@/api/client";
 import { useAccount, useUpdateProfile } from "@/api/queries";
 
@@ -45,12 +46,11 @@ function ProfileCard({
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profile</CardTitle>
-        <CardDescription>How you appear across SpaceCraft.</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <SettingsSection
+      icon={<User />}
+      title="Profile"
+      description="How you appear across SpaceCraft."
+    >
         <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.displayName}>
@@ -92,8 +92,7 @@ function ProfileCard({
             {update.isPending ? "Saving…" : "Save changes"}
           </Button>
         </form>
-      </CardContent>
-    </Card>
+    </SettingsSection>
   );
 }
 

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Trash2 } from "lucide-react";
+import { Building2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,7 +90,11 @@ export function OrganizationSettingsPage() {
         hasData={organization.data !== undefined}
         rows={2}
       >
-        <SettingsSection title="General" description="How this organization is named.">
+        <SettingsSection
+          icon={<Building2 />}
+          title="General"
+          description="How this organization is named."
+        >
           <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
             <FieldGroup>
               <Field data-invalid={!!form.formState.errors.name}>
@@ -129,6 +133,7 @@ export function OrganizationSettingsPage() {
         </SettingsSection>
 
         <DangerSection
+          icon={<Trash2 />}
           title="Delete organization"
           description="Removes every project, run, credential and publication record it owns."
         >
