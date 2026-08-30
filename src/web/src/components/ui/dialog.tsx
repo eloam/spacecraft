@@ -74,7 +74,9 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-4 right-4"
+                // Above the sticky header, which paints an opaque band at z-10 and was
+                // covering this entirely.
+                className="absolute top-4 right-4 z-20"
                 size="icon-sm"
               />
             }
@@ -103,7 +105,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-header"
       className={cn(
-        "sticky top-0 z-10 -mx-6 -mt-6 flex flex-col gap-1.5 bg-popover px-6 pt-6 pb-1",
+        "sticky top-0 z-10 -mx-6 -mt-6 flex flex-col gap-1.5 bg-popover px-6 pt-6 pr-14 pb-2",
         className
       )}
       {...props}
@@ -123,7 +125,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "sticky bottom-0 z-10 -mx-6 -mb-6 flex flex-col-reverse gap-2 bg-popover px-6 pt-1 pb-6 sm:flex-row sm:justify-end",
+        "sticky bottom-0 z-10 -mx-6 -mb-6 mt-2 flex flex-col-reverse gap-2 border-t bg-muted/40 px-6 py-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
