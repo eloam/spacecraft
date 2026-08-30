@@ -29,7 +29,7 @@ export function ProjectNav() {
     // cancel the margin-block-end the layout puts after the wrapper, which is what it did
     // when this element carried the border itself.
     <div className="border-b">
-      <nav aria-label="Project sections" className="-mb-px flex gap-1 overflow-x-auto">
+      <nav aria-label="Project sections" className="-mb-px flex gap-1 overflow-x-auto scroll-smooth [scrollbar-width:thin]">
         {tabs.map((tab) => {
           const active = tab.exact ? pathname === tab.to : pathname.startsWith(tab.to);
 

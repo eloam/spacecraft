@@ -22,6 +22,7 @@ export function ConfirmDeleteDialog({
   description,
   confirmText,
   consequences,
+  reassurances,
   details,
   isPending,
   error,
@@ -33,6 +34,12 @@ export function ConfirmDeleteDialog({
   description: string;
   confirmText?: string;
   consequences?: string[];
+  /**
+   * What survives the delete. Kept out of the red box on purpose: an unheaded list inside a
+   * destructive frame reads as things being destroyed, and "Packages already published stay
+   * in their registries" said the opposite of what it looked like.
+   */
+  reassurances?: string[];
   /** Rendered under the consequences, for what a list of names says better than a count. */
   details?: React.ReactNode;
   isPending?: boolean;
@@ -58,13 +65,31 @@ export function ConfirmDeleteDialog({
         </DialogHeader>
 
         {consequences && consequences.length > 0 && (
-          <ul className="space-y-1 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
-            {consequences.map((line) => (
-              <li key={line} className="text-muted-foreground">
-                {line}
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-1.5 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
+            {/* Headed, because the frame alone had to carry the meaning and could not: the
+                same box held what was being destroyed and what was not. */}
+            <p className="font-medium text-destructive">This removes</p>
+            <ul className="space-y-1">
+              {consequences.map((line) => (
+                <li key={line} className="text-muted-foreground">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {reassurances && reassurances.length > 0 && (
+          <div className="space-y-1 text-sm">
+            <p className="font-medium">Not affected</p>
+            <ul className="space-y-1">
+              {reassurances.map((line) => (
+                <li key={line} className="text-muted-foreground">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {details}

@@ -1,7 +1,13 @@
 import { CheckCircle2, CircleDashed, MinusCircle, XCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { RunStatus, StepStatus, runStatusLabel, stepStatusLabel } from "@/api/types";
+import {
+  PublicationStatus,
+  RunStatus,
+  StepStatus,
+  runStatusLabel,
+  stepStatusLabel,
+} from "@/api/types";
 
 const TONE = {
   neutral: "bg-muted text-muted-foreground",
@@ -62,5 +68,24 @@ export function StepStatusIcon({ status }: { status: number }) {
       return <MinusCircle className="size-4 text-muted-foreground/60" aria-label={label} />;
     default:
       return <CircleDashed className="size-4 text-muted-foreground/60" aria-label={label} />;
+  }
+}
+
+/**
+ * The same pill runs use. Publications had their own badge with no icon, which rendered a
+ * successful publish as a grey "Published" — the one status on that page worth seeing at a
+ * glance, and the only one with no colour.
+ */
+export function PublicationStatusBadge({ status }: { status: number }) {
+  switch (status) {
+    case PublicationStatus.Succeeded:
+      return <Pill tone="success" icon={<CheckCircle2 className={ICON_CLASS} />} label="Published" />;
+    case PublicationStatus.Failed:
+      return <Pill tone="danger" icon={<XCircle className={ICON_CLASS} />} label="Failed" />;
+    case PublicationStatus.AlreadyExists:
+      return <Pill tone="neutral" icon={<CircleDashed className={ICON_CLASS} />} label="Already there" />;
+    default:
+      // Pending, and anything a newer API adds.
+      return <Pill tone="neutral" icon={<CircleDashed className={ICON_CLASS} />} label="Pending" />;
   }
 }

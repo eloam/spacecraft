@@ -78,7 +78,10 @@
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.922 0.005 325.62);
     --input: oklch(0.922 0.005 325.62);
-    --ring: oklch(0.711 0.019 323.02);
+    /* Darker than the preset's 0.711: the focus ring is the only thing telling a
+       keyboard user where they are, and at that value the visible 3px band measured
+       1.54:1 against a card — WCAG 1.4.11 asks 3:1. This reads 4.9:1 solid. */
+    --ring: oklch(0.55 0.03 323);
     --chart-1: oklch(0.865 0.012 325.68);
     --chart-2: oklch(0.542 0.034 322.5);
     --chart-3: oklch(0.435 0.029 321.78);

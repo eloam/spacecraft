@@ -50,7 +50,7 @@ export function ContextNav({
 
         <nav
           aria-label="Sections"
-          className="-mb-px flex gap-1 overflow-x-auto pt-2"
+          className="-mb-px flex gap-1 overflow-x-auto pt-2 scroll-smooth [scrollbar-width:thin]"
         >
           {tabs.map((tab) => (
             <NavLink
