@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { ApiError } from "@/api/client";
-import { useCreateRun, useOrganizations, useProject, useSpecs } from "@/api/queries";
+import { useCreateRun, useOrganizations, useProject, useProjects, useSpecs } from "@/api/queries";
 import {
   OrganizationRole, SpecValidationStatus, StepKind, languageLabel, registryLabel, stepKindLabel,
 } from "@/api/types";
@@ -23,13 +23,23 @@ export function GenerateDialog({
   onOpenChange,
 }: {
   orgId: string;
-  projectId: string;
+  /**
+   * Fixed by the caller when it has one — a project page always does. The runs list does not
+   * unless its filter names one, so it passes nothing and the dialog asks first.
+   */
+  projectId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const navigate = useNavigate();
-  const project = useProject(orgId, projectId);
-  const specs = useSpecs(orgId, projectId);
+
+  const [pickedProject, setPickedProject] = useState("");
+  const activeProject = projectId ?? pickedProject;
+  // Only fetched when the dialog has to ask; a project page already knows the answer.
+  const projects = useProjects(orgId);
+
+  const project = useProject(orgId, activeProject);
+  const specs = useSpecs(orgId, activeProject);
   // Already loaded for the switcher in the top bar, so the caller's role costs no request.
   const organizations = useOrganizations();
   const createRun = useCreateRun(orgId);
@@ -108,6 +118,31 @@ export function GenerateDialog({
           </DialogHeader>
 
           <FieldGroup className="py-4">
+            {projectId === undefined && (
+              <Field>
+                <FieldLabel htmlFor="project">Project</FieldLabel>
+                <select
+                  id="project"
+                  value={pickedProject}
+                  onChange={(e) => {
+                    setPickedProject(e.target.value);
+                    // A spec and a target both belong to a project. Carried across, they
+                    // would name rows the newly chosen one does not own.
+                    setSpecId("");
+                    setTargetId("");
+                  }}
+                  className="h-9 w-full rounded-lg border bg-background px-3 text-sm"
+                >
+                  <option value="">Choose a project…</option>
+                  {(projects.data ?? []).map((p) => (
+                    <option key={p.id} value={p.slug}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+
             <Field>
               <FieldLabel htmlFor="spec">Spec version</FieldLabel>
               <select
@@ -166,7 +201,7 @@ export function GenerateDialog({
                       This target publishes nowhere. Choose a credential under Publish with on
                       the{" "}
                       <Link
-                        to={`/orgs/${orgId}/projects/${projectId}/targets`}
+                        to={`/orgs/${orgId}/projects/${activeProject}/targets`}
                         onClick={() => onOpenChange(false)}
                       >
                         SDK targets tab

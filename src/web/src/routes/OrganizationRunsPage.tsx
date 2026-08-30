@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Play, X } from "lucide-react";
+import { GenerateDialog } from "@/routes/project/GenerateDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +32,7 @@ const ALL = "all";
 export function OrganizationRunsPage() {
   const { orgId = "" } = useParams();
   const [search, setSearch] = useSearchParams();
+  const [generateOpen, setGenerateOpen] = useState(false);
 
   // ?project=<slug> narrows to one project, and the SDK targets page hands over that way.
   // Sent to the API rather than filtered here: the listing is capped server-side, so
@@ -69,6 +71,7 @@ export function OrganizationRunsPage() {
           </p>
         </div>
 
+        <div className="flex items-center gap-2">
         <Select
           value={projectFilter ?? ALL}
           onValueChange={(value) => setParam("project", value === ALL ? null : String(value))}
@@ -93,6 +96,15 @@ export function OrganizationRunsPage() {
             ))}
           </SelectContent>
         </Select>
+
+        {/* The filter already names a project when one is chosen, so this button reads it
+            rather than asking again. On "All projects" it opens the same dialog, which
+            starts by asking — the trip through a project page is what this replaces. */}
+        <Button onClick={() => setGenerateOpen(true)}>
+          <Play className="size-4" aria-hidden />
+          Generate SDK
+        </Button>
+        </div>
       </div>
 
       {specFilter && (
@@ -193,6 +205,14 @@ export function OrganizationRunsPage() {
           />
         )}
       </QueryBoundary>
+
+      <GenerateDialog
+        orgId={orgId}
+        // undefined, not "": the dialog reads undefined as "no project fixed, ask for one".
+        projectId={projectFilter ?? undefined}
+        open={generateOpen}
+        onOpenChange={setGenerateOpen}
+      />
     </div>
   );
 }
