@@ -85,7 +85,11 @@ export function ConfirmDeleteDialog({
 
   return (
     <Dialog open={open} onOpenChange={change}>
-      <DialogContent initialFocus={confirmText ? inputRef : cancelRef}>
+      {/* Resolved when focus is placed, not when the element is described: a bare ref
+          whose element never attached would leave Base UI with nothing to focus, and
+          focus outside a modal is worse than focus on the wrong control inside it.
+          Returning true falls back to the default behaviour. */}
+      <DialogContent initialFocus={() => inputRef.current ?? cancelRef.current ?? true}>
         <DialogHeader>
           <DialogTitle>{shown.title}</DialogTitle>
           <DialogDescription>{shown.description}</DialogDescription>
