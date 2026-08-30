@@ -39,6 +39,7 @@ public sealed class PipelineRun : Entity
         Guid organizationId,
         Guid apiProjectId,
         Guid specVersionId,
+        int specSequence,
         SdkTarget target,
         string? targetRegistryUrl,
         string? targetCredentialLabel,
@@ -51,6 +52,7 @@ public sealed class PipelineRun : Entity
         OrganizationId = organizationId;
         ApiProjectId = apiProjectId;
         SpecVersionId = specVersionId;
+        SpecSequence = specSequence;
         SdkTargetId = target.Id;
         TargetLanguage = target.Language;
         TargetPackageName = target.PackageName;
@@ -78,6 +80,13 @@ public sealed class PipelineRun : Entity
     public Guid OrganizationId { get; private set; }
     public Guid ApiProjectId { get; private set; }
     public Guid SpecVersionId { get; private set; }
+
+    /// <summary>
+    /// The spec version's number as the project counts them — "#4" — copied for the same
+    /// reason as the target's settings: a version can be deleted, and a run that cannot name
+    /// the document it was built from cannot answer the first question asked of a failure.
+    /// </summary>
+    public int SpecSequence { get; private set; }
     public Guid SdkTargetId { get; private set; }
 
     /// <summary>

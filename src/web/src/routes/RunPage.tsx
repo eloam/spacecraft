@@ -12,10 +12,20 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusIcon, StepStatusIcon } from "@/components/StatusBadge";
 import { api } from "@/api/client";
 import { useCancelRun, useRun, useStepLog } from "@/api/queries";
-import { StepStatus, isTerminal, languageLabel, registryLabel, stepKindLabel, stepStatusLabel } from "@/api/types";
+import {
+  RunTrigger,
+  StepStatus,
+  formatSeconds,
+  isTerminal,
+  languageLabel,
+  registryLabel,
+  stepKindLabel,
+  stepStatusLabel,
+} from "@/api/types";
 import type { ArtifactDownload } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
+import { timeAgo } from "@/lib/format";
 import { BackLink } from "@/components/BackLink";
 import { LanguageMark } from "@/components/LanguageDot";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -227,17 +237,29 @@ export function RunPage() {
                       </TableCell>
 
                       <TableCell>
-                        {run.data.targetAutoPublish ? (
-                          <span className="flex items-center gap-1.5 text-xs">
-                            <Zap className="size-3.5 text-[var(--code-warning)]" aria-hidden />
-                            Automatic
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-xs">
-                            <Hand className="size-3.5 text-[var(--success)]" aria-hidden />
-                            Manual
-                          </span>
-                        )}
+                        <div className="flex flex-col gap-0.5">
+                          {run.data.targetAutoPublish ? (
+                            <span className="flex items-center gap-1.5 text-xs">
+                              <Zap className="size-3.5 text-[var(--code-warning)]" aria-hidden />
+                              Automatic
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5 text-xs">
+                              <Hand className="size-3.5 text-[var(--success)]" aria-hidden />
+                              Manual
+                            </span>
+                          )}
+                          {/* The column describes the target, as it does on the SDK targets
+                              table. This run may have been told otherwise, and without
+                              saying so the page read "Automatic" a few centimetres above
+                              "Publish · Skipped" — two true statements that together say
+                              something false. */}
+                          {run.data.publishRequested !== run.data.targetAutoPublish && (
+                            <span className="text-[11px] text-[var(--code-warning)]">
+                              overridden — this run {run.data.publishRequested ? "published" : "did not publish"}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
 
                       <TableCell>
@@ -266,6 +288,55 @@ export function RunPage() {
                     </TableRow>
                   </TableBody>
                 </Table>
+
+                {/* The run's own facts, under the target's: which document it was built
+                    from, what started it, and when. None of these belong in the SDK targets
+                    table above, and all of them were on the response unread. */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-4 py-3 text-xs text-muted-foreground">
+                  <Link
+                    to={`/orgs/${orgId}/projects/${run.data.apiProjectId}`}
+                    className="text-foreground underline-offset-4 hover:underline"
+                  >
+                    Spec #{run.data.specSequence}
+                  </Link>
+                  <span aria-hidden>·</span>
+                  <span>
+                    {run.data.trigger === RunTrigger.SpecUpload
+                      ? "Started by a spec upload"
+                      : "Started by hand"}
+                  </span>
+                  <span aria-hidden>·</span>
+                  {/* Queued, waited, ran — three numbers, because "slow" and "sat in the
+                      queue" look identical without the middle one. */}
+                  <Tooltip>
+                    <TooltipTrigger render={<span />}>
+                      Queued {timeAgo(run.data.queuedAt)}
+                    </TooltipTrigger>
+                    <TooltipContent>{new Date(run.data.queuedAt).toLocaleString()}</TooltipContent>
+                  </Tooltip>
+                  {run.data.startedAt && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span>
+                        waited {formatSeconds(
+                          (new Date(run.data.startedAt).getTime() -
+                            new Date(run.data.queuedAt).getTime()) / 1000,
+                        )}
+                      </span>
+                    </>
+                  )}
+                  {run.data.startedAt && run.data.completedAt && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span>
+                        ran {formatSeconds(
+                          (new Date(run.data.completedAt).getTime() -
+                            new Date(run.data.startedAt).getTime()) / 1000,
+                        )}
+                      </span>
+                    </>
+                  )}
+                </div>
               </CardContent>
 
               {run.data.failureReason && (

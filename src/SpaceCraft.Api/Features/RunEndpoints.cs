@@ -30,6 +30,8 @@ public sealed record RunResponse(
     /// <summary>Carried so a caller can name the project without a second request.</summary>
     string? ProjectName,
     Guid SpecVersionId,
+    /// <summary>Which version of the document, as the project numbers them.</summary>
+    int SpecSequence,
     Guid SdkTargetId,
     /// <summary>
     /// What the SDK target said when this run was queued, not what it says now. A target
@@ -203,6 +205,7 @@ public static class RunEndpoints
             organizationId,
             project.Id,
             spec.Id,
+            spec.Sequence,
             target,
             credential?.RegistryUrl,
             credential?.Label,
@@ -365,6 +368,7 @@ public static class RunEndpoints
             run.ApiProjectId,
             projectName,
             run.SpecVersionId,
+            run.SpecSequence,
             run.SdkTargetId,
             run.TargetLanguage,
             run.TargetPackageName,

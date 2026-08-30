@@ -317,6 +317,10 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("sdk_target_id");
 
+                    b.Property<int>("SpecSequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("spec_sequence");
+
                     b.Property<Guid>("SpecVersionId")
                         .HasColumnType("uuid")
                         .HasColumnName("spec_version_id");

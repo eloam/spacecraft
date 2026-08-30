@@ -445,6 +445,7 @@ public static class SpecEndpoints
                     organizationId,
                     projectId,
                     specVersion.Id,
+                    specVersion.Sequence,
                     target,
                     target.RegistryCredentialId is { } id && credentialUrls.TryGetValue(id, out var cred)
                         ? cred.RegistryUrl

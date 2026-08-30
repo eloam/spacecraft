@@ -20,7 +20,7 @@ public class PipelineRunTests
             .AddTarget(SdkLanguage.TypeScript, "billing-sdk", RegistryKind.Npm);
 
     private static PipelineRun NewRun(bool publish = true) =>
-        new(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), NewTarget(),
+        new(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), 1, NewTarget(),
             "https://registry.npmjs.org", "npm", RunTrigger.Manual, publish);
 
     [Fact]

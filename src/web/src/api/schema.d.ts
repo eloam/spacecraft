@@ -2563,6 +2563,8 @@ export interface components {
             projectName: null | string;
             /** Format: uuid */
             specVersionId: string;
+            /** Format: int32 */
+            specSequence: number;
             /** Format: uuid */
             sdkTargetId: string;
             targetLanguage: components["schemas"]["SdkLanguage"];

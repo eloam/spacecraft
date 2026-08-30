@@ -168,6 +168,26 @@ export function isStepSettled(status: number): boolean {
  * How long a finished run took, as prose. Once a run is over, "4/4 steps" tells the reader
  * nothing they cannot see from its status — the time it took is the useful number.
  */
+/** Mirrors SpaceCraft.Domain.Pipelines.RunTrigger. */
+export const RunTrigger = {
+  Manual: 1,
+  GitHubPush: 2,
+  SpecUpload: 3,
+} as const;
+
+/** Shared, so two places measuring the same thing cannot word it two ways. */
+export function formatSeconds(seconds: number): string {
+  const whole = Math.max(0, Math.round(seconds));
+
+  if (whole < 60) {
+    return `${whole}s`;
+  }
+
+  const minutes = Math.floor(whole / 60);
+  const rest = whole % 60;
+  return rest === 0 ? `${minutes}m` : `${minutes}m ${rest}s`;
+}
+
 export function formatRunDuration(run: {
   startedAt: string | null;
   completedAt: string | null;
@@ -176,18 +196,9 @@ export function formatRunDuration(run: {
     return "—";
   }
 
-  const seconds = Math.max(
-    0,
-    Math.round((new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()) / 1000),
+  return formatSeconds(
+    (new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()) / 1000,
   );
-
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return rest === 0 ? `${minutes}m` : `${minutes}m ${rest}s`;
 }
 
 /**
