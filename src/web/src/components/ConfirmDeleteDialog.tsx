@@ -1,4 +1,5 @@
-import { useState } from "react";
+import type { ReactNode } from "react";
+import { useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,8 @@ export function ConfirmDeleteDialog({
   title,
   description,
   confirmText,
+  confirmLabel = "Delete",
+  confirmIcon = <Trash2 className="size-4" aria-hidden />,
   consequences,
   reassurances,
   details,
@@ -33,6 +36,14 @@ export function ConfirmDeleteDialog({
   title: string;
   description: string;
   confirmText?: string;
+  /**
+   * What the confirming button says. Defaults to Delete, which is wrong for the two dialogs
+   * that are not deletes: leaving an organization offered a red "Delete" under the title
+   * "Leave this organization?".
+   */
+  confirmLabel?: string;
+  /** Follows the label: a trash can under "Leave this organization?" reads as deleting it. */
+  confirmIcon?: ReactNode;
   consequences?: string[];
   /**
    * What survives the delete. Kept out of the red box on purpose: an unheaded list inside a
@@ -49,6 +60,22 @@ export function ConfirmDeleteDialog({
   const [typed, setTyped] = useState("");
   const confirmed = !confirmText || typed.trim() === confirmText;
 
+  // Callers null the row they were deleting in onOpenChange, but this dialog stays mounted
+  // for the length of its close animation — so the title faded out reading "Delete spec
+  // #undefined?" and the typed-name field vanished mid-fade. Hold the last real values and
+  // render those while it leaves.
+  const latched = useRef({ title, description, confirmText });
+  if (open) {
+    latched.current = { title, description, confirmText };
+  }
+  const shown = open ? { title, description, confirmText } : latched.current;
+
+  // Base UI focuses the first focusable child, which here is whatever `details` renders —
+  // on the credentials dialog that is a link out of the page, so Enter on open navigated
+  // away. Point it at the confirmation field, or at Cancel when there is none.
+  const inputRef = useRef<HTMLInputElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
   function change(next: boolean) {
     if (!next) {
       setTyped("");
@@ -58,10 +85,10 @@ export function ConfirmDeleteDialog({
 
   return (
     <Dialog open={open} onOpenChange={change}>
-      <DialogContent>
+      <DialogContent initialFocus={confirmText ? inputRef : cancelRef}>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>{shown.title}</DialogTitle>
+          <DialogDescription>{shown.description}</DialogDescription>
         </DialogHeader>
 
         {consequences && consequences.length > 0 && (
@@ -94,7 +121,7 @@ export function ConfirmDeleteDialog({
 
         {details}
 
-        {confirmText && (
+        {shown.confirmText && (
           <Field>
             <FieldLabel htmlFor="confirm-text">
               Type{" "}
@@ -102,11 +129,12 @@ export function ConfirmDeleteDialog({
                   elsewhere. A name like "Load Test 2" contains spaces, and in running text
                   there is no telling where it starts or whether they are part of it. */}
               <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[13px] font-medium text-foreground">
-                {confirmText}
+                {shown.confirmText}
               </code>{" "}
               to confirm
             </FieldLabel>
             <Input
+              ref={inputRef}
               id="confirm-text"
               value={typed}
               autoComplete="off"
@@ -122,14 +150,14 @@ export function ConfirmDeleteDialog({
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <DialogFooter>
-          <DialogClose render={<Button variant="outline">Cancel</Button>} />
+          <DialogClose render={<Button ref={cancelRef} variant="outline">Cancel</Button>} />
           <Button
             variant="destructive"
             onClick={onConfirm}
             disabled={!confirmed || isPending}
           >
-            <Trash2 className="size-4" aria-hidden />
-            {isPending ? "Deleting…" : "Delete"}
+            {confirmIcon}
+            {isPending ? `${confirmLabel}…` : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

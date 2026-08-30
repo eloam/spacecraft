@@ -275,6 +275,14 @@ export function MembersPage() {
         // Typed only on your own row: adding someone back takes one form, whereas letting
         // yourself out is the one delete here you cannot undo without another person.
         confirmText={removing?.isYou ? removing.email : undefined}
+        confirmLabel={removing?.isYou ? "Leave" : "Remove"}
+        confirmIcon={
+          removing?.isYou ? (
+            <LogOut className="size-4" aria-hidden />
+          ) : (
+            <UserMinus className="size-4" aria-hidden />
+          )
+        }
         consequences={[
           removing?.isYou
             ? "Your access to every project, spec, credential and package here"

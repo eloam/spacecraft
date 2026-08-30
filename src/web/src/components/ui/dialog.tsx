@@ -31,7 +31,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/35 duration-100 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/35 duration-150 ease-out supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -62,7 +62,7 @@ function DialogContent({
           // off the top *and* the bottom — measured at 502px inside 420px, with Cancel
           // and Delete both unreachable and nothing to scroll. dvh, not vh, so a mobile
           // browser's collapsing toolbar does not hide the footer.
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] overflow-y-auto w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground shadow-2xl ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] overflow-y-auto w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground shadow-2xl ring-1 ring-foreground/10 duration-200 ease-out outline-none sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-98 data-closed:duration-150 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-98",
           className
         )}
         {...props}
@@ -89,11 +89,23 @@ function DialogContent({
   )
 }
 
+/**
+ * Sticky, because the popup itself scrolls. Measured before this: a dialog 461px tall in a
+ * 398px viewport put its Delete button below the fold, and scrolling to reach it pushed
+ * "Delete this credential?" out of view — the question left the screen while the answer was
+ * being given.
+ *
+ * The negative margins pull the band over the popup's own padding so scrolling content
+ * passes behind it instead of showing through the gap above.
+ */
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-1.5", className)}
+      className={cn(
+        "sticky top-0 z-10 -mx-6 -mt-6 flex flex-col gap-1.5 bg-popover px-6 pt-6 pb-1",
+        className
+      )}
       {...props}
     />
   )
@@ -111,7 +123,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        "sticky bottom-0 z-10 -mx-6 -mb-6 flex flex-col-reverse gap-2 bg-popover px-6 pt-1 pb-6 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
