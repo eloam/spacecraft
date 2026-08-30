@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { ExternalLink, Hand, Layers, MoreHorizontal, Package, Pencil, Plus, Trash2, Zap } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { ExternalLink, Hand, History, Layers, MoreHorizontal, Package, Pencil, Plus, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -139,6 +139,18 @@ export function ProjectTargetsPage() {
               <Button variant="outline" onClick={() => openDialog()}>
                 <Plus className="size-4" aria-hidden />
                 Add target
+              </Button>
+
+              {/* The runs live at the organization now, so the way back to "what did these
+                  targets actually produce" has to be offered from here rather than assumed
+                  from a tab that used to sit beside this one. */}
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link to={`/orgs/${orgId}/runs?project=${projectId}`} />}
+              >
+                <History className="size-4" aria-hidden />
+                Runs for this project
               </Button>
 
               {/* One control rather than loose buttons: a segmented set says the choices are

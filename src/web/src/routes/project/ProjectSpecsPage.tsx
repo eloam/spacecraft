@@ -435,7 +435,7 @@ export function ProjectSpecsPage() {
                             // native button unless told, and warns that it is dropping button
                             // semantics — semantics a link should not have had anyway.
                             nativeButton={false}
-                            render={<Link to={`/orgs/${orgId}/projects/${projectId}/runs?spec=${spec.id}`} />}
+                            render={<Link to={`/orgs/${orgId}/runs?project=${projectId}&spec=${spec.id}`} />}
                           >
                             <History className="size-4" aria-hidden />
                           </Button>

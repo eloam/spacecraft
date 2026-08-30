@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { FolderGit2, KeyRound, Package, Settings, Users } from "lucide-react";
+import { FolderGit2, History, KeyRound, Package, Settings, Users } from "lucide-react";
 import { ContextNav } from "@/components/layout/ContextNav";
 
 /**
@@ -22,6 +22,15 @@ export function OrganizationNav() {
           // The organization root and everything under a project: opening a project or one
           // of its runs is still being in Projects, the way a file is still in Code.
           matches: (path) => path === base || path.startsWith(`${base}/projects`),
+        },
+        // Before Published: a run is what produces a publication, so the two read in the
+        // order they happen.
+        {
+          label: "Runs",
+          to: `${base}/runs`,
+          icon: <History className="size-4" aria-hidden />,
+          // A single run lives at /runs/{id} and belongs to this section too.
+          matches: (path: string) => path.startsWith(`${base}/runs`),
         },
         { label: "Published", to: `${base}/publications`, icon: <Package className="size-4" aria-hidden /> },
         { label: "Credentials", to: `${base}/credentials`, icon: <KeyRound className="size-4" aria-hidden /> },

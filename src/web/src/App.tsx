@@ -21,7 +21,7 @@ import { ProjectsPage } from "@/routes/ProjectsPage";
 import { ProjectLayout } from "@/routes/project/ProjectLayout";
 import { ProjectSpecsPage } from "@/routes/project/ProjectSpecsPage";
 import { ProjectTargetsPage } from "@/routes/project/ProjectTargetsPage";
-import { ProjectRunsPage } from "@/routes/project/ProjectRunsPage";
+import { OrganizationRunsPage } from "@/routes/OrganizationRunsPage";
 import { RunPage } from "@/routes/RunPage";
 import { CredentialsPage } from "@/routes/CredentialsPage";
 import type { ReactNode } from "react";
@@ -64,9 +64,9 @@ export default function App() {
         <Route path="/orgs/:orgId/projects/:projectId" element={<ProjectLayout />}>
           <Route index element={<ProjectSpecsPage />} />
           <Route path="targets" element={<ProjectTargetsPage />} />
-          <Route path="runs" element={<ProjectRunsPage />} />
           <Route path="settings" element={<ProjectSettingsPage />} />
         </Route>
+        <Route path="/orgs/:orgId/runs" element={<OrganizationRunsPage />} />
         <Route path="/orgs/:orgId/runs/:runId" element={<RunPage />} />
       </Route>
 

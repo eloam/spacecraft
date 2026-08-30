@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { FileCode2, History, Package, Settings } from "lucide-react";
+import { FileCode2, Package, Settings } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,6 @@ export function ProjectNav() {
   const tabs = [
     { label: "Specs", to: base, icon: <FileCode2 className="size-4" aria-hidden />, exact: true },
     { label: "SDK targets", to: `${base}/targets`, icon: <Package className="size-4" aria-hidden /> },
-    { label: "Runs", to: `${base}/runs`, icon: <History className="size-4" aria-hidden /> },
     { label: "Settings", to: `${base}/settings`, icon: <Settings className="size-4" aria-hidden /> },
   ];
 
