@@ -9,7 +9,11 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: 'Inter Variable', sans-serif;
+    /* Lora, which is what the preset itself declares — verified against its own preview,
+       where every card title renders serif. The font was already imported and simply never
+       wired up, so headings fell back to the body face and the theme lost the one contrast
+       it is built around. Carries CardTitle, DialogTitle and EmptyTitle. */
+    --font-heading: 'Lora Variable', ui-serif, Georgia, serif;
     --font-sans: 'Inter Variable', sans-serif;
     /* Geist Mono, as the preset's own preview uses. Monospace carries a lot here — package
        names, registry URLs, versions, the spec viewer — so the system stack was the most
