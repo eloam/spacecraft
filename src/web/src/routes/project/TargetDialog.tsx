@@ -2,7 +2,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field, FieldContent, FieldDescription, FieldGroup, FieldLabel,
+} from "@/components/ui/field";
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from "@/components/ui/select";
@@ -118,9 +120,9 @@ export function TargetDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="package-name">Package name</Label>
+          <FieldGroup className="py-4">
+            <Field>
+              <FieldLabel htmlFor="package-name">Package name</FieldLabel>
               <Input
                 id="package-name"
                 value={packageName}
@@ -131,16 +133,16 @@ export function TargetDialog({
               {/* Said before the click, not after: what is already on the registry stays
                   there under its own name, and this target stops updating it. */}
               {renaming && target?.lastPublishedVersion && (
-                <p className="text-xs text-muted-foreground">
+                <FieldDescription>
                   {target.packageName}@{target.lastPublishedVersion} stays on{" "}
                   {registryLabel[target.registry]}. Future versions go to the new name, and this
                   target no longer reports that release.
-                </p>
+                </FieldDescription>
               )}
-            </div>
+            </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor="credential">Publish with</Label>
+            <Field>
+              <FieldLabel htmlFor="credential">Publish with</FieldLabel>
               <Select
                 value={credentialId}
                 onValueChange={(value) => {
@@ -205,26 +207,28 @@ export function TargetDialog({
                 </SelectContent>
               </Select>
               {usable.length === 0 && (
-                <p className="text-xs text-muted-foreground">
+                <FieldDescription>
                   This organization has no usable npm credential yet. Generating and building
                   work without one; only publishing needs it.
-                </p>
+                </FieldDescription>
               )}
-            </div>
+            </Field>
 
             {/* A switch, like every other setting in the app: this takes effect when it is
                 saved, and a bare checkbox reads as one item of a list rather than a state
                 the target is in. */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="auto-publish" className="text-sm font-medium">
+            <Field orientation="horizontal">
+              {/* Content first, switch last: the row reads label-then-state, the way it did
+                  when a justify-between div held the two apart. */}
+              <FieldContent>
+                <FieldLabel htmlFor="auto-publish" className="text-sm font-medium">
                   Publish automatically
-                </Label>
-                <p className="text-xs text-muted-foreground">
+                </FieldLabel>
+                <FieldDescription>
                   Every new spec version is generated, built and pushed to {registry} with no
                   human step. Off by default — publishing to a public registry cannot be undone.
-                </p>
-              </div>
+                </FieldDescription>
+              </FieldContent>
 
               <Switch
                 id="auto-publish"
@@ -232,10 +236,8 @@ export function TargetDialog({
                 disabled={!publishes}
                 onCheckedChange={(checked) => setAutoPublish(checked)}
               />
-            </div>
-
-
-          </div>
+            </Field>
+          </FieldGroup>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

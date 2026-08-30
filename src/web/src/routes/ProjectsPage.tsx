@@ -4,7 +4,14 @@ import { FolderGit2, Plus, Settings } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -89,7 +96,7 @@ export function ProjectsPage() {
           </div>
         ) : (
           <EmptyState
-            icon={<FolderGit2 className="size-8" />}
+            icon={<FolderGit2 />}
             title="No projects yet"
             description="Create a project, then upload the OpenAPI document describing its API."
             action={
@@ -121,6 +128,8 @@ function CreateProjectDialog({
   // the first upload usually happens before anyone opens the settings page.
   const [strictValidation, setStrictValidation] = useState(true);
   const create = useCreateProject(orgId);
+  // Only once something has been typed: an untouched field is not yet wrong.
+  const nameInvalid = Boolean(name.trim()) && !isValidResourceName(name);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -148,23 +157,22 @@ function CreateProjectDialog({
             <DialogDescription>Name it after the API it describes.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="project-name">Name</Label>
+          <FieldGroup className="py-4">
+            <Field data-invalid={nameInvalid}>
+              <FieldLabel htmlFor="project-name">Name</FieldLabel>
               <Input
                 id="project-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Billing API"
                 autoFocus
+                aria-invalid={nameInvalid}
               />
-              {name.trim() && !isValidResourceName(name) && (
-                <p className="text-sm text-destructive">{NAME_RULE}</p>
-              )}
-            </div>
+              <FieldError errors={nameInvalid ? [{ message: NAME_RULE }] : undefined} />
+            </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor="project-slug">Address</Label>
+            <Field>
+              <FieldLabel htmlFor="project-slug">Address</FieldLabel>
               <Input
                 id="project-slug"
                 value={slugPreview(name)}
@@ -173,31 +181,29 @@ function CreateProjectDialog({
                 placeholder="billing-api"
                 className="font-mono text-sm"
               />
-              <p className="text-xs text-muted-foreground">
+              <FieldDescription>
                 Derived from the name, and unique within this organization.
-              </p>
-            </div>
+              </FieldDescription>
+            </Field>
 
-            <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
-              <div className="space-y-1">
-                <Label htmlFor="project-strict" className="text-sm font-medium">
-                  Strict validation
-                </Label>
-                <p className="text-xs text-muted-foreground">
+            <Field orientation="horizontal" className="rounded-lg border p-3">
+              <FieldContent>
+                <FieldLabel htmlFor="project-strict">Strict validation</FieldLabel>
+                <FieldDescription>
                   Check that a usable SDK can come out of an uploaded document — a base URL to
                   call, method names that can be spelled, described responses — and refuse the
                   ones that would produce a broken client. Turn it off for a specification you
                   consume but do not own.
-                </p>
-              </div>
+                </FieldDescription>
+              </FieldContent>
 
               <Switch
                 id="project-strict"
                 checked={strictValidation}
                 onCheckedChange={setStrictValidation}
               />
-            </div>
-          </div>
+            </Field>
+          </FieldGroup>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { AuthCard } from "@/components/AuthCard";
 import { useLogin } from "@/api/queries";
 import { ApiError } from "@/api/client";
@@ -39,34 +39,39 @@ export function LoginPage() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" autoComplete="email" {...form.register("email")} />
-          {form.formState.errors.email && (
-            <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
-          )}
-        </div>
+        <FieldGroup>
+          <Field data-invalid={!!form.formState.errors.email}>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              aria-invalid={!!form.formState.errors.email}
+              {...form.register("email")}
+            />
+            <FieldError errors={[form.formState.errors.email]} />
+          </Field>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <Link
-              to="/forgot-password"
-              className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-            >
-              Forgot?
-            </Link>
-          </div>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            {...form.register("password")}
-          />
-          {form.formState.errors.password && (
-            <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
-          )}
-        </div>
+          <Field data-invalid={!!form.formState.errors.password}>
+            <div className="flex items-center justify-between">
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <Link
+                to="/forgot-password"
+                className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+              >
+                Forgot?
+              </Link>
+            </div>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              aria-invalid={!!form.formState.errors.password}
+              {...form.register("password")}
+            />
+            <FieldError errors={[form.formState.errors.password]} />
+          </Field>
+        </FieldGroup>
 
         {login.error && (
           <p className="text-sm text-destructive" role="alert">

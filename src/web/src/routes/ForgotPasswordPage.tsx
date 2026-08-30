@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { AuthCard } from "@/components/AuthCard";
 import { useForgotPassword } from "@/api/queries";
 import { ApiError } from "@/api/client";
@@ -54,13 +54,18 @@ export function ForgotPasswordPage() {
       footer={backToSignIn}
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" autoComplete="email" autoFocus {...form.register("email")} />
-          {form.formState.errors.email && (
-            <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
-          )}
-        </div>
+        <Field data-invalid={!!form.formState.errors.email}>
+          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            autoFocus
+            aria-invalid={!!form.formState.errors.email}
+            {...form.register("email")}
+          />
+          <FieldError errors={[form.formState.errors.email]} />
+        </Field>
 
         {forgot.error && (
           <p className="text-sm text-destructive" role="alert">

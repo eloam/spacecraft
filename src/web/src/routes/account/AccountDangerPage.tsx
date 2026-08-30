@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ShieldAlert, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -90,20 +90,21 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Password</Label>
+            <Field data-invalid={!!error}>
+              <FieldLabel htmlFor="confirm-password">Password</FieldLabel>
               <Input
                 id="confirm-password"
                 type="password"
                 autoComplete="current-password"
                 value={password}
+                aria-invalid={!!error}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setError(null);
                 }}
               />
-              {error && <p className="text-sm text-destructive">{error}</p>}
-            </div>
+              <FieldError>{error}</FieldError>
+            </Field>
 
             <DialogFooter>
               <DialogClose render={<Button variant="outline">Cancel</Button>} />

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Orbit } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
+import { Card, CardContent } from "@/components/ui/card";
 
 /** Shared frame for the sign-in and sign-up screens. */
 export function AuthCard({
@@ -22,11 +23,13 @@ export function AuthCard({
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-2 text-center">
           <Orbit className="size-7" aria-hidden />
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="font-heading text-2xl font-medium tracking-tight">{title}</h1>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
 
-        <div className="rounded-xl border bg-card p-6 shadow-sm">{children}</div>
+        <Card>
+          <CardContent>{children}</CardContent>
+        </Card>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">{footer}</p>
       </div>

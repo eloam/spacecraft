@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { AuthCard } from "@/components/AuthCard";
 import { useResetPassword } from "@/api/queries";
 import { ApiError } from "@/api/client";
@@ -80,34 +80,32 @@ export function ResetPasswordPage() {
       footer={backToSignIn}
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        <div className="space-y-2">
-          <Label htmlFor="newPassword">New password</Label>
-          <Input
-            id="newPassword"
-            type="password"
-            autoComplete="new-password"
-            autoFocus
-            {...form.register("newPassword")}
-          />
-          {form.formState.errors.newPassword && (
-            <p className="text-sm text-destructive">{form.formState.errors.newPassword.message}</p>
-          )}
-        </div>
+        <FieldGroup>
+          <Field data-invalid={!!form.formState.errors.newPassword}>
+            <FieldLabel htmlFor="newPassword">New password</FieldLabel>
+            <Input
+              id="newPassword"
+              type="password"
+              autoComplete="new-password"
+              autoFocus
+              aria-invalid={!!form.formState.errors.newPassword}
+              {...form.register("newPassword")}
+            />
+            <FieldError errors={[form.formState.errors.newPassword]} />
+          </Field>
 
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            autoComplete="new-password"
-            {...form.register("confirmPassword")}
-          />
-          {form.formState.errors.confirmPassword && (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.confirmPassword.message}
-            </p>
-          )}
-        </div>
+          <Field data-invalid={!!form.formState.errors.confirmPassword}>
+            <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
+            <Input
+              id="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              aria-invalid={!!form.formState.errors.confirmPassword}
+              {...form.register("confirmPassword")}
+            />
+            <FieldError errors={[form.formState.errors.confirmPassword]} />
+          </Field>
+        </FieldGroup>
 
         {reset.error && (
           <p className="text-sm text-destructive" role="alert">

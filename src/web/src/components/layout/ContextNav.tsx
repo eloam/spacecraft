@@ -43,7 +43,7 @@ export function ContextNav({
       <div className="mx-auto max-w-6xl px-4">
         {(title || meta) && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-4 pb-3">
-            {title && <h1 className="text-lg font-semibold tracking-tight">{title}</h1>}
+            {title && <h1 className="font-heading text-lg font-medium tracking-tight">{title}</h1>}
             {meta}
           </div>
         )}

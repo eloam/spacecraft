@@ -7,7 +7,9 @@ import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel,
+} from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -72,31 +74,35 @@ export function ProjectSettingsPage() {
         <>
           <SettingsSection title="General" description="How this project is named.">
             <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" {...form.register("name")} />
-                {form.formState.errors.name && (
-                  <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
-                )}
-              </div>
+              <FieldGroup>
+                <Field data-invalid={!!form.formState.errors.name}>
+                  <FieldLabel htmlFor="name">Name</FieldLabel>
+                  <Input
+                    id="name"
+                    aria-invalid={!!form.formState.errors.name}
+                    {...form.register("name")}
+                  />
+                  <FieldError errors={[form.formState.errors.name]} />
+                </Field>
 
-              <div className="space-y-2">
-                <Label htmlFor="slug">Address</Label>
-                <Input id="slug" value={nextSlug} readOnly disabled className="font-mono text-sm" />
-                {slugWillChange ? (
-                  // Renaming moves the slug, and the slug is the URL. Saying so before the
-                  // click is the difference between a rename and a broken link someone
-                  // discovers later.
-                  <p className="text-xs text-destructive">
-                    Renaming changes this address. Existing links to{" "}
-                    <code className="font-mono">{currentSlug}</code> will stop working.
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Derived from the name, and used in this project&apos;s URL.
-                  </p>
-                )}
-              </div>
+                <Field>
+                  <FieldLabel htmlFor="slug">Address</FieldLabel>
+                  <Input id="slug" value={nextSlug} readOnly disabled className="font-mono text-sm" />
+                  {slugWillChange ? (
+                    // Renaming moves the slug, and the slug is the URL. Saying so before the
+                    // click is the difference between a rename and a broken link someone
+                    // discovers later.
+                    <FieldDescription className="text-xs text-destructive">
+                      Renaming changes this address. Existing links to{" "}
+                      <code className="font-mono">{currentSlug}</code> will stop working.
+                    </FieldDescription>
+                  ) : (
+                    <FieldDescription className="text-xs">
+                      Derived from the name, and used in this project&apos;s URL.
+                    </FieldDescription>
+                  )}
+                </Field>
+              </FieldGroup>
 
               <Button type="submit" disabled={rename.isPending || !form.formState.isDirty}>
                 {rename.isPending ? "Saving…" : "Save changes"}
@@ -108,22 +114,24 @@ export function ProjectSettingsPage() {
             title="Validation"
             description="What an uploaded document has to satisfy before an SDK is generated from it."
           >
-            <div className="flex items-start justify-between gap-6">
-              <div className="max-w-lg space-y-1">
-                <Label htmlFor="strict" className="text-sm font-medium">
+            <Field orientation="horizontal" className="justify-between gap-6">
+              {/* Content first, switch last: the row reads label-then-state, the way it did
+                  when a justify-between div held the two apart. */}
+              <FieldContent className="max-w-lg">
+                <FieldLabel htmlFor="strict">
                   Strict mode
-                </Label>
-                <p className="text-sm text-muted-foreground">
+                </FieldLabel>
+                <FieldDescription>
                   Beyond &ldquo;is this valid OpenAPI&rdquo;, check whether a usable SDK can
                   come out of it: a base URL to call, method names that can be spelled,
                   described responses, publishable metadata. A document that would produce a
                   broken client is rejected instead of being built.
-                </p>
-                <p className="text-sm text-muted-foreground">
+                </FieldDescription>
+                <FieldDescription>
                   Turn it off for a specification you consume but do not own, where the
                   findings are noise standing between you and a client that works.
-                </p>
-              </div>
+                </FieldDescription>
+              </FieldContent>
 
               <Switch
                 id="strict"
@@ -147,7 +155,7 @@ export function ProjectSettingsPage() {
                   })
                 }
               />
-            </div>
+            </Field>
           </SettingsSection>
 
           <DangerSection

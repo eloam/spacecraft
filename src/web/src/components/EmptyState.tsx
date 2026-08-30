@@ -1,5 +1,21 @@
 import type { ReactNode } from "react";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
+/**
+ * The registry's `Empty` behind the four props every caller here actually passes.
+ *
+ * Nine pages render an empty state and all of them say the same four things, so the
+ * composition is written once. What it gains by sitting on the primitive rather than a
+ * hand-rolled dashed box: the icon in a rounded surface, the serif title, and the
+ * spacing the rest of the theme is measured against.
+ */
 export function EmptyState({
   icon,
   title,
@@ -12,11 +28,13 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-14 text-center">
-      {icon && <div className="mb-3 text-muted-foreground">{icon}</div>}
-      <h3 className="text-sm font-medium">{title}</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
-      {action && <div className="mt-5">{action}</div>}
-    </div>
+    <Empty className="rounded-2xl border border-dashed">
+      <EmptyHeader>
+        {icon && <EmptyMedia variant="icon">{icon}</EmptyMedia>}
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+      {action && <EmptyContent>{action}</EmptyContent>}
+    </Empty>
   );
 }

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Ban, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Item, ItemActions, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Separator } from "@/components/ui/separator";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge, StepStatusIcon } from "@/components/StatusBadge";
@@ -47,7 +48,7 @@ export function RunPage() {
           {run.data ? "All runs" : "All projects"}
         </BackLink>
 
-        <h1 className="text-2xl font-semibold tracking-tight">Pipeline run</h1>
+        <h1 className="font-heading text-2xl font-medium tracking-tight">Pipeline run</h1>
         <p className="font-mono text-xs text-muted-foreground">{runId}</p>
       </div>
 
@@ -123,9 +124,14 @@ export function RunPage() {
                     <div key={step.kind}>
                       {index > 0 && <Separator />}
                       <div className="px-6 py-3">
-                        <div className="flex items-center gap-3">
-                          <StepStatusIcon status={step.status} />
-                          <span className="text-sm font-medium">{name}</span>
+                        {/* The row is the Item, but the padding stays on the block around it:
+                            the failure reason and the unfolded log sit under the row and share
+                            its indent, which a padded row would push them out of. */}
+                        <Item className="gap-3 p-0">
+                          <ItemMedia variant="icon">
+                            <StepStatusIcon status={step.status} />
+                          </ItemMedia>
+                          <ItemTitle>{name}</ItemTitle>
                           <span className="text-xs text-muted-foreground">
                             {stepStatusLabel[step.status]}
                           </span>
@@ -137,16 +143,17 @@ export function RunPage() {
                           )}
 
                           {step.hasLog && (
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              className="ml-auto"
-                              onClick={() => setOpenStep(isOpen ? null : name)}
-                            >
-                              {isOpen ? "Hide log" : "View log"}
-                            </Button>
+                            <ItemActions className="ml-auto">
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={() => setOpenStep(isOpen ? null : name)}
+                              >
+                                {isOpen ? "Hide log" : "View log"}
+                              </Button>
+                            </ItemActions>
                           )}
-                        </div>
+                        </Item>
 
                         {step.failureReason && step.status === StepStatus.Failed && (
                           <p className="mt-2 pl-7 text-xs whitespace-pre-wrap text-destructive">

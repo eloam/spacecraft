@@ -7,7 +7,9 @@ import { Plus, UserMinus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field, FieldDescription, FieldError, FieldGroup, FieldLabel,
+} from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -151,7 +153,7 @@ export function MembersPage() {
           </Table>
         ) : (
           <EmptyState
-            icon={<Users className="size-6" aria-hidden />}
+            icon={<Users aria-hidden />}
             title="No members yet"
             description="Add someone with a SpaceCraft account to work on these projects together."
           />
@@ -213,17 +215,21 @@ function InviteDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="member-email">Email</Label>
-              <Input id="member-email" type="email" autoComplete="off" {...form.register("email")} />
-              {form.formState.errors.email && (
-                <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
-              )}
-            </div>
+          <FieldGroup className="py-2">
+            <Field data-invalid={!!form.formState.errors.email}>
+              <FieldLabel htmlFor="member-email">Email</FieldLabel>
+              <Input
+                id="member-email"
+                type="email"
+                autoComplete="off"
+                aria-invalid={!!form.formState.errors.email}
+                {...form.register("email")}
+              />
+              <FieldError errors={[form.formState.errors.email]} />
+            </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor="member-role">Role</Label>
+            <Field>
+              <FieldLabel htmlFor="member-role">Role</FieldLabel>
               <select
                 id="member-role"
                 {...form.register("role")}
@@ -235,9 +241,9 @@ function InviteDialog({
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-muted-foreground">{roleHelp[selectedRole]}</p>
-            </div>
-          </div>
+              <FieldDescription>{roleHelp[selectedRole]}</FieldDescription>
+            </Field>
+          </FieldGroup>
 
           <DialogFooter>
             <DialogClose render={<Button variant="outline" type="button">Cancel</Button>} />

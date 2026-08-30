@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import {
+  Field, FieldContent, FieldDescription, FieldGroup, FieldLabel,
+} from "@/components/ui/field";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -64,9 +66,9 @@ export function GenerateDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="spec">Spec version</Label>
+          <FieldGroup className="py-4">
+            <Field>
+              <FieldLabel htmlFor="spec">Spec version</FieldLabel>
               <select
                 id="spec"
                 value={selectedSpec}
@@ -79,10 +81,10 @@ export function GenerateDialog({
                   </option>
                 ))}
               </select>
-            </div>
+            </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor="target">Target</Label>
+            <Field>
+              <FieldLabel htmlFor="target">Target</FieldLabel>
               <select
                 id="target"
                 value={selectedTarget}
@@ -95,9 +97,9 @@ export function GenerateDialog({
                   </option>
                 ))}
               </select>
-            </div>
+            </Field>
 
-            <label htmlFor="publish" className="flex items-start gap-2 text-sm">
+            <Field orientation="horizontal">
               <input
                 id="publish"
                 type="checkbox"
@@ -105,14 +107,16 @@ export function GenerateDialog({
                 onChange={(e) => setPublish(e.target.checked)}
                 className="mt-0.5"
               />
-              <span>
-                Publish to the registry after a successful build
-                <span className="block text-xs text-muted-foreground">
+              <FieldContent>
+                <FieldLabel htmlFor="publish">
+                  Publish to the registry after a successful build
+                </FieldLabel>
+                <FieldDescription>
                   Requires a registry credential and cannot be undone once accepted.
-                </span>
-              </span>
-            </label>
-          </div>
+                </FieldDescription>
+              </FieldContent>
+            </Field>
+          </FieldGroup>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

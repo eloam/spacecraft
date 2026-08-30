@@ -5,6 +5,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle,
+} from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -357,11 +361,11 @@ export function SpecValidationDialog({
                 A split control: the button runs the project's own mode, which is what is
                 wanted nearly every time, and the chevron opens the one-off — "what would the
                 other mode say about this?" — without making it as easy to reach by accident. */}
-            <div className="flex items-center">
+            <ButtonGroup>
               <Button
                 size="xs"
                 variant="outline"
-                className="gap-1.5 rounded-r-none border-r-0"
+                className="gap-1.5"
                 disabled={specId === null || revalidate.isPending}
                 title="Re-run validation over this document"
                 onClick={() => run()}
@@ -375,7 +379,7 @@ export function SpecValidationDialog({
 
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  render={<Button size="xs" variant="outline" className="rounded-l-none px-1.5" />}
+                  render={<Button size="xs" variant="outline" className="px-1.5" />}
                   disabled={specId === null || revalidate.isPending}
                   aria-label="Revalidate in the other mode"
                 >
@@ -413,7 +417,7 @@ export function SpecValidationDialog({
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
+            </ButtonGroup>
 
             {/* An icon, like the one every other dialog closes with: the word sat in a row
                 of icon buttons and read as one more tool rather than the way out. */}
@@ -449,45 +453,55 @@ export function SpecValidationDialog({
               />
             </Suspense>
           ) : (
-            <ul ref={list} className="h-full divide-y overflow-y-auto">
+            <ul ref={list} className="h-full overflow-y-auto">
               {visible.map((finding) => {
                 const Icon = icons[finding.severity];
 
                 return (
-                  <li
+                  <Item
                     key={finding.id}
+                    render={<li />}
+                    size="xs"
                     data-current={finding.id === currentId}
                     className={cn(
-                      "flex items-start gap-3 px-4 py-2.5 text-sm",
+                      // Rows in a scrolling list, not cards: square, and the rule between
+                      // two of them is the item's own border rather than the list's
+                      // divide-y, which an Item paints over with its transparent one.
+                      "rounded-none [&:not(:last-child)]:border-b-border",
                       finding.id === currentId && "bg-muted/60",
                     )}
                   >
-                    <Icon
-                      className={cn("mt-0.5 size-4 shrink-0", tones[finding.severity])}
-                      aria-hidden
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p>{finding.message}</p>
+                    <ItemMedia variant="icon">
+                      <Icon className={tones[finding.severity]} aria-hidden />
+                    </ItemMedia>
+                    <ItemContent className="min-w-0">
+                      {/* A finding is read, not scanned: the message keeps the weight it had
+                          and the whole of it stays on screen however long it runs. */}
+                      <ItemTitle className="line-clamp-none font-normal">
+                        {finding.message}
+                      </ItemTitle>
                       {finding.jsonPointer && (
-                        <p className="mt-0.5 font-mono text-xs break-all text-muted-foreground">
+                        <ItemDescription className="line-clamp-none font-mono text-xs break-all">
                           {finding.jsonPointer}
-                        </p>
+                        </ItemDescription>
                       )}
-                    </div>
+                    </ItemContent>
 
                     {/* Unlocated findings have somewhere to go now — the block above the
                         first line — so they get the same button, labelled for where it
                         lands rather than with a line number it does not have. */}
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      className={cn("shrink-0 gap-1", finding.line !== null && "font-mono")}
-                      onClick={() => openInSource(finding)}
-                    >
-                      <SquareCode className="size-3.5" aria-hidden />
-                      {finding.line ?? "Top"}
-                    </Button>
-                  </li>
+                    <ItemActions>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        className={cn("shrink-0 gap-1", finding.line !== null && "font-mono")}
+                        onClick={() => openInSource(finding)}
+                      >
+                        <SquareCode className="size-3.5" aria-hidden />
+                        {finding.line ?? "Top"}
+                      </Button>
+                    </ItemActions>
+                  </Item>
                 );
               })}
             </ul>

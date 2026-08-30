@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { AuthCard } from "@/components/AuthCard";
 import { useRegister } from "@/api/queries";
 import { ApiError } from "@/api/client";
@@ -30,6 +30,10 @@ export function RegisterPage() {
   );
 
   const apiError = register.error instanceof ApiError ? register.error : undefined;
+  // Client-side validation wins over the server's copy of the same complaint.
+  const emailError = form.formState.errors.email?.message ?? apiError?.fieldError("email");
+  const passwordError =
+    form.formState.errors.password?.message ?? apiError?.fieldError("password");
 
   return (
     <AuthCard
@@ -45,35 +49,36 @@ export function RegisterPage() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        <div className="space-y-2">
-          <Label htmlFor="displayName">Name</Label>
-          <Input id="displayName" autoComplete="name" {...form.register("displayName")} />
-        </div>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="displayName">Name</FieldLabel>
+            <Input id="displayName" autoComplete="name" {...form.register("displayName")} />
+          </Field>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" autoComplete="email" {...form.register("email")} />
-          {(form.formState.errors.email || apiError?.fieldError("email")) && (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.email?.message ?? apiError?.fieldError("email")}
-            </p>
-          )}
-        </div>
+          <Field data-invalid={!!emailError}>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              aria-invalid={!!emailError}
+              {...form.register("email")}
+            />
+            <FieldError>{emailError}</FieldError>
+          </Field>
 
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            {...form.register("password")}
-          />
-          {(form.formState.errors.password || apiError?.fieldError("password")) && (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.password?.message ?? apiError?.fieldError("password")}
-            </p>
-          )}
-        </div>
+          <Field data-invalid={!!passwordError}>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              aria-invalid={!!passwordError}
+              {...form.register("password")}
+            />
+            <FieldError>{passwordError}</FieldError>
+          </Field>
+        </FieldGroup>
 
         <Button type="submit" className="w-full" disabled={register.isPending}>
           {register.isPending ? "Creating account…" : "Create account"}

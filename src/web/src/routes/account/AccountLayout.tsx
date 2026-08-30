@@ -21,7 +21,7 @@ export function AccountLayout() {
             <Skeleton className="h-5 w-40" />
           ) : (
             <>
-              <h1 className="truncate text-lg font-semibold tracking-tight">
+              <h1 className="truncate font-heading text-lg font-medium tracking-tight">
                 {account.data?.displayName || account.data?.email}
               </h1>
               {account.data?.displayName && (

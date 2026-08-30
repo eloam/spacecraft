@@ -4,7 +4,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,23 +43,28 @@ function ProfileCard({
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
-          <div className="space-y-2">
-            <Label htmlFor="displayName">Display name</Label>
-            <Input id="displayName" placeholder="Not set" {...form.register("displayName")} />
-            {form.formState.errors.displayName && (
-              <p className="text-sm text-destructive">{form.formState.errors.displayName.message}</p>
-            )}
-          </div>
+          <FieldGroup>
+            <Field data-invalid={!!form.formState.errors.displayName}>
+              <FieldLabel htmlFor="displayName">Display name</FieldLabel>
+              <Input
+                id="displayName"
+                placeholder="Not set"
+                aria-invalid={!!form.formState.errors.displayName}
+                {...form.register("displayName")}
+              />
+              <FieldError errors={[form.formState.errors.displayName]} />
+            </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            {/* Changing an address needs a verification round trip to prove the new one is
-                reachable; until that exists, showing it read-only is honest. */}
-            <Input id="email" value={email} readOnly disabled />
-            <p className="text-xs text-muted-foreground">
-              Contact support to change your email address.
-            </p>
-          </div>
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              {/* Changing an address needs a verification round trip to prove the new one is
+                  reachable; until that exists, showing it read-only is honest. */}
+              <Input id="email" value={email} readOnly disabled />
+              <FieldDescription>
+                Contact support to change your email address.
+              </FieldDescription>
+            </Field>
+          </FieldGroup>
 
           <Separator />
 

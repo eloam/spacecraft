@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field, FieldDescription, FieldError, FieldGroup, FieldLabel,
+} from "@/components/ui/field";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -21,6 +23,8 @@ export function CreateOrganizationDialog({
   const [name, setName] = useState("");
   const navigate = useNavigate();
   const create = useCreateOrganization();
+  // Only once something has been typed: an untouched field is not yet wrong.
+  const nameInvalid = Boolean(name.trim()) && !isValidResourceName(name);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -52,23 +56,22 @@ export function CreateOrganizationDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="org-name">Name</Label>
+          <FieldGroup className="py-4">
+            <Field data-invalid={nameInvalid}>
+              <FieldLabel htmlFor="org-name">Name</FieldLabel>
               <Input
                 id="org-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Acme Corp"
                 autoFocus
+                aria-invalid={nameInvalid}
               />
-              {name.trim() && !isValidResourceName(name) && (
-                <p className="text-sm text-destructive">{NAME_RULE}</p>
-              )}
-            </div>
+              <FieldError errors={nameInvalid ? [{ message: NAME_RULE }] : undefined} />
+            </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor="org-slug">Address</Label>
+            <Field>
+              <FieldLabel htmlFor="org-slug">Address</FieldLabel>
               {/* Shown while typing rather than after creating: the address is what ends up
                   in every link to this organization, and seeing it is the only way to know
                   whether the name gives the one you wanted. */}
@@ -80,11 +83,11 @@ export function CreateOrganizationDialog({
                 placeholder="acme-corp"
                 className="font-mono text-sm"
               />
-              <p className="text-xs text-muted-foreground">
+              <FieldDescription>
                 Derived from the name. It can be changed later by renaming.
-              </p>
-            </div>
-          </div>
+              </FieldDescription>
+            </Field>
+          </FieldGroup>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

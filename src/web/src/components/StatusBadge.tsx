@@ -1,4 +1,5 @@
-import { CheckCircle2, CircleDashed, Loader2, MinusCircle, XCircle } from "lucide-react";
+import { CheckCircle2, CircleDashed, MinusCircle, XCircle } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { RunStatus, StepStatus, runStatusLabel, stepStatusLabel } from "@/api/types";
 
@@ -35,7 +36,8 @@ export function RunStatusBadge({ status }: { status: number }) {
       return <Pill tone="danger" icon={<XCircle className={ICON_CLASS} />} label="Failed" />;
     case RunStatus.Running:
       return (
-        <Pill tone="running" icon={<Loader2 className={cn(ICON_CLASS, "animate-spin")} />} label="Running" />
+        // The pill owns the colour and the spinner inherits it, so the tone survives the swap.
+        <Pill tone="running" icon={<Spinner className={ICON_CLASS} />} label="Running" />
       );
     case RunStatus.Cancelled:
       return <Pill tone="neutral" icon={<MinusCircle className={ICON_CLASS} />} label="Cancelled" />;
@@ -55,7 +57,7 @@ export function StepStatusIcon({ status }: { status: number }) {
     case StepStatus.Failed:
       return <XCircle className="size-4 text-destructive" aria-label={label} />;
     case StepStatus.Running:
-      return <Loader2 className="size-4 animate-spin text-blue-600 dark:text-blue-400" aria-label={label} />;
+      return <Spinner className="size-4 text-blue-600 dark:text-blue-400" aria-label={label} />;
     case StepStatus.Skipped:
       return <MinusCircle className="size-4 text-muted-foreground/60" aria-label={label} />;
     default:

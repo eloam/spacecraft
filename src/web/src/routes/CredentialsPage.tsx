@@ -4,8 +4,14 @@ import { ArrowRight, Ban, KeyRound, MoreHorizontal, Package, Plus, RotateCcw, Tr
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field, FieldDescription, FieldError, FieldGroup, FieldLabel,
+} from "@/components/ui/field";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle,
+} from "@/components/ui/item";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -99,9 +105,14 @@ export function CredentialsPage() {
                       Capped and truncated: a registry path can be arbitrarily long, and one
                       of them widened the table until every other column needed scrolling. */}
                   <TableCell className="font-mono text-xs text-muted-foreground">
-                    <span className="block max-w-[14rem] truncate xl:max-w-[24rem]" title={credential.registryUrl}>
-                      {credential.registryUrl}
-                    </span>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={<span className="block max-w-[14rem] truncate xl:max-w-[24rem]" />}
+                      >
+                        {credential.registryUrl}
+                      </TooltipTrigger>
+                      <TooltipContent>{credential.registryUrl}</TooltipContent>
+                    </Tooltip>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     ••••{credential.lastFour}
@@ -113,15 +124,19 @@ export function CredentialsPage() {
                   </TableCell>
                   {/* Relative, like the specs table: this column is scanned for recency, and
                       a full timestamp on every row cost more width than it was worth. */}
-                  <TableCell
-                    className="text-xs whitespace-nowrap text-muted-foreground"
-                    title={
-                      credential.lastUsedAt
-                        ? new Date(credential.lastUsedAt).toLocaleString()
-                        : undefined
-                    }
-                  >
-                    {credential.lastUsedAt ? timeAgo(credential.lastUsedAt) : "—"}
+                  <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
+                    {credential.lastUsedAt ? (
+                      <Tooltip>
+                        <TooltipTrigger render={<span />}>
+                          {timeAgo(credential.lastUsedAt)}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {new Date(credential.lastUsedAt).toLocaleString()}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -182,7 +197,7 @@ export function CredentialsPage() {
           </Card>
         ) : (
           <EmptyState
-            icon={<KeyRound className="size-8" />}
+            icon={<KeyRound />}
             title="No credentials"
             description="Add a registry token so pipeline runs can publish the SDKs they build."
             action={
@@ -220,33 +235,41 @@ export function CredentialsPage() {
               <p className="text-sm font-medium">
                 Publishing with this credential — deletion is refused until these move
               </p>
-              <ul className="space-y-1">
+              <ItemGroup className="gap-1">
                 {deleting.usedBy.map((use) => (
-                  <li key={use.targetId}>
-                    <Link
-                      to={`/orgs/${orgId}/projects/${use.projectSlug}/targets`}
-                      onClick={() => setDeleting(null)}
-                      className="group flex items-center justify-between gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-background"
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <Package className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                        <span className="min-w-0">
-                          <span className="block truncate font-mono text-xs">
-                            {use.packageName}
-                          </span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {use.projectName} · {languageLabel[use.language]}
-                          </span>
-                        </span>
-                      </span>
+                  <Item
+                    key={use.targetId}
+                    size="xs"
+                    render={
+                      <Link
+                        to={`/orgs/${orgId}/projects/${use.projectSlug}/targets`}
+                        onClick={() => setDeleting(null)}
+                      />
+                    }
+                  >
+                    <ItemMedia variant="icon">
+                      <Package className="size-3.5 text-muted-foreground" aria-hidden />
+                    </ItemMedia>
+                    <ItemContent className="min-w-0">
+                      {/* `max-w-full` against `ItemTitle`'s own `w-fit`: with `truncate`'s
+                          nowrap, fit-content resolves to the whole package name and the row
+                          would overflow instead of ellipsising. */}
+                      <ItemTitle className="max-w-full truncate font-mono text-xs">
+                        {use.packageName}
+                      </ItemTitle>
+                      <ItemDescription className="truncate text-xs">
+                        {use.projectName} · {languageLabel[use.language]}
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
                       <ArrowRight
-                        className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                        className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/item:translate-x-0.5"
                         aria-hidden
                       />
-                    </Link>
-                  </li>
+                    </ItemActions>
+                  </Item>
                 ))}
-              </ul>
+              </ItemGroup>
             </div>
           ) : null
         }
@@ -336,9 +359,9 @@ function AddCredentialDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="label">Label</Label>
+          <FieldGroup className="py-4">
+            <Field data-invalid={Boolean(errors.label)}>
+              <FieldLabel htmlFor="label">Label</FieldLabel>
               <Input
                 id="label"
                 value={label}
@@ -351,13 +374,13 @@ function AddCredentialDialog({
                 aria-describedby={errors.label ? "label-error" : undefined}
                 autoFocus
               />
-              {errors.label && (
-                <p id="label-error" className="text-sm text-destructive">{errors.label}</p>
-              )}
-            </div>
+              {/* The id is what `aria-describedby` above points at, so it stays on the error
+                  itself: `FieldError` renders nothing at all while there is no message. */}
+              <FieldError id="label-error">{errors.label}</FieldError>
+            </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor="token">Token</Label>
+            <Field data-invalid={Boolean(errors.token)}>
+              <FieldLabel htmlFor="token">Token</FieldLabel>
               <Input
                 id="token"
                 type="password"
@@ -373,13 +396,11 @@ function AddCredentialDialog({
                 aria-describedby={errors.token ? "token-error" : undefined}
                 autoComplete="off"
               />
-              {errors.token && (
-                <p id="token-error" className="text-sm text-destructive">{errors.token}</p>
-              )}
-            </div>
+              <FieldError id="token-error">{errors.token}</FieldError>
+            </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor="registry-url">Registry</Label>
+            <Field data-invalid={Boolean(errors.registryUrl)}>
+              <FieldLabel htmlFor="registry-url">Registry</FieldLabel>
               <Input
                 id="registry-url"
                 value={registryUrl}
@@ -392,20 +413,20 @@ function AddCredentialDialog({
                 aria-describedby={errors.registryUrl ? "registry-url-error" : undefined}
                 autoComplete="off"
               />
+              {/* Still one or the other: the hint explains what the field is for, and once a
+                  value has been rejected the reason it was rejected is the more useful line. */}
               {errors.registryUrl ? (
-                <p id="registry-url-error" className="text-sm text-destructive">
-                  {errors.registryUrl}
-                </p>
+                <FieldError id="registry-url-error">{errors.registryUrl}</FieldError>
               ) : (
-                <p className="text-xs text-muted-foreground">
+                <FieldDescription>
                   Where packages using this token are published. Point it at a private registry
                   — Verdaccio, Nexus, Artifactory — to keep them off the public one.
-                </p>
+                </FieldDescription>
               )}
-            </div>
+            </Field>
 
             {errors.form && <p className="text-sm text-destructive">{errors.form}</p>}
-          </div>
+          </FieldGroup>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

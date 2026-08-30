@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Dialog, DialogClose, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle,
@@ -70,8 +70,8 @@ export function ConfirmDeleteDialog({
         {details}
 
         {confirmText && (
-          <div className="space-y-2">
-            <Label htmlFor="confirm-text">
+          <Field>
+            <FieldLabel htmlFor="confirm-text">
               Type{" "}
               {/* Monospaced on a tinted ground, the way slugs and package names are shown
                   elsewhere. A name like "Load Test 2" contains spaces, and in running text
@@ -80,7 +80,7 @@ export function ConfirmDeleteDialog({
                 {confirmText}
               </code>{" "}
               to confirm
-            </Label>
+            </FieldLabel>
             <Input
               id="confirm-text"
               value={typed}
@@ -91,7 +91,7 @@ export function ConfirmDeleteDialog({
               className="font-mono text-sm"
               onChange={(e) => setTyped(e.target.value)}
             />
-          </div>
+          </Field>
         )}
 
         {error && <p className="text-sm text-destructive">{error}</p>}

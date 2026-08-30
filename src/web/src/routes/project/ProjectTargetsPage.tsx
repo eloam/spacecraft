@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -273,12 +274,16 @@ export function ProjectTargetsPage() {
                               return (
                                 <div className="max-w-[16rem]">
                                   <p className="truncate">{named.label}</p>
-                                  <p
-                                    className="truncate font-mono text-xs text-muted-foreground"
-                                    title={named.registryUrl}
-                                  >
-                                    {named.registryUrl}
-                                  </p>
+                                  <Tooltip>
+                                    <TooltipTrigger
+                                      render={
+                                        <p className="truncate font-mono text-xs text-muted-foreground" />
+                                      }
+                                    >
+                                      {named.registryUrl}
+                                    </TooltipTrigger>
+                                    <TooltipContent>{named.registryUrl}</TooltipContent>
+                                  </Tooltip>
                                 </div>
                               );
                             })()}
@@ -288,15 +293,21 @@ export function ProjectTargetsPage() {
                             {target.lastPublishedVersion ? (
                               <>
                                 <p className="font-mono text-xs">{target.lastPublishedVersion}</p>
-                                <p
-                                  className="text-xs text-muted-foreground"
-                                  title={
-                                    target.lastPublishedAt
-                                      ? new Date(target.lastPublishedAt).toLocaleString()
-                                      : undefined
-                                  }
-                                >
-                                  {target.lastPublishedAt ? timeAgo(target.lastPublishedAt) : "—"}
+                                <p className="text-xs text-muted-foreground">
+                                  {/* The exact moment behind "3 days ago", on the words that
+                                      abbreviate it rather than on the whole line. */}
+                                  {target.lastPublishedAt ? (
+                                    <Tooltip>
+                                      <TooltipTrigger render={<span />}>
+                                        {timeAgo(target.lastPublishedAt)}
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        {new Date(target.lastPublishedAt).toLocaleString()}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    "—"
+                                  )}
                                   {release && release.count > 1 && (
                                     <> · {release.count} releases</>
                                   )}
@@ -378,7 +389,7 @@ export function ProjectTargetsPage() {
           </div>
         ) : (
           <EmptyState
-            icon={<Package className="size-8" />}
+            icon={<Package />}
             title="No SDK targets"
             description="A target says which language to emit and which package name to publish it under."
             action={

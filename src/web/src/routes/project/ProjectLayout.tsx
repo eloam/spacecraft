@@ -38,7 +38,7 @@ export function ProjectLayout() {
             with the title instead of riding up beside a much smaller line. */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="font-heading text-2xl font-medium tracking-tight">
               {project.data?.name ?? "Project"}
             </h1>
             <p className="font-mono text-xs text-muted-foreground">{project.data?.slug}</p>

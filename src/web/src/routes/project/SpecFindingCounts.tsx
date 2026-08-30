@@ -1,5 +1,6 @@
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { SpecValidationStatus } from "@/api/types";
 
@@ -42,16 +43,20 @@ export function SpecFindingCounts({
   return (
     <div className="flex items-center gap-2.5 text-xs tabular-nums">
       {severities.map(({ count, Icon, tone, noun }) => (
-        <span
-          key={noun}
-          // Zeroes stay in place rather than collapsing: the three always sit in the same
-          // order, so a column of rows can be read down instead of decoded row by row.
-          className={cn("flex items-center gap-1", count > 0 ? tone : "opacity-30")}
-          title={`${count} ${noun}${count === 1 ? "" : "s"}`}
-        >
-          <Icon className="size-3.5" aria-hidden />
-          {count}
-        </span>
+        // An icon and a number are an abbreviation of the sentence the tooltip spells out.
+        <Tooltip key={noun}>
+          <TooltipTrigger
+            // Zeroes stay in place rather than collapsing: the three always sit in the same
+            // order, so a column of rows can be read down instead of decoded row by row.
+            render={
+              <span className={cn("flex items-center gap-1", count > 0 ? tone : "opacity-30")} />
+            }
+          >
+            <Icon className="size-3.5" aria-hidden />
+            {count}
+          </TooltipTrigger>
+          <TooltipContent>{`${count} ${noun}${count === 1 ? "" : "s"}`}</TooltipContent>
+        </Tooltip>
       ))}
     </div>
   );

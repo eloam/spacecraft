@@ -7,7 +7,7 @@ import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { DangerSection, SettingsSection } from "@/components/SettingsSections";
@@ -82,31 +82,35 @@ export function OrganizationSettingsPage() {
         <>
           <SettingsSection title="General" description="How this organization is named.">
             <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" {...form.register("name")} />
-                {form.formState.errors.name && (
-                  <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
-                )}
-              </div>
+              <FieldGroup>
+                <Field data-invalid={!!form.formState.errors.name}>
+                  <FieldLabel htmlFor="name">Name</FieldLabel>
+                  <Input
+                    id="name"
+                    aria-invalid={!!form.formState.errors.name}
+                    {...form.register("name")}
+                  />
+                  <FieldError errors={[form.formState.errors.name]} />
+                </Field>
 
-              <div className="space-y-2">
-                <Label htmlFor="slug">Address</Label>
-                <Input id="slug" value={nextSlug} readOnly disabled className="font-mono text-sm" />
-                {slugWillChange ? (
-                  // Renaming moves the slug, and the slug is the URL. Saying so before the
-                  // click is the difference between a rename and a broken link someone
-                  // discovers later.
-                  <p className="text-xs text-destructive">
-                    Renaming changes this address. Existing links to{" "}
-                    <code className="font-mono">{currentSlug}</code> will stop working.
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Derived from the name, and used in this organization&apos;s URL.
-                  </p>
-                )}
-              </div>
+                <Field>
+                  <FieldLabel htmlFor="slug">Address</FieldLabel>
+                  <Input id="slug" value={nextSlug} readOnly disabled className="font-mono text-sm" />
+                  {slugWillChange ? (
+                    // Renaming moves the slug, and the slug is the URL. Saying so before the
+                    // click is the difference between a rename and a broken link someone
+                    // discovers later.
+                    <FieldDescription className="text-xs text-destructive">
+                      Renaming changes this address. Existing links to{" "}
+                      <code className="font-mono">{currentSlug}</code> will stop working.
+                    </FieldDescription>
+                  ) : (
+                    <FieldDescription className="text-xs">
+                      Derived from the name, and used in this organization&apos;s URL.
+                    </FieldDescription>
+                  )}
+                </Field>
+              </FieldGroup>
 
               <Button type="submit" disabled={rename.isPending || !form.formState.isDirty}>
                 {rename.isPending ? "Saving…" : "Save changes"}

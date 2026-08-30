@@ -5,7 +5,10 @@ import { Laptop, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle,
+} from "@/components/ui/item";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,23 +67,24 @@ function PasswordCard() {
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
-          {(["currentPassword", "newPassword", "confirmPassword"] as const).map((field) => (
-            <div key={field} className="space-y-2">
-              <Label htmlFor={field}>
-                {field === "currentPassword" ? "Current password"
-                  : field === "newPassword" ? "New password" : "Confirm new password"}
-              </Label>
-              <Input
-                id={field}
-                type="password"
-                autoComplete={field === "currentPassword" ? "current-password" : "new-password"}
-                {...form.register(field)}
-              />
-              {form.formState.errors[field] && (
-                <p className="text-sm text-destructive">{form.formState.errors[field]?.message}</p>
-              )}
-            </div>
-          ))}
+          <FieldGroup>
+            {(["currentPassword", "newPassword", "confirmPassword"] as const).map((field) => (
+              <Field key={field} data-invalid={!!form.formState.errors[field]}>
+                <FieldLabel htmlFor={field}>
+                  {field === "currentPassword" ? "Current password"
+                    : field === "newPassword" ? "New password" : "Confirm new password"}
+                </FieldLabel>
+                <Input
+                  id={field}
+                  type="password"
+                  autoComplete={field === "currentPassword" ? "current-password" : "new-password"}
+                  aria-invalid={!!form.formState.errors[field]}
+                  {...form.register(field)}
+                />
+                <FieldError errors={[form.formState.errors[field]]} />
+              </Field>
+            ))}
+          </FieldGroup>
 
           <Button type="submit" disabled={change.isPending}>
             {change.isPending ? "Changing…" : "Change password"}
@@ -111,39 +115,41 @@ function SessionsCard() {
           <Skeleton className="h-16 w-full" />
         ) : (
           <>
-            <ul className="divide-y rounded-lg border">
+            <ItemGroup>
               {sessions.data?.map((session) => (
-                <li key={session.id} className="flex items-center gap-3 p-3">
-                  <Laptop className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <div className="min-w-0 flex-1 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
-                        Started {new Date(session.startedAt).toLocaleDateString()}
-                      </span>
+                <Item key={session.id} role="listitem" variant="outline" size="sm">
+                  <ItemMedia variant="icon">
+                    <Laptop className="text-muted-foreground" aria-hidden />
+                  </ItemMedia>
+                  <ItemContent className="min-w-0">
+                    <ItemTitle>
+                      Started {new Date(session.startedAt).toLocaleDateString()}
                       {session.isCurrent && <Badge variant="secondary">This device</Badge>}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
+                    </ItemTitle>
+                    <ItemDescription>
                       Last used {new Date(session.lastUsedAt).toLocaleString()}
-                    </p>
-                  </div>
+                    </ItemDescription>
+                  </ItemContent>
                   {!session.isCurrent && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        revoke.mutate(session.id, {
-                          onSuccess: () => toast.success("Session signed out."),
-                        })
-                      }
-                      disabled={revoke.isPending}
-                    >
-                      <LogOut className="size-4" aria-hidden />
-                      <span className="sr-only">Sign out this session</span>
-                    </Button>
+                    <ItemActions>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          revoke.mutate(session.id, {
+                            onSuccess: () => toast.success("Session signed out."),
+                          })
+                        }
+                        disabled={revoke.isPending}
+                      >
+                        <LogOut className="size-4" aria-hidden />
+                        <span className="sr-only">Sign out this session</span>
+                      </Button>
+                    </ItemActions>
                   )}
-                </li>
+                </Item>
               ))}
-            </ul>
+            </ItemGroup>
 
             {others.length > 0 && (
               <Button

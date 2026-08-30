@@ -2,7 +2,14 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Building2, Plus, Settings } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
@@ -18,7 +25,7 @@ export function OrganizationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Organizations</h1>
+          <h1 className="font-heading text-2xl font-medium tracking-tight">Organizations</h1>
           <p className="text-sm text-muted-foreground">
             Each organization owns its own projects, registry credentials and pipeline history.
           </p>
@@ -42,10 +49,10 @@ export function OrganizationsPage() {
               >
                 <Link to={`/orgs/${org.slug}`} className="absolute inset-0" aria-label={org.name} />
                 <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="truncate">{org.name}</CardTitle>
+                  <CardTitle className="truncate">{org.name}</CardTitle>
+                  <CardAction>
                     <Badge variant="secondary">{roleLabel[org.role] ?? "Member"}</Badge>
-                  </div>
+                  </CardAction>
                   <CardDescription className="font-mono text-xs">{org.slug}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex items-end justify-between text-sm text-muted-foreground">
@@ -66,7 +73,7 @@ export function OrganizationsPage() {
           </div>
         ) : (
           <EmptyState
-            icon={<Building2 className="size-8" />}
+            icon={<Building2 />}
             title="No organizations yet"
             description="Create one to start tracking an API and publishing SDKs from it."
             action={

@@ -30,6 +30,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SpecFindingCounts } from "@/routes/project/SpecFindingCounts";
 import { SpecValidationDialog } from "@/routes/project/SpecValidationDialog";
 import { SpecDiffDialog } from "@/routes/project/SpecDiffDialog";
@@ -349,9 +350,14 @@ export function ProjectSpecsPage() {
                         {publications.isError ? (
                           // Not "—": that would read as "nothing published", which is a claim
                           // this column is in no position to make when its query failed.
-                          <span className="text-muted-foreground" title="The publications could not be loaded">
-                            unknown
-                          </span>
+                          // One word standing in for the sentence that explains it, so the
+                          // sentence is what the tooltip carries.
+                          <Tooltip>
+                            <TooltipTrigger render={<span className="text-muted-foreground" />}>
+                              unknown
+                            </TooltipTrigger>
+                            <TooltipContent>The publications could not be loaded</TooltipContent>
+                          </Tooltip>
                         ) : packages.length === 0 ? (
                           <span className="text-muted-foreground">—</span>
                         ) : (
@@ -389,11 +395,15 @@ export function ProjectSpecsPage() {
                         )}
                       </TableCell>
 
-                      <TableCell
-                        className="text-xs text-muted-foreground"
-                        title={new Date(spec.createdAt).toLocaleString()}
-                      >
-                        {timeAgo(spec.createdAt)}
+                      <TableCell className="text-xs text-muted-foreground">
+                        <Tooltip>
+                          <TooltipTrigger render={<span />}>
+                            {timeAgo(spec.createdAt)}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {new Date(spec.createdAt).toLocaleString()}
+                          </TooltipContent>
+                        </Tooltip>
                       </TableCell>
 
                       <TableCell className="text-right">
@@ -468,7 +478,7 @@ export function ProjectSpecsPage() {
         ) : (
           // The drop zone above is not an empty state: it says what to do, not what is there.
           <EmptyState
-            icon={<FileCode2 className="size-8" aria-hidden />}
+            icon={<FileCode2 aria-hidden />}
             title="No document yet"
             description="Upload an OpenAPI document above. Each upload is kept as a version, so you can compare them and see what every published package was generated from."
           />
