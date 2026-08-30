@@ -511,6 +511,7 @@ export function ProjectSpecsPage() {
         orgId={orgId}
         projectId={projectId}
         specId={openFor}
+        spec={openSpec && { sequence: openSpec.sequence, title: openSpec.apiTitle }}
         totals={
           openSpec && {
             errors: openSpec.errorCount,

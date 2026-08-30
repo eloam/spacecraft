@@ -58,6 +58,13 @@ function count(n: number, noun: string) {
   return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
+/** Title case and plural, matching the filter set on the specs table this opens from. */
+const labels: Record<number, string> = {
+  [DiagnosticSeverity.Error]: "Errors",
+  [DiagnosticSeverity.Warning]: "Warnings",
+  [DiagnosticSeverity.Information]: "Notes",
+};
+
 const icons: Record<number, typeof Info> = {
   [DiagnosticSeverity.Error]: CircleAlert,
   [DiagnosticSeverity.Warning]: TriangleAlert,
@@ -117,12 +124,15 @@ export function SpecValidationDialog({
   orgId,
   projectId,
   specId,
+  spec,
   totals,
   onClose,
 }: {
   orgId: string;
   projectId: string;
   specId: string | null;
+  /** Which version this is, from the row that opened it. The dialog holds only an id. */
+  spec?: { sequence: number; title: string | null };
   /**
    * What the specs row that opened this dialog already knows the document contains. Stands
    * in whenever the findings themselves are not in hand — while they load, and if they
@@ -341,8 +351,20 @@ export function SpecValidationDialog({
         showCloseButton={false}
       >
         <div className="flex flex-wrap items-center gap-2 border-b bg-topbar px-3 py-2">
-          <DialogTitle className="mr-1 text-sm font-semibold">Validation</DialogTitle>
+          {/* font-sans, against DialogTitle's own heading face: this title sits in a toolbar
+              at 14px beside buttons, where the serif read as a different component
+              rather than as the name of the thing being looked at. */}
+          <DialogTitle className="mr-1 flex items-baseline gap-1.5 font-sans text-sm font-normal">
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">
+              #{spec?.sequence ?? "—"}
+            </span>
+            {spec?.title ?? "Untitled"}
+          </DialogTitle>
 
+          {/* One bordered set rather than three loose buttons, the way the specs table
+              filters this dialog opens from. They toggle independently, so each carries its
+              own aria-pressed — the frame groups them, it does not make them exclusive. */}
+          <div className="flex items-center rounded-lg border bg-card p-0.5">
           {ORDER.map((severity) => {
             const Icon = icons[severity];
 
@@ -354,7 +376,7 @@ export function SpecValidationDialog({
               return (
                 <span
                   key={severity}
-                  className="flex items-center gap-1 px-2 text-xs text-muted-foreground opacity-70"
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-muted-foreground opacity-70"
                   title={
                     diagnostics.isError
                       ? "Recorded on the specs table. The findings themselves could not be loaded."
@@ -370,12 +392,10 @@ export function SpecValidationDialog({
             const off = hidden.includes(severity);
 
             return (
-              <Button
+              <button
                 key={severity}
-                size="xs"
-                variant={off ? "ghost" : "secondary"}
+                type="button"
                 aria-pressed={!off}
-                className={cn("gap-1", off && "opacity-60")}
                 onClick={() =>
                   setHidden((prev) =>
                     prev.includes(severity)
@@ -383,12 +403,22 @@ export function SpecValidationDialog({
                       : [...prev, severity],
                   )
                 }
+                className={cn(
+                  // font-medium whether on or off: a weight that changes on click is a width
+                  // that changes on click, and each toggle nudged the two beside it.
+                  "flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-xs font-medium transition-colors",
+                  off
+                    ? "text-muted-foreground hover:text-foreground"
+                    : "bg-secondary text-secondary-foreground",
+                )}
               >
-                <Icon className={cn("size-3.5", tones[severity])} aria-hidden />
-                {count(counts[severity] ?? 0, nouns[severity])}
-              </Button>
+                <Icon className={cn("size-3.5", !off && tones[severity])} aria-hidden />
+                {labels[severity]}
+                <span className="tabular-nums opacity-60">{counts[severity] ?? 0}</span>
+              </button>
             );
           })}
+          </div>
 
           <div className="ml-auto flex items-center gap-1">
             <span className="mr-1 text-xs tabular-nums text-muted-foreground">{counter()}</span>
