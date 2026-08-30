@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Check, Minus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog, DialogClose, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle,
@@ -64,11 +65,12 @@ export function ConfirmDeleteDialog({
   // for the length of its close animation — so the title faded out reading "Delete spec
   // #undefined?" and the typed-name field vanished mid-fade. Hold the last real values and
   // render those while it leaves.
-  const latched = useRef({ title, description, confirmText });
+  const live = { title, description, confirmText, consequences, reassurances, details };
+  const latched = useRef(live);
   if (open) {
-    latched.current = { title, description, confirmText };
+    latched.current = live;
   }
-  const shown = open ? { title, description, confirmText } : latched.current;
+  const shown = open ? live : latched.current;
 
   // Base UI focuses the first focusable child, which here is whatever `details` renders —
   // on the credentials dialog that is a link out of the page, so Enter on open navigated
@@ -95,35 +97,60 @@ export function ConfirmDeleteDialog({
           <DialogDescription>{shown.description}</DialogDescription>
         </DialogHeader>
 
-        {consequences && consequences.length > 0 && (
-          <div className="space-y-1.5 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
-            {/* Headed, because the frame alone had to carry the meaning and could not: the
-                same box held what was being destroyed and what was not. */}
-            <p className="font-medium text-destructive">This removes</p>
-            <ul className="space-y-1">
-              {consequences.map((line) => (
-                <li key={line} className="text-muted-foreground">
-                  {line}
-                </li>
-              ))}
-            </ul>
+        {/* One panel, two ledgers. The red frame this replaces put a warning colour around
+            facts, so by the time the reader reached the destructive button the colour had
+            already been spent — and it framed information the dialog states calmly one line
+            above. Red belongs on the action; these are the terms of it.
+
+            Same muted surface as the "still publishing" panel below, which says the same
+            kind of thing and had no reason to look like a different component. */}
+        {((shown.consequences && shown.consequences.length > 0) ||
+          (shown.reassurances && shown.reassurances.length > 0)) && (
+          <div className="space-y-3 rounded-2xl border bg-muted/40 p-3.5 text-sm">
+            {shown.consequences && shown.consequences.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium tracking-wider text-destructive uppercase">
+                  This removes
+                </p>
+                <ul className="space-y-1.5">
+                  {shown.consequences.map((line) => (
+                    <li key={line} className="flex items-start gap-2.5">
+                      {/* The icon carries the direction, so the line does not have to open
+                          with "no longer" or "loses" to be read as a loss. */}
+                      <Minus
+                        className="mt-0.5 size-3.5 shrink-0 text-destructive"
+                        aria-hidden
+                      />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {shown.consequences?.length && shown.reassurances?.length ? <Separator /> : null}
+
+            {shown.reassurances && shown.reassurances.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                  Not affected
+                </p>
+                <ul className="space-y-1.5">
+                  {shown.reassurances.map((line) => (
+                    <li key={line} className="flex items-start gap-2.5">
+                      {/* Muted, not green: these are reassurances, not achievements, and the only
+                          colour in this panel should be the one marking a loss. */}
+                      <Check className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                      <span className="text-muted-foreground">{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
-        {reassurances && reassurances.length > 0 && (
-          <div className="space-y-1 text-sm">
-            <p className="font-medium">Not affected</p>
-            <ul className="space-y-1">
-              {reassurances.map((line) => (
-                <li key={line} className="text-muted-foreground">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {details}
+        {shown.details}
 
         {shown.confirmText && (
           <Field>

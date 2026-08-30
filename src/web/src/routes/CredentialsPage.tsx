@@ -146,9 +146,28 @@ export function CredentialsPage() {
                     ••••{credential.lastFour}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={credential.isRevoked ? "destructive" : "outline"}>
-                      {credential.isRevoked ? "Revoked" : "Active"}
-                    </Badge>
+                    <div className="flex flex-col items-start gap-1">
+                      <Badge variant={credential.isRevoked ? "destructive" : "outline"}>
+                        {credential.isRevoked ? "Revoked" : "Active"}
+                      </Badge>
+                      {/* A revoked credential its targets still name is the expensive state:
+                          every run reaches the publish step and fails there, and nothing
+                          says so outside each project's own runs. Counted here because this
+                          is the page where the revoking happened. */}
+                      {credential.usedBy.length > 0 && (
+                        <span
+                          className={
+                            credential.isRevoked
+                              ? "text-xs text-[var(--code-warning)]"
+                              : "text-xs text-muted-foreground"
+                          }
+                        >
+                          {credential.usedBy.length} target
+                          {credential.usedBy.length === 1 ? "" : "s"}
+                          {credential.isRevoked ? " blocked" : ""}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   {/* Relative, like the specs table: this column is scanned for recency, and
                       a full timestamp on every row cost more width than it was worth. */}
@@ -259,21 +278,27 @@ export function CredentialsPage() {
         // live publish token in the wild.
         description="The record is removed for good. Revoking, which is reversible, only stops this application from using it. Deleting it here does not revoke the token at the registry — do that there too."
         confirmText={deleting?.label}
-        // `deleting &&`, not a bare falsy test on the count: closing the dialog sets
-        // `deleting` to null while the exit animation still runs, and `undefined` counts as
-        // "no targets" — so the "Not affected" box appeared for the first time on the way
-        // out, on exactly the credentials that should never have shown it.
-        reassurances={
-          deleting && deleting.usedBy.length === 0
-            ? ["No SDK target publishes with it"]
-            : undefined
-        }
+        consequences={[
+          // What actually goes: the secret. Named as the thing it is, because "the
+          // credential" is the row on screen and losing the row is not the cost — losing
+          // the only copy of a token nobody can read back is.
+          "The stored token, which no one can read back — publishing here again needs a new one",
+          "Its label and registry address",
+        ]}
+        // The count is safe to read directly now: the dialog holds the last values it was
+        // given for the length of its close animation, so `deleting` going null mid-exit no
+        // longer flips this to the wrong branch.
+        reassurances={[
+          "Packages already published stay in their registries",
+          ...(deleting?.usedBy.length === 0 ? ["No SDK target publishes with it"] : []),
+        ]}
         details={
           deleting?.usedBy.length ? (
             <UsedByList
               orgId={orgId}
               usedBy={deleting.usedBy}
-              heading="Publishing with this credential — deletion is refused until these move"
+              label="Still publishing"
+              note="Deletion is refused until each of these moves to another credential."
               onNavigate={() => setDeleting(null)}
             />
           ) : null
@@ -316,7 +341,8 @@ export function CredentialsPage() {
             <UsedByList
               orgId={orgId}
               usedBy={revoking.usedBy}
-              heading="These targets stop publishing until it is restored"
+              label="Stops publishing"
+              note="They start again if you restore the credential."
               onNavigate={() => setRevoking(null)}
             />
           )}
@@ -344,18 +370,28 @@ export function CredentialsPage() {
 function UsedByList({
   orgId,
   usedBy,
-  heading,
+  label,
+  note,
   onNavigate,
 }: {
   orgId: string;
   usedBy: Credential["usedBy"];
-  heading: string;
+  /**
+   * The eyebrow, in the same voice as the "This removes" ledger above it. Short on purpose:
+   * this treatment is tracked uppercase at 12px, and the sentence that used to sit here ran
+   * to three lines of it. What that sentence explained is the `note`, in prose, under the
+   * list it is about.
+   */
+  label: string;
+  note: string;
   /** The links lead out of the dialog, which would otherwise still be open behind the page. */
   onNavigate: () => void;
 }) {
   return (
-    <div className="space-y-2 rounded-2xl border bg-muted/40 p-3">
-      <p className="text-sm font-medium">{heading}</p>
+    <div className="space-y-2 rounded-2xl border bg-muted/40 p-3.5">
+      {/* Red like "This removes": both name why the action in front of you is blocked or
+          costly, and a neutral label read as a heading rather than as a warning. */}
+      <p className="text-xs font-medium tracking-wider text-destructive uppercase">{label}</p>
       <ItemGroup className="gap-1">
         {usedBy.map((use) => (
           <Item
@@ -391,6 +427,10 @@ function UsedByList({
           </Item>
         ))}
       </ItemGroup>
+
+      {/* Under the list, not above it: it explains what the rows mean, and reading it first
+          asked the reader to hold a consequence in mind before seeing what it applies to. */}
+      <p className="text-sm text-muted-foreground">{note}</p>
     </div>
   );
 }
