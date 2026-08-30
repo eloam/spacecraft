@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Ban, Download } from "lucide-react";
+import { Ban, Download, Hand, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Item, ItemActions, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
@@ -15,7 +17,7 @@ import type { ArtifactDownload } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 import { BackLink } from "@/components/BackLink";
-import { LanguageDot } from "@/components/LanguageDot";
+import { LanguageMark } from "@/components/LanguageDot";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function RunPage() {
@@ -76,15 +78,86 @@ export function RunPage() {
           All runs
         </BackLink>
 
-        <h1 className="font-heading text-2xl font-medium tracking-tight">
-          Pipeline run
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="font-heading text-2xl font-medium tracking-tight">
+              Pipeline run
+              {run.data && (
+                <>
+                  {/* The package this run produces, so the title names the thing rather than
+                      the page, with the version it resolved beside it — one line answering
+                      "what was built, and which version of it". */}
+                  <span className="text-muted-foreground"> — {run.data.targetPackageName}</span>
+                  {run.data.resolvedVersion && (
+                    <span className="ml-2 font-mono text-base text-muted-foreground">
+                      v{run.data.resolvedVersion}
+                    </span>
+                  )}
+                </>
+              )}
+            </h1>
+        {/* The project belongs here, not in the table: that table is the SDK targets one,
+            and a project is not a property of a target. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           {run.data && (
-            // The package this run produces, so the title names the thing rather than the
-            // page. Kept after "Pipeline run" because that is what the reader arrived for.
-            <span className="text-muted-foreground"> — {run.data.targetPackageName}</span>
+            <>
+              <Link
+                to={`/orgs/${orgId}/projects/${run.data.apiProjectId}/targets`}
+                className="text-foreground underline-offset-4 hover:underline"
+              >
+                {run.data.projectName ?? "This project"}
+              </Link>
+              <span aria-hidden>·</span>
+            </>
           )}
-        </h1>
-        <p className="font-mono text-xs text-muted-foreground">{runId}</p>
+              <span className="font-mono">{runId}</span>
+            </div>
+          </div>
+
+          {/* Where every other page puts its primary action — New project, Add target,
+              Generate SDK. The status rides with them because it is what decides which of
+              them are there: an artifact exists only once a run has produced one, and Cancel
+              only while it has not finished. */}
+          {run.data && (
+            <div className="flex shrink-0 items-center gap-2">
+              <RunStatusBadge status={run.data.status} />
+              {run.data.attemptCount > 1 && (
+                <span className="text-xs text-muted-foreground">
+                  attempt {run.data.attemptCount}
+                </span>
+              )}
+              {run.data.hasArtifact && (
+                <Button variant="outline" size="sm" onClick={download} disabled={downloading}>
+                  {/* The spinner replaces the icon and the label stays put, as on the
+                      Generate button: a label that changes is a width that changes, and this
+                      one sits next to Cancel in a right-aligned row that would slide sideways
+                      for as long as the presign takes. */}
+                  {downloading ? <Spinner /> : <Download className="size-4" aria-hidden />}
+                  Artifact
+                </Button>
+              )}
+              {!isTerminal(run.data.status) && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() =>
+                    cancel.mutate(runId, {
+                      onSuccess: () => toast.success("Run cancelled"),
+                      onError: (err) =>
+                        toast.error(
+                          err instanceof ApiError ? err.detail : "Could not cancel the run.",
+                        ),
+                    })
+                  }
+                  disabled={cancel.isPending}
+                >
+                  <Ban className="size-4" aria-hidden />
+                  Cancel
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* This page polls every two seconds until the run settles, so a single dropped poll
@@ -97,131 +170,87 @@ export function RunPage() {
       >
         {run.data && (
           <>
-            <Card>
-              <CardHeader>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <RunStatusBadge status={run.data.status} />
-                    {run.data.resolvedVersion && (
-                      <span className="font-mono text-sm text-muted-foreground">
-                        v{run.data.resolvedVersion}
-                      </span>
-                    )}
-                    {run.data.attemptCount > 1 && (
-                      <span className="text-xs text-muted-foreground">
-                        attempt {run.data.attemptCount}
-                      </span>
-                    )}
-                  </div>
+            <Card className="py-0">
+              {/* The SDK targets table, header and one row, rendered exactly as it is
+                  there — same columns, same two-line SDK cell, same registry badge, same
+                  publishing pair, same label-over-address. Someone arriving from that tab
+                  should not have to re-learn how to read the same five facts.
 
-                  <div className="flex gap-2">
-                    {run.data.hasArtifact && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={download}
-                        disabled={downloading}
-                      >
-                        {/* The spinner replaces the icon and the label stays put, as on the
-                            Generate button: a label that changes is a width that changes,
-                            and this one sits next to Cancel in a right-aligned row that
-                            would slide sideways for as long as the presign takes. */}
-                        {downloading ? <Spinner /> : <Download className="size-4" aria-hidden />}
-                        Artifact
-                      </Button>
-                    )}
-                    {!isTerminal(run.data.status) && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() =>
-                          cancel.mutate(runId, {
-                            onSuccess: () => toast.success("Run cancelled"),
-                            onError: (err) =>
-                              toast.error(
-                                err instanceof ApiError ? err.detail : "Could not cancel the run.",
-                              ),
-                          })
-                        }
-                        disabled={cancel.isPending}
-                      >
-                        <Ban className="size-4" aria-hidden />
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
+                  Read off the run, not the target: the target may since have been renamed,
+                  repointed, switched between automatic and manual, or deleted, and a page
+                  describing history has to keep saying what happened. */}
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SDK</TableHead>
+                      <TableHead className="w-32">Registry</TableHead>
+                      <TableHead className="w-40">Publishing</TableHead>
+                      <TableHead className="w-64">Publishes to</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <LanguageMark language={run.data.targetLanguage} />
+                          <div className="flex min-w-0 flex-col">
+                            <span className="font-medium">
+                              {languageLabel[run.data.targetLanguage] ?? "Unknown"}
+                            </span>
+                            <span className="truncate font-mono text-xs text-muted-foreground">
+                              {run.data.targetPackageName}
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
 
-              {/* What this run was pointed at, as it was pointed then. Read off the run, not
-                  off the target: the target may since have been renamed, repointed at another
-                  registry, switched between automatic and manual, or deleted outright, and a
-                  page describing history has to keep saying what happened.
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-[10px]">
+                          {registryLabel[run.data.targetRegistry] ?? "—"}
+                        </Badge>
+                      </TableCell>
 
-                  Rows separated by hairlines rather than boxed: these are five facts about
-                  one thing, and each in its own frame reads as five things. */}
-              <CardContent>
-                <dl className="text-sm">
-                  {[
-                    {
-                      term: "Project",
-                      value: (
-                        <Link
-                          to={`/orgs/${orgId}/projects/${run.data.apiProjectId}/targets`}
-                          className="underline-offset-4 hover:underline"
-                        >
-                          {run.data.projectName ?? "—"}
-                        </Link>
-                      ),
-                    },
-                    {
-                      term: "SDK",
-                      value: (
-                        <span className="flex items-center gap-2">
-                          <LanguageDot language={run.data.targetLanguage} />
-                          {languageLabel[run.data.targetLanguage] ?? "—"}
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {run.data.targetPackageName}
+                      <TableCell>
+                        {run.data.targetAutoPublish ? (
+                          <span className="flex items-center gap-1.5 text-xs">
+                            <Zap className="size-3.5 text-[var(--code-warning)]" aria-hidden />
+                            Automatic
                           </span>
-                        </span>
-                      ),
-                    },
-                    { term: "Registry", value: registryLabel[run.data.targetRegistry] ?? "—" },
-                    {
-                      term: "Publishing",
-                      value: run.data.targetAutoPublish ? "Automatic" : "Manual",
-                    },
-                    {
-                      term: "Publishes to",
-                      value: run.data.targetRegistryUrl ? (
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={<span className="block max-w-[22rem] truncate font-mono text-xs" />}
-                          >
-                            {run.data.targetRegistryUrl}
-                          </TooltipTrigger>
-                          {/* break-all: a registry URL has no spaces to wrap at, so the
-                              tooltip would clip the address it was opened to reveal. */}
-                          <TooltipContent className="break-all">
-                            {run.data.targetRegistryUrl}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          Nowhere — this target had no credential
-                        </span>
-                      ),
-                    },
-                  ].map(({ term, value }) => (
-                    <div
-                      key={term}
-                      className="flex items-baseline justify-between gap-6 border-b py-2 last:border-b-0"
-                    >
-                      <dt className="shrink-0 text-muted-foreground">{term}</dt>
-                      <dd className="min-w-0 text-right">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-xs">
+                            <Hand className="size-3.5 text-[var(--success)]" aria-hidden />
+                            Manual
+                          </span>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        {run.data.targetRegistryUrl ? (
+                          <div className="max-w-[16rem]">
+                            <p className="truncate">{run.data.targetCredentialLabel ?? "—"}</p>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <p className="truncate font-mono text-xs text-muted-foreground" />
+                                }
+                              >
+                                {run.data.targetRegistryUrl}
+                              </TooltipTrigger>
+                              {/* break-all: an unbroken URL cannot wrap, so the tooltip
+                                  would clip the address it was opened to reveal. */}
+                              <TooltipContent className="break-all">
+                                {run.data.targetRegistryUrl}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Not published</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </CardContent>
 
               {run.data.failureReason && (

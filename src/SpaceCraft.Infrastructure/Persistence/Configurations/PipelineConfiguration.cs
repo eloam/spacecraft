@@ -21,6 +21,7 @@ public sealed class PipelineRunConfiguration : IEntityTypeConfiguration<Pipeline
         // columns they are copied from, so a value that fits on a target fits here.
         builder.Property(r => r.TargetPackageName).HasMaxLength(214).IsRequired();
         builder.Property(r => r.TargetRegistryUrl).HasMaxLength(512);
+        builder.Property(r => r.TargetCredentialLabel).HasMaxLength(80);
 
         // No optimistic concurrency token here on purpose. Claiming goes through
         // SELECT ... FOR UPDATE SKIP LOCKED, so Postgres serialises competing workers at

@@ -44,6 +44,8 @@ public sealed record RunResponse(
     bool TargetAutoPublish,
     /// <summary>Where its credential pointed then; null when it had none.</summary>
     string? TargetRegistryUrl,
+    /// <summary>The credential's label as it read then; null when the target had none.</summary>
+    string? TargetCredentialLabel,
     RunStatus Status,
     RunTrigger Trigger,
     bool PublishRequested,
@@ -120,7 +122,15 @@ public static class RunEndpoints
             .Include(r => r.Steps)
             .ToListAsync(ct);
 
-        return TypedResults.Ok(runs.Select(r => ToResponse(r)).ToList());
+        // One lookup for the page rather than one per run, and rather than none at all:
+        // ProjectName exists so a caller can name the project without a second request, and
+        // this list never filled it — the column reading it showed a dash on every row.
+        var projectNames = await db.ApiProjects.AsNoTracking()
+            .Where(p => p.OrganizationId == organizationId)
+            .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+
+        return TypedResults.Ok(
+            runs.Select(r => ToResponse(r, projectNames.GetValueOrDefault(r.ApiProjectId))).ToList());
     }
 
     private static async Task<IResult> CreateAsync(
@@ -182,10 +192,10 @@ public static class RunEndpoints
 
         // Read now, stored on the run: the address travels with the credential, so revoking
         // or repointing one later must not change where this run says it published.
-        var registryUrl = target.RegistryCredentialId is { } credentialId
+        var credential = target.RegistryCredentialId is { } credentialId
             ? await db.RegistryCredentials.AsNoTracking()
                 .Where(c => c.Id == credentialId && c.OrganizationId == organizationId)
-                .Select(c => c.RegistryUrl)
+                .Select(c => new { c.RegistryUrl, c.Label })
                 .FirstOrDefaultAsync(ct)
             : null;
 
@@ -194,7 +204,8 @@ public static class RunEndpoints
             project.Id,
             spec.Id,
             target,
-            registryUrl,
+            credential?.RegistryUrl,
+            credential?.Label,
             RunTrigger.Manual,
             request.Publish,
             principal.Id());
@@ -360,6 +371,7 @@ public static class RunEndpoints
             run.TargetRegistry,
             run.TargetAutoPublish,
             run.TargetRegistryUrl,
+            run.TargetCredentialLabel,
             run.Status,
             run.Trigger,
             run.PublishRequested,

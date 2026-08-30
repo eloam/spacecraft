@@ -437,7 +437,7 @@ public static class SpecEndpoints
             // project commonly share a credential, and this runs on the upload path.
             var credentialUrls = await db.RegistryCredentials.AsNoTracking()
                 .Where(c => c.OrganizationId == organizationId)
-                .ToDictionaryAsync(c => c.Id, c => c.RegistryUrl, ct);
+                .ToDictionaryAsync(c => c.Id, c => new { c.RegistryUrl, c.Label }, ct);
 
             foreach (var target in project.Targets.Where(t => t.AutoPublish && t.Language.IsSupported()))
             {
@@ -446,8 +446,11 @@ public static class SpecEndpoints
                     projectId,
                     specVersion.Id,
                     target,
-                    target.RegistryCredentialId is { } id && credentialUrls.TryGetValue(id, out var url)
-                        ? url
+                    target.RegistryCredentialId is { } id && credentialUrls.TryGetValue(id, out var cred)
+                        ? cred.RegistryUrl
+                        : null,
+                    target.RegistryCredentialId is { } id2 && credentialUrls.TryGetValue(id2, out var cred2)
+                        ? cred2.Label
                         : null,
                     RunTrigger.SpecUpload,
                     publishRequested: true,

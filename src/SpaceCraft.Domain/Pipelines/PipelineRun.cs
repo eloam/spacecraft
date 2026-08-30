@@ -41,6 +41,7 @@ public sealed class PipelineRun : Entity
         Guid specVersionId,
         SdkTarget target,
         string? targetRegistryUrl,
+        string? targetCredentialLabel,
         RunTrigger trigger,
         bool publishRequested,
         Guid? triggeredByUserId = null)
@@ -56,6 +57,7 @@ public sealed class PipelineRun : Entity
         TargetRegistry = target.Registry;
         TargetAutoPublish = target.AutoPublish;
         TargetRegistryUrl = targetRegistryUrl;
+        TargetCredentialLabel = targetCredentialLabel;
         Trigger = trigger;
         PublishRequested = publishRequested;
         TriggeredByUserId = triggeredByUserId;
@@ -98,6 +100,13 @@ public sealed class PipelineRun : Entity
     /// target had none, which is also why the run could not publish.
     /// </summary>
     public string? TargetRegistryUrl { get; private set; }
+
+    /// <summary>
+    /// The credential's label as it read then. Names which token was used in words someone
+    /// recognises, which the URL does not, and outlives the credential being renamed or
+    /// deleted — the two reasons this is a copy rather than a join.
+    /// </summary>
+    public string? TargetCredentialLabel { get; private set; }
     public Guid? TriggeredByUserId { get; private set; }
 
     public RunTrigger Trigger { get; private set; }

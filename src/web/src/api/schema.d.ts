@@ -2570,6 +2570,7 @@ export interface components {
             targetRegistry: components["schemas"]["RegistryKind"];
             targetAutoPublish: boolean;
             targetRegistryUrl: null | string;
+            targetCredentialLabel: null | string;
             status: components["schemas"]["RunStatus"];
             trigger: components["schemas"]["RunTrigger"];
             publishRequested: boolean;

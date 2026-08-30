@@ -21,7 +21,7 @@ public class PipelineRunTests
 
     private static PipelineRun NewRun(bool publish = true) =>
         new(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), NewTarget(),
-            "https://registry.npmjs.org", RunTrigger.Manual, publish);
+            "https://registry.npmjs.org", "npm", RunTrigger.Manual, publish);
 
     [Fact]
     public void A_new_run_is_queued_with_all_four_steps()

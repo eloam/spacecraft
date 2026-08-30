@@ -333,6 +333,11 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("target_auto_publish");
 
+                    b.Property<string>("TargetCredentialLabel")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("target_credential_label");
+
                     b.Property<int>("TargetLanguage")
                         .HasColumnType("integer")
                         .HasColumnName("target_language");

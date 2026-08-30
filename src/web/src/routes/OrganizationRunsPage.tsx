@@ -37,8 +37,16 @@ export function OrganizationRunsPage() {
   // ?project=<slug> narrows to one project, and the SDK targets page hands over that way.
   // Sent to the API rather than filtered here: the listing is capped server-side, so
   // filtering afterwards would quietly drop the older runs of a busy project.
-  const projectFilter = search.get("project");
+  const rawProjectFilter = search.get("project");
   const projects = useProjects(orgId);
+
+  // The filter is a slug in links this page mints, and an id in the one the run page mints —
+  // a run knows its project's id, not its slug. Normalised to a slug so the Select can match
+  // an option; the API resolves either, so only the display needed the translation.
+  const projectFilter =
+    rawProjectFilter && (projects.data ?? []).some((p) => p.slug === rawProjectFilter)
+      ? rawProjectFilter
+      : ((projects.data ?? []).find((p) => p.id === rawProjectFilter)?.slug ?? rawProjectFilter);
   const runs = useRuns(orgId, projectFilter ?? undefined);
 
   // ?spec=<id> is how the specs table hands over: "the runs of this version". Filtered here,
