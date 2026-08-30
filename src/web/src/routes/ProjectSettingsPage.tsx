@@ -10,10 +10,10 @@ import { Input } from "@/components/ui/input";
 import {
   Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel,
 } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { DangerSection, SettingsSection } from "@/components/SettingsSections";
+import { QueryBoundary } from "@/components/QueryBoundary";
 import { NAME_MAX_LENGTH, NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { ApiError } from "@/api/client";
 import {
@@ -68,139 +68,148 @@ export function ProjectSettingsPage() {
 
   return (
     <div className="space-y-6">
-      {project.isPending ? (
-        <Skeleton className="h-48 w-full" />
-      ) : (
-        <>
-          <SettingsSection title="General" description="How this project is named.">
-            <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
-              <FieldGroup>
-                <Field data-invalid={!!form.formState.errors.name}>
-                  <FieldLabel htmlFor="name">Name</FieldLabel>
-                  <Input
-                    id="name"
-                    aria-invalid={!!form.formState.errors.name}
-                    {...form.register("name")}
-                  />
-                  <FieldError errors={[form.formState.errors.name]} />
-                </Field>
+      {/* Everything below is the project's own settings, so none of it may render without
+          the project: an empty Name, a Strict mode switch asserting a default it never read,
+          and a delete dialog whose typed-name gate is undefined are all worse than saying
+          the load failed. hasData is what keeps a failed refetch — renaming and the strict
+          toggle both invalidate this query — from blanking a page the user is working in.
+          isPending rather than isLoading, because isLoading is `isPending && isFetching`:
+          a first fetch paused for an offline browser leaves it false with no data and no
+          error, and the fall-through would be the empty form this guard exists to stop. */}
+      <QueryBoundary
+        isLoading={project.isPending}
+        error={project.error}
+        hasData={project.data !== undefined}
+        rows={3}
+      >
+        <SettingsSection title="General" description="How this project is named.">
+          <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
+            <FieldGroup>
+              <Field data-invalid={!!form.formState.errors.name}>
+                <FieldLabel htmlFor="name">Name</FieldLabel>
+                <Input
+                  id="name"
+                  aria-invalid={!!form.formState.errors.name}
+                  {...form.register("name")}
+                />
+                <FieldError errors={[form.formState.errors.name]} />
+              </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="slug">Address</FieldLabel>
-                  <Input id="slug" value={nextSlug} readOnly disabled className="font-mono text-sm" />
-                  {slugWillChange ? (
-                    // Renaming moves the slug, and the slug is the URL. Saying so before the
-                    // click is the difference between a rename and a broken link someone
-                    // discovers later.
-                    <FieldDescription className="text-xs text-destructive">
-                      Renaming changes this address. Existing links to{" "}
-                      <code className="font-mono">{currentSlug}</code> will stop working.
-                    </FieldDescription>
-                  ) : (
-                    <FieldDescription className="text-xs">
-                      Derived from the name, and used in this project&apos;s URL.
-                    </FieldDescription>
-                  )}
-                </Field>
-              </FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="slug">Address</FieldLabel>
+                <Input id="slug" value={nextSlug} readOnly disabled className="font-mono text-sm" />
+                {slugWillChange ? (
+                  // Renaming moves the slug, and the slug is the URL. Saying so before the
+                  // click is the difference between a rename and a broken link someone
+                  // discovers later.
+                  <FieldDescription className="text-xs text-destructive">
+                    Renaming changes this address. Existing links to{" "}
+                    <code className="font-mono">{currentSlug}</code> will stop working.
+                  </FieldDescription>
+                ) : (
+                  <FieldDescription className="text-xs">
+                    Derived from the name, and used in this project&apos;s URL.
+                  </FieldDescription>
+                )}
+              </Field>
+            </FieldGroup>
 
-              <Button type="submit" disabled={rename.isPending || !form.formState.isDirty}>
-                {rename.isPending ? "Saving…" : "Save changes"}
-              </Button>
-            </form>
-          </SettingsSection>
-
-          <SettingsSection
-            title="Validation"
-            description="What an uploaded document has to satisfy before an SDK is generated from it."
-          >
-            <Field orientation="horizontal" className="justify-between gap-6">
-              {/* Content first, switch last: the row reads label-then-state, the way it did
-                  when a justify-between div held the two apart. */}
-              <FieldContent className="max-w-lg">
-                <FieldLabel htmlFor="strict">
-                  Strict mode
-                </FieldLabel>
-                <FieldDescription>
-                  Beyond &ldquo;is this valid OpenAPI&rdquo;, check whether a usable SDK can
-                  come out of it: a base URL to call, method names that can be spelled,
-                  described responses, publishable metadata. A document that would produce a
-                  broken client is rejected instead of being built.
-                </FieldDescription>
-                <FieldDescription>
-                  Turn it off for a specification you consume but do not own, where the
-                  findings are noise standing between you and a client that works.
-                </FieldDescription>
-              </FieldContent>
-
-              <Switch
-                id="strict"
-                checked={project.data?.strictValidation ?? true}
-                disabled={strict.isPending}
-                onCheckedChange={(enabled) =>
-                  strict.mutate(enabled, {
-                    // Existing versions keep the findings they were given at upload, so the
-                    // change is not visible until each is revalidated. Saying so here beats
-                    // letting it be discovered as an inconsistency.
-                    onSuccess: () =>
-                      toast.success(
-                        enabled
-                          ? "Strict mode on. Revalidate a spec to apply it to what is already uploaded."
-                          : "Strict mode off. Revalidate a spec to apply it to what is already uploaded.",
-                      ),
-                    onError: (error) =>
-                      toast.error(
-                        error instanceof ApiError ? error.detail : "Could not change the setting.",
-                      ),
-                  })
-                }
-              />
-            </Field>
-          </SettingsSection>
-
-          <DangerSection
-            title="Delete project"
-            description="Removes the project and everything recorded under it."
-          >
-            <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="size-4" aria-hidden />
-              Delete project
+            <Button type="submit" disabled={rename.isPending || !form.formState.isDirty}>
+              {rename.isPending ? "Saving…" : "Save changes"}
             </Button>
-          </DangerSection>
-        </>
-      )}
+          </form>
+        </SettingsSection>
 
-      <ConfirmDeleteDialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          setDeleteOpen(open);
-          if (!open) setDeleteError(null);
-        }}
-        title={`Delete ${project.data?.name ?? "this project"}?`}
-        description="This removes the project and everything recorded under it."
-        confirmText={project.data?.name}
-        consequences={[
-          `${project.data?.specVersionCount ?? 0} uploaded spec version(s)`,
-          `${project.data?.targets.length ?? 0} SDK target(s)`,
-          "Its entire run history, with artifacts and logs",
-          "Packages already published stay in their registries",
-        ]}
-        isPending={remove.isPending}
-        error={deleteError}
-        onConfirm={() =>
-          project.data &&
-          remove.mutate({ projectId, name: project.data.name }, {
-            onSuccess: () => {
-              toast.success("Project deleted.");
-              navigate(`/orgs/${orgId}`);
-            },
-            onError: (error) =>
-              setDeleteError(
-                error instanceof ApiError ? error.detail : "Could not delete the project.",
-              ),
-          })
-        }
-      />
+        <SettingsSection
+          title="Validation"
+          description="What an uploaded document has to satisfy before an SDK is generated from it."
+        >
+          <Field orientation="horizontal" className="justify-between gap-6">
+            {/* Content first, switch last: the row reads label-then-state, the way it did
+                when a justify-between div held the two apart. */}
+            <FieldContent className="max-w-lg">
+              <FieldLabel htmlFor="strict">
+                Strict mode
+              </FieldLabel>
+              <FieldDescription>
+                Beyond &ldquo;is this valid OpenAPI&rdquo;, check whether a usable SDK can
+                come out of it: a base URL to call, method names that can be spelled,
+                described responses, publishable metadata. A document that would produce a
+                broken client is rejected instead of being built.
+              </FieldDescription>
+              <FieldDescription>
+                Turn it off for a specification you consume but do not own, where the
+                findings are noise standing between you and a client that works.
+              </FieldDescription>
+            </FieldContent>
+
+            <Switch
+              id="strict"
+              checked={project.data?.strictValidation ?? true}
+              disabled={strict.isPending}
+              onCheckedChange={(enabled) =>
+                strict.mutate(enabled, {
+                  // Existing versions keep the findings they were given at upload, so the
+                  // change is not visible until each is revalidated. Saying so here beats
+                  // letting it be discovered as an inconsistency.
+                  onSuccess: () =>
+                    toast.success(
+                      enabled
+                        ? "Strict mode on. Revalidate a spec to apply it to what is already uploaded."
+                        : "Strict mode off. Revalidate a spec to apply it to what is already uploaded.",
+                    ),
+                  onError: (error) =>
+                    toast.error(
+                      error instanceof ApiError ? error.detail : "Could not change the setting.",
+                    ),
+                })
+              }
+            />
+          </Field>
+        </SettingsSection>
+
+        <DangerSection
+          title="Delete project"
+          description="Removes the project and everything recorded under it."
+        >
+          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="size-4" aria-hidden />
+            Delete project
+          </Button>
+        </DangerSection>
+
+        <ConfirmDeleteDialog
+          open={deleteOpen}
+          onOpenChange={(open) => {
+            setDeleteOpen(open);
+            if (!open) setDeleteError(null);
+          }}
+          title={`Delete ${project.data?.name ?? "this project"}?`}
+          description="This removes the project and everything recorded under it."
+          confirmText={project.data?.name}
+          consequences={[
+            `${project.data?.specVersionCount ?? 0} uploaded spec version(s)`,
+            `${project.data?.targets.length ?? 0} SDK target(s)`,
+            "Its entire run history, with artifacts and logs",
+          ]}
+          reassurances={["Packages already published stay in their registries"]}
+          isPending={remove.isPending}
+          error={deleteError}
+          onConfirm={() =>
+            project.data &&
+            remove.mutate({ projectId, name: project.data.name }, {
+              onSuccess: () => {
+                toast.success("Project deleted.");
+                navigate(`/orgs/${orgId}`);
+              },
+              onError: (error) =>
+                setDeleteError(
+                  error instanceof ApiError ? error.detail : "Could not delete the project.",
+                ),
+            })
+          }
+        />
+      </QueryBoundary>
     </div>
   );
 }

@@ -108,11 +108,15 @@ export function SpecUploadCard({
           </EmptyHeader>
 
           <EmptyContent>
+            {/* display:none, not sr-only: sr-only leaves it focusable, so tabbing through
+                this page stopped for one turn on an invisible, unnamed control before
+                reaching the button that does the same job. A programmatic .click() still
+                opens the picker on a hidden input. */}
             <input
               ref={inputRef}
               type="file"
               accept=".yaml,.yml,.json,application/json,application/yaml"
-              className="sr-only"
+              className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) send(file);

@@ -42,22 +42,30 @@ export function SpecFindingCounts({
 
   return (
     <div className="flex items-center gap-2.5 text-xs tabular-nums">
-      {severities.map(({ count, Icon, tone, noun }) => (
-        // An icon and a number are an abbreviation of the sentence the tooltip spells out.
-        <Tooltip key={noun}>
-          <TooltipTrigger
-            // Zeroes stay in place rather than collapsing: the three always sit in the same
-            // order, so a column of rows can be read down instead of decoded row by row.
-            render={
-              <span className={cn("flex items-center gap-1", count > 0 ? tone : "opacity-30")} />
-            }
-          >
-            <Icon className="size-3.5" aria-hidden />
-            {count}
-          </TooltipTrigger>
-          <TooltipContent>{`${count} ${noun}${count === 1 ? "" : "s"}`}</TooltipContent>
-        </Tooltip>
-      ))}
+      {severities.map(({ count, Icon, tone, noun }) => {
+        const label = `${count} ${noun}${count === 1 ? "" : "s"}`;
+
+        return (
+          // An icon and a number are an abbreviation of the sentence the tooltip spells out.
+          <Tooltip key={noun}>
+            <TooltipTrigger
+              // Zeroes stay in place rather than collapsing: the three always sit in the same
+              // order, so a column of rows can be read down instead of decoded row by row.
+              render={
+                <span className={cn("flex items-center gap-1", count > 0 ? tone : "opacity-30")} />
+              }
+            >
+              <Icon className="size-3.5" aria-hidden />
+              {/* The tooltip needs a pointer to open, and the cell read aloud without it was
+                  "1 0 3" — three bare numbers naming nothing. The sentence is in the markup
+                  too, so the column is legible without hovering anything. */}
+              <span aria-hidden>{count}</span>
+              <span className="sr-only">{label}</span>
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+          </Tooltip>
+        );
+      })}
     </div>
   );
 }

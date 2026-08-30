@@ -138,6 +138,10 @@ export function ProjectSpecsPage() {
     [items, filter],
   );
 
+  // Looked up in `items` rather than in `visible`: the upload card opens this dialog on a
+  // version a filter may be hiding.
+  const openSpec = items.find((s) => s.id === openFor);
+
   function toggle(id: string) {
     setSelected((current) =>
       current.includes(id)
@@ -191,7 +195,14 @@ export function ProjectSpecsPage() {
     <div className="space-y-6">
       <SpecUploadCard orgId={orgId} projectId={projectId} onViewFindings={setOpenFor} />
 
-      <QueryBoundary isLoading={specs.isLoading} error={specs.error}>
+      {/* An upload or a delete invalidates this list, so it refetches while a table is on
+          screen. A failed refetch must not replace the versions someone is reading with a
+          full-width error. */}
+      <QueryBoundary
+        isLoading={specs.isLoading}
+        error={specs.error}
+        hasData={specs.data !== undefined}
+      >
         {items.length ? (
           <div className="space-y-3">
             {/* Beside the table, not inside its frame: a toolbar band directly above the
@@ -486,10 +497,20 @@ export function ProjectSpecsPage() {
         )}
       </QueryBoundary>
 
+      {/* The row's own counts travel with the id. The dialog's findings query can fail, and
+          these are the only totals anyone still holds when it does — without them it would
+          have nothing to show but a tally of a list that never arrived. */}
       <SpecValidationDialog
         orgId={orgId}
         projectId={projectId}
         specId={openFor}
+        totals={
+          openSpec && {
+            errors: openSpec.errorCount,
+            warnings: openSpec.warningCount,
+            information: openSpec.informationCount,
+          }
+        }
         onClose={() => setOpenFor(null)}
       />
 
@@ -513,8 +534,8 @@ export function ProjectSpecsPage() {
         consequences={[
           "The uploaded document itself",
           "Every run executed against it, with its artifacts and logs",
-          "Packages already published stay in their registries",
         ]}
+        reassurances={["Packages already published stay in their registries"]}
         isPending={remove.isPending}
         error={deleteError}
         onConfirm={confirmDelete}

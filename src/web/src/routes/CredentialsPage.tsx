@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -53,7 +54,18 @@ export function CredentialsPage() {
   const remove = useDeleteCredential(orgId);
   const [deleting, setDeleting] = useState<Credential | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<Credential | null>(null);
   const [open, setOpen] = useState(false);
+
+  function revokeNow(credential: Credential) {
+    revoke.mutate(credential.id, {
+      onSuccess: () => {
+        toast.success("Credential revoked");
+        setRevoking(null);
+      },
+      onError: () => toast.error("Could not revoke the credential."),
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -78,7 +90,7 @@ export function CredentialsPage() {
         </AlertDescription>
       </Alert>
 
-      <QueryBoundary isLoading={isLoading} error={error}>
+      <QueryBoundary isLoading={isLoading} error={error} hasData={data !== undefined}>
         {data?.length ? (
           // Framed like the specs and targets tables: one card, one banded header.
           <Card className="py-0">
@@ -88,7 +100,9 @@ export function CredentialsPage() {
               <TableRow>
                 <TableHead>Kind</TableHead>
                 <TableHead>Label</TableHead>
-                <TableHead>Publishes to</TableHead>
+                {/* "Registry", the name the field that sets it already uses. "Publishes to"
+                    named a destination choice on the targets table and a URL here. */}
+                <TableHead>Registry</TableHead>
                 <TableHead>Token</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last used</TableHead>
@@ -106,8 +120,16 @@ export function CredentialsPage() {
                       of them widened the table until every other column needed scrolling. */}
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     <Tooltip>
+                      {/* A button, not a span: Base UI's tooltip opens on focus as well as
+                          hover, but a span takes no focus, so the truncated half of the URL
+                          was reachable with a mouse and by no other means. */}
                       <TooltipTrigger
-                        render={<span className="block max-w-[14rem] truncate xl:max-w-[24rem]" />}
+                        render={
+                          <button
+                            type="button"
+                            className="block max-w-[14rem] truncate rounded-sm text-left focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none xl:max-w-[24rem]"
+                          />
+                        }
                       >
                         {credential.registryUrl}
                       </TooltipTrigger>
@@ -167,12 +189,17 @@ export function CredentialsPage() {
                           </DropdownMenuItem>
                         ) : (
                           <DropdownMenuItem
-                            onClick={() =>
-                              revoke.mutate(credential.id, {
-                                onSuccess: () => toast.success("Credential revoked"),
-                                onError: () => toast.error("Could not revoke the credential."),
-                              })
-                            }
+                            onClick={() => {
+                              // Asked about only when something is bound to the token:
+                              // revoking is the action that takes effect immediately, and
+                              // every target publishing with it starts failing at its publish
+                              // step. With nothing bound there is nothing to warn about.
+                              if (credential.usedBy.length > 0) {
+                                setRevoking(credential);
+                                return;
+                              }
+                              revokeNow(credential);
+                            }}
                           >
                             <Ban className="size-4" aria-hidden />
                             Revoke
@@ -226,56 +253,28 @@ export function CredentialsPage() {
           }
         }}
         title="Delete this credential?"
-        description="The record is removed for good. Revoking, which is reversible, only stops this application from using it."
+        // The registry stays out of it, said in prose rather than in a list: as one line
+        // among others it read as boilerplate, and the reader who skims past it leaves a
+        // live publish token in the wild.
+        description="The record is removed for good. Revoking, which is reversible, only stops this application from using it. Deleting it here does not revoke the token at the registry — do that there too."
         confirmText={deleting?.label}
-        consequences={[
-          "The token itself is not revoked at the registry — do that there too",
-          ...(deleting?.usedBy.length ? [] : ["No SDK target publishes with it"]),
-        ]}
+        // `deleting &&`, not a bare falsy test on the count: closing the dialog sets
+        // `deleting` to null while the exit animation still runs, and `undefined` counts as
+        // "no targets" — so the "Not affected" box appeared for the first time on the way
+        // out, on exactly the credentials that should never have shown it.
+        reassurances={
+          deleting && deleting.usedBy.length === 0
+            ? ["No SDK target publishes with it"]
+            : undefined
+        }
         details={
           deleting?.usedBy.length ? (
-            // Named, grouped and linked rather than counted: "2 targets" leaves someone
-            // hunting through projects for which ones, and the answer is one click away.
-            <div className="space-y-2 rounded-2xl border bg-muted/40 p-3">
-              <p className="text-sm font-medium">
-                Publishing with this credential — deletion is refused until these move
-              </p>
-              <ItemGroup className="gap-1">
-                {deleting.usedBy.map((use) => (
-                  <Item
-                    key={use.targetId}
-                    size="xs"
-                    render={
-                      <Link
-                        to={`/orgs/${orgId}/projects/${use.projectSlug}/targets`}
-                        onClick={() => setDeleting(null)}
-                      />
-                    }
-                  >
-                    <ItemMedia variant="icon">
-                      <Package className="size-3.5 text-muted-foreground" aria-hidden />
-                    </ItemMedia>
-                    <ItemContent className="min-w-0">
-                      {/* `max-w-full` against `ItemTitle`'s own `w-fit`: with `truncate`'s
-                          nowrap, fit-content resolves to the whole package name and the row
-                          would overflow instead of ellipsising. */}
-                      <ItemTitle className="max-w-full truncate font-mono text-xs">
-                        {use.packageName}
-                      </ItemTitle>
-                      <ItemDescription className="truncate text-xs">
-                        {use.projectName} · {languageLabel[use.language]}
-                      </ItemDescription>
-                    </ItemContent>
-                    <ItemActions>
-                      <ArrowRight
-                        className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/item:translate-x-0.5"
-                        aria-hidden
-                      />
-                    </ItemActions>
-                  </Item>
-                ))}
-              </ItemGroup>
-            </div>
+            <UsedByList
+              orgId={orgId}
+              usedBy={deleting.usedBy}
+              heading="Publishing with this credential — deletion is refused until these move"
+              onNavigate={() => setDeleting(null)}
+            />
           ) : null
         }
         isPending={remove.isPending}
@@ -294,6 +293,103 @@ export function CredentialsPage() {
           })
         }
       />
+
+      {/* Not ConfirmDeleteDialog: nothing is deleted, and its Delete button and typed
+          confirmation would both overstate an action Restore undoes. */}
+      <Dialog
+        open={revoking !== null}
+        onOpenChange={(next) => {
+          if (!next) setRevoking(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Revoke this credential?</DialogTitle>
+            <DialogDescription>
+              Publishing with this token stops immediately. Restore, in the same menu, puts it
+              back — the token itself keeps working at the registry either way.
+            </DialogDescription>
+          </DialogHeader>
+
+          {revoking && (
+            <UsedByList
+              orgId={orgId}
+              usedBy={revoking.usedBy}
+              heading="These targets stop publishing until it is restored"
+              onNavigate={() => setRevoking(null)}
+            />
+          )}
+
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
+            <Button onClick={() => revoking && revokeNow(revoking)} disabled={revoke.isPending}>
+              <Ban className="size-4" aria-hidden />
+              {revoke.isPending ? "Revoking…" : "Revoke"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/**
+ * The targets a credential publishes for, named and linked rather than counted: "2 targets"
+ * leaves someone hunting through projects for which ones, and the answer is one click away.
+ *
+ * Shared by the delete and revoke dialogs, which need the same list for opposite reasons —
+ * one because the server refuses until it empties, the other because it is what breaks.
+ */
+function UsedByList({
+  orgId,
+  usedBy,
+  heading,
+  onNavigate,
+}: {
+  orgId: string;
+  usedBy: Credential["usedBy"];
+  heading: string;
+  /** The links lead out of the dialog, which would otherwise still be open behind the page. */
+  onNavigate: () => void;
+}) {
+  return (
+    <div className="space-y-2 rounded-2xl border bg-muted/40 p-3">
+      <p className="text-sm font-medium">{heading}</p>
+      <ItemGroup className="gap-1">
+        {usedBy.map((use) => (
+          <Item
+            key={use.targetId}
+            size="xs"
+            render={
+              <Link
+                to={`/orgs/${orgId}/projects/${use.projectSlug}/targets`}
+                onClick={onNavigate}
+              />
+            }
+          >
+            <ItemMedia variant="icon">
+              <Package className="size-3.5 text-muted-foreground" aria-hidden />
+            </ItemMedia>
+            <ItemContent className="min-w-0">
+              {/* `max-w-full` against `ItemTitle`'s own `w-fit`: with `truncate`'s nowrap,
+                  fit-content resolves to the whole package name and the row would overflow
+                  instead of ellipsising. */}
+              <ItemTitle className="max-w-full truncate font-mono text-xs">
+                {use.packageName}
+              </ItemTitle>
+              <ItemDescription className="truncate text-xs">
+                {use.projectName} · {languageLabel[use.language]}
+              </ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <ArrowRight
+                className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/item:translate-x-0.5"
+                aria-hidden
+              />
+            </ItemActions>
+          </Item>
+        ))}
+      </ItemGroup>
     </div>
   );
 }
@@ -430,7 +526,14 @@ function AddCredentialDialog({
               )}
             </Field>
 
-            {errors.form && <p className="text-sm text-destructive">{errors.form}</p>}
+            {/* Announced like every other error in the app: silent, the only sign the save
+                was refused is a red line a screen reader never reaches, and the dialog looks
+                as though the click did nothing. */}
+            {errors.form && (
+              <p className="text-sm text-destructive" role="alert">
+                {errors.form}
+              </p>
+            )}
           </FieldGroup>
 
           <DialogFooter>

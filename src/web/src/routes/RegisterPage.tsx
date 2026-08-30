@@ -10,7 +10,7 @@ import { useRegister } from "@/api/queries";
 import { ApiError } from "@/api/client";
 
 const schema = z.object({
-  displayName: z.string().trim().max(80).optional(),
+  displayName: z.string().trim().max(80, "Use 80 characters or fewer.").optional(),
   email: z.string().email("Enter a valid email address."),
   // Mirrors the API's Identity policy: length only, no composition rules.
   password: z.string().min(12, "Use at least 12 characters."),
@@ -50,9 +50,18 @@ export function RegisterPage() {
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <FieldGroup>
-          <Field>
+          <Field data-invalid={!!form.formState.errors.displayName}>
             <FieldLabel htmlFor="displayName">Name</FieldLabel>
-            <Input id="displayName" autoComplete="name" {...form.register("displayName")} />
+            {/* The length rule is enforced but was never shown: a name over the limit failed
+                validation, so no request was made, so the error outlet below had nothing to
+                report — the button simply did nothing. */}
+            <Input
+              id="displayName"
+              autoComplete="name"
+              aria-invalid={!!form.formState.errors.displayName}
+              {...form.register("displayName")}
+            />
+            <FieldError errors={[form.formState.errors.displayName]} />
           </Field>
 
           <Field data-invalid={!!emailError}>
@@ -79,6 +88,18 @@ export function RegisterPage() {
             <FieldError>{passwordError}</FieldError>
           </Field>
         </FieldGroup>
+
+        {/* Only the two field-mapped complaints reach a Field. A 409, a 500, a dropped
+            connection or a validation error keyed to anything else would otherwise land
+            nowhere and leave the button flicking back to "Create account" as the only sign
+            the submit happened. */}
+        {register.error && !emailError && !passwordError && (
+          <p className="text-sm text-destructive" role="alert">
+            {register.error instanceof ApiError
+              ? register.error.detail
+              : "Something went wrong. Try again."}
+          </p>
+        )}
 
         <Button type="submit" className="w-full" disabled={register.isPending}>
           {register.isPending ? "Creating account…" : "Create account"}

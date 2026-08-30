@@ -8,6 +8,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ApiError } from "@/api/client";
 import { useAccount, useUpdateProfile } from "@/api/queries";
 
 const profileSchema = z.object({
@@ -31,7 +32,15 @@ function ProfileCard({
   const onSubmit = form.handleSubmit((values) =>
     update.mutate(
       { displayName: values.displayName.trim() || null },
-      { onSuccess: () => toast.success("Profile updated.") },
+      {
+        onSuccess: () => toast.success("Profile updated."),
+        // The field keeps the typed name whether the save worked or not, so without this a
+        // failure looks exactly like a success.
+        onError: (error) =>
+          toast.error(
+            error instanceof ApiError ? error.detail : "Could not save your profile.",
+          ),
+      },
     ),
   );
 

@@ -4,6 +4,7 @@ import {
   SquareCode, TriangleAlert, X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -116,11 +117,19 @@ export function SpecValidationDialog({
   orgId,
   projectId,
   specId,
+  totals,
   onClose,
 }: {
   orgId: string;
   projectId: string;
   specId: string | null;
+  /**
+   * What the specs row that opened this dialog already knows the document contains. Stands
+   * in whenever the findings themselves are not in hand — while they load, and if they
+   * fail: tallying a list that never arrived would print "0 errors" about a document nobody
+   * managed to check.
+   */
+  totals?: { errors: number; warnings: number; information: number };
   onClose: () => void;
 }) {
   const diagnostics = useSpecDiagnostics(orgId, projectId, specId);
@@ -194,6 +203,21 @@ export function SpecValidationDialog({
     for (const f of findings) tally[f.severity] = (tally[f.severity] ?? 0) + 1;
     return tally;
   }, [findings]);
+
+  /**
+   * Whether anything at all is known about what validation found.
+   *
+   * Every derived value above collapses to an empty list when the diagnostics query has no
+   * data — which is what a document with nothing wrong also looks like. Nothing below may
+   * present the one as the other.
+   */
+  const findingsUnknown = diagnostics.data === undefined;
+
+  const recorded: Record<number, number> | undefined = totals && {
+    [DiagnosticSeverity.Error]: totals.errors,
+    [DiagnosticSeverity.Warning]: totals.warnings,
+    [DiagnosticSeverity.Information]: totals.information,
+  };
 
   const visible = useMemo(
     () => findings.filter((f) => !hidden.includes(f.severity)),
@@ -269,7 +293,46 @@ export function SpecValidationDialog({
     onClose();
   }
 
-  const loading = diagnostics.isPending || source.isPending || lines === null;
+  // `lines === null` only means the worker has not answered yet, and it never answers when
+  // there is no document to index — so a failed document load held the skeleton up forever
+  // and the message written for that case was unreachable.
+  const loading =
+    diagnostics.isPending || source.isPending || (source.data !== undefined && lines === null);
+
+  /** What the position counter says. "No findings" is a claim, so it waits for the list. */
+  function counter() {
+    // Whether anything is in hand is asked before whether the last request failed: React
+    // Query keeps the previous findings through a failed refetch, and that list is on
+    // screen with a real length and a real position to count through.
+    if (findingsUnknown) return diagnostics.isError ? "Not loaded" : "Loading…";
+    if (visible.length === 0) return "No findings";
+    // The total until one is picked: "0 / 413" would claim a position in a list nobody has
+    // stepped into yet.
+    if (position < 0) return count(visible.length, "finding");
+    return `${position + 1} / ${visible.length}`;
+  }
+
+  /**
+   * What the banner over the content says, which is not one message but two.
+   *
+   * With nothing fetched, the empty gutter is the thing to correct. With a list still up
+   * from an earlier load — a revalidate invalidates this query, and reopening the dialog
+   * refetches it — saying "nothing is marked below" would be its own falsehood, and the
+   * findings on screen are merely old rather than wrong.
+   */
+  const failure = findingsUnknown
+    ? {
+        title: "The findings could not be loaded",
+        detail:
+          "Nothing is marked below, and that is this request failing rather than a clean "
+          + "document. Try again to see what validation found.",
+      }
+    : {
+        title: "The findings could not be refreshed",
+        detail:
+          "What is marked below is the list from the last time it loaded. Validation may "
+          + "have said something else since.",
+      };
 
   return (
     <Dialog open={specId !== null} onOpenChange={(open) => !open && close()}>
@@ -282,6 +345,28 @@ export function SpecValidationDialog({
 
           {ORDER.map((severity) => {
             const Icon = icons[severity];
+
+            // With no list fetched there is nothing to filter, so these stop being buttons
+            // and the specs row's own totals stand in — greyed, because they are the last
+            // thing recorded about this document rather than a reading of it. What must
+            // never appear here is "0 errors" for a list that never arrived.
+            if (findingsUnknown) {
+              return (
+                <span
+                  key={severity}
+                  className="flex items-center gap-1 px-2 text-xs text-muted-foreground opacity-70"
+                  title={
+                    diagnostics.isError
+                      ? "Recorded on the specs table. The findings themselves could not be loaded."
+                      : undefined
+                  }
+                >
+                  <Icon className="size-3.5" aria-hidden />
+                  {recorded ? count(recorded[severity], nouns[severity]) : `— ${nouns[severity]}s`}
+                </span>
+              );
+            }
+
             const off = hidden.includes(severity);
 
             return (
@@ -306,15 +391,7 @@ export function SpecValidationDialog({
           })}
 
           <div className="ml-auto flex items-center gap-1">
-            {/* The total until one is picked: "0 / 413" would claim a position in a list
-                nobody has stepped into yet. */}
-            <span className="mr-1 text-xs tabular-nums text-muted-foreground">
-              {visible.length === 0
-                ? "No findings"
-                : position < 0
-                  ? count(visible.length, "finding")
-                  : `${position + 1} / ${visible.length}`}
-            </span>
+            <span className="mr-1 text-xs tabular-nums text-muted-foreground">{counter()}</span>
             <Button
               size="icon-sm"
               variant="ghost"
@@ -433,79 +510,116 @@ export function SpecValidationDialog({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
-          {loading ? (
-            <SourceSkeleton />
-          ) : source.isError ? (
-            <p className="p-6 text-sm text-muted-foreground">
-              The document could not be loaded, so findings cannot be shown against it. The
-              list still works.
-            </p>
-          ) : mode === "source" && source.data ? (
-            <Suspense fallback={<SourceSkeleton />}>
-              <SpecSourceView
-                content={source.data.content}
-                format={source.data.format}
-                findings={located as LocatedFinding[]}
-                unlocated={unlocated as SourceFinding[]}
-                currentId={currentId}
-                scrollTo={scrollTo}
-              />
-            </Suspense>
-          ) : (
-            <ul ref={list} className="h-full overflow-y-auto">
-              {visible.map((finding) => {
-                const Icon = icons[finding.severity];
-
-                return (
-                  <Item
-                    key={finding.id}
-                    render={<li />}
-                    size="xs"
-                    data-current={finding.id === currentId}
-                    className={cn(
-                      // Rows in a scrolling list, not cards: square, and the rule between
-                      // two of them is the item's own border rather than the list's
-                      // divide-y, which an Item paints over with its transparent one.
-                      "rounded-none [&:not(:last-child)]:border-b-border",
-                      finding.id === currentId && "bg-muted/60",
-                    )}
-                  >
-                    <ItemMedia variant="icon">
-                      <Icon className={tones[finding.severity]} aria-hidden />
-                    </ItemMedia>
-                    <ItemContent className="min-w-0">
-                      {/* A finding is read, not scanned: the message keeps the weight it had
-                          and the whole of it stays on screen however long it runs. */}
-                      <ItemTitle className="line-clamp-none font-normal">
-                        {finding.message}
-                      </ItemTitle>
-                      {finding.jsonPointer && (
-                        <ItemDescription className="line-clamp-none font-mono text-xs break-all">
-                          {finding.jsonPointer}
-                        </ItemDescription>
-                      )}
-                    </ItemContent>
-
-                    {/* Unlocated findings have somewhere to go now — the block above the
-                        first line — so they get the same button, labelled for where it
-                        lands rather than with a line number it does not have. */}
-                    <ItemActions>
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        className={cn("shrink-0 gap-1", finding.line !== null && "font-mono")}
-                        onClick={() => openInSource(finding)}
-                      >
-                        <SquareCode className="size-3.5" aria-hidden />
-                        {finding.line ?? "Top"}
-                      </Button>
-                    </ItemActions>
-                  </Item>
-                );
-              })}
-            </ul>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {/* Stays up rather than passing as a toast: with nothing fetched, everything under
+              it — a gutter with no markers, a list with no rows — is exactly what a document
+              with nothing wrong looks like, and that is the one question this dialog is
+              opened to answer. */}
+          {diagnostics.isError && (
+            // Destructive only when the failure is all there is. A refetch that failed over
+            // findings still on screen is said quietly, the way the tables say it: stale
+            // beats nothing, and shouting would send someone away from a list that reads
+            // correctly.
+            <Alert
+              variant={findingsUnknown ? "destructive" : "default"}
+              className="shrink-0 rounded-none border-x-0 border-t-0"
+            >
+              <CircleAlert className="size-4" aria-hidden />
+              <AlertTitle>{failure.title}</AlertTitle>
+              <AlertDescription>{failure.detail}</AlertDescription>
+              <AlertAction>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  disabled={diagnostics.isFetching}
+                  onClick={() => diagnostics.refetch()}
+                >
+                  <RefreshCw
+                    className={cn("size-3.5", diagnostics.isFetching && "animate-spin")}
+                    aria-hidden
+                  />
+                  Try again
+                </Button>
+              </AlertAction>
+            </Alert>
           )}
+
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {loading ? (
+              <SourceSkeleton />
+            ) : source.isError && mode === "source" ? (
+              // Only in source mode, so the sentence's own promise holds: falling through in
+              // list mode is what lets the list still work.
+              <p className="p-6 text-sm text-muted-foreground">
+                The document could not be loaded, so findings cannot be shown against it. The
+                list still works.
+              </p>
+            ) : mode === "source" && source.data ? (
+              <Suspense fallback={<SourceSkeleton />}>
+                <SpecSourceView
+                  content={source.data.content}
+                  format={source.data.format}
+                  findings={located as LocatedFinding[]}
+                  unlocated={unlocated as SourceFinding[]}
+                  currentId={currentId}
+                  scrollTo={scrollTo}
+                />
+              </Suspense>
+            ) : (
+              <ul ref={list} className="h-full overflow-y-auto">
+                {visible.map((finding) => {
+                  const Icon = icons[finding.severity];
+
+                  return (
+                    <Item
+                      key={finding.id}
+                      render={<li />}
+                      size="xs"
+                      data-current={finding.id === currentId}
+                      className={cn(
+                        // Rows in a scrolling list, not cards: square, and the rule between
+                        // two of them is the item's own border rather than the list's
+                        // divide-y, which an Item paints over with its transparent one.
+                        "rounded-none [&:not(:last-child)]:border-b-border",
+                        finding.id === currentId && "bg-muted/60",
+                      )}
+                    >
+                      <ItemMedia variant="icon">
+                        <Icon className={tones[finding.severity]} aria-hidden />
+                      </ItemMedia>
+                      <ItemContent className="min-w-0">
+                        {/* A finding is read, not scanned: the message keeps the weight it had
+                            and the whole of it stays on screen however long it runs. */}
+                        <ItemTitle className="line-clamp-none font-normal">
+                          {finding.message}
+                        </ItemTitle>
+                        {finding.jsonPointer && (
+                          <ItemDescription className="line-clamp-none font-mono text-xs break-all">
+                            {finding.jsonPointer}
+                          </ItemDescription>
+                        )}
+                      </ItemContent>
+
+                      {/* Unlocated findings have somewhere to go now — the block above the
+                          first line — so they get the same button, labelled for where it
+                          lands rather than with a line number it does not have. */}
+                      <ItemActions>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          className={cn("shrink-0 gap-1", finding.line !== null && "font-mono")}
+                          onClick={() => openInSource(finding)}
+                        >
+                          <SquareCode className="size-3.5" aria-hidden />
+                          {finding.line ?? "Top"}
+                        </Button>
+                      </ItemActions>
+                    </Item>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

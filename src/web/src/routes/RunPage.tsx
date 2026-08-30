@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Item, ItemActions, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge, StepStatusIcon } from "@/components/StatusBadge";
 import { api } from "@/api/client";
@@ -20,14 +21,42 @@ export function RunPage() {
   const run = useRun(orgId, runId);
   const cancel = useCancelRun(orgId);
   const [openStep, setOpenStep] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   async function download() {
+    // The tab is opened here, synchronously, and pointed at the artifact once the presign
+    // comes back. Opening it after the await put it outside the click that asked for it:
+    // Safari refuses that outright and the others once the request outlives the few seconds
+    // of transient activation — and a refused popup returns null instead of throwing, so
+    // the button did nothing at all and said nothing either.
+    //
+    // "about:blank" and no noopener, both deliberately: window.open returns null whenever
+    // noopener is passed, which would leave no handle to point anywhere. The reverse
+    // reference is severed by hand instead.
+    const tab = window.open("about:blank", "_blank");
+    if (tab) tab.opener = null;
+
+    setDownloading(true);
     try {
       const result = await api.get<ArtifactDownload>(`/organizations/${orgId}/runs/${runId}/artifact`);
-      // A presigned URL: the browser fetches the bytes straight from object storage.
-      window.open(result.url, "_blank", "noopener,noreferrer");
+      if (tab) {
+        // A presigned URL: the browser fetches the bytes straight from object storage.
+        // replace, so the blank placeholder is not a Back step in the new tab.
+        tab.location.replace(result.url);
+      } else {
+        toast.error("Your browser blocked the download tab.", {
+          // The retry runs inside a click of its own, which is what the blocker wanted.
+          action: {
+            label: "Open",
+            onClick: () => window.open(result.url, "_blank", "noopener,noreferrer"),
+          },
+        });
+      }
     } catch (err) {
+      tab?.close();
       toast.error(err instanceof ApiError ? err.detail : "Could not fetch the artifact.");
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -52,7 +81,14 @@ export function RunPage() {
         <p className="font-mono text-xs text-muted-foreground">{runId}</p>
       </div>
 
-      <QueryBoundary isLoading={run.isLoading} error={run.error} rows={4}>
+      {/* This page polls every two seconds until the run settles, so a single dropped poll
+          must not replace a perfectly good run with a full-width error. */}
+      <QueryBoundary
+        isLoading={run.isLoading}
+        error={run.error}
+        hasData={run.data !== undefined}
+        rows={4}
+      >
         {run.data && (
           <>
             <Card>
@@ -74,8 +110,17 @@ export function RunPage() {
 
                   <div className="flex gap-2">
                     {run.data.hasArtifact && (
-                      <Button variant="outline" size="sm" onClick={download}>
-                        <Download className="size-4" aria-hidden />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={download}
+                        disabled={downloading}
+                      >
+                        {/* The spinner replaces the icon and the label stays put, as on the
+                            Generate button: a label that changes is a width that changes,
+                            and this one sits next to Cancel in a right-aligned row that
+                            would slide sideways for as long as the presign takes. */}
+                        {downloading ? <Spinner /> : <Download className="size-4" aria-hidden />}
                         Artifact
                       </Button>
                     )}
@@ -156,7 +201,10 @@ export function RunPage() {
                         </Item>
 
                         {step.failureReason && step.status === StepStatus.Failed && (
-                          <p className="mt-2 pl-7 text-xs whitespace-pre-wrap text-destructive">
+                          // wrap-anywhere, because Card clips what overflows it: a digest or
+                          // a long path in the reason was cut off silently, with no
+                          // scrollbar to say the sentence went on.
+                          <p className="mt-2 pl-7 text-xs whitespace-pre-wrap wrap-anywhere text-destructive">
                             {step.failureReason}
                           </p>
                         )}
@@ -178,10 +226,33 @@ export function RunPage() {
 function StepLog({ orgId, runId, step }: { orgId: string; runId: string; step: string }) {
   const log = useStepLog(orgId, runId, step, true);
 
+  // "View log" is only rendered once the server has said this step has one, so anything
+  // other than a 404 is a failed request, not a missing log. useStepLog does not retry, so
+  // one dropped response used to land on "no stored log" — telling someone debugging a
+  // failed run that the evidence does not exist, when a second try would have shown it.
+  const missing = log.error instanceof ApiError && log.error.status === 404;
+
   return (
     <div className="mt-3 pl-7">
       {log.isLoading && <p className="text-xs text-muted-foreground">Loading log…</p>}
-      {log.error && <p className="text-xs text-destructive">This step has no stored log.</p>}
+
+      {log.error &&
+        (missing ? (
+          <p className="text-xs text-destructive">This step has no stored log.</p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs text-destructive">The log could not be loaded.</p>
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => log.refetch()}
+              disabled={log.isFetching}
+            >
+              {log.isFetching ? "Retrying…" : "Try again"}
+            </Button>
+          </div>
+        ))}
+
       {log.data && (
         // Secrets are stripped on the way out of the sandbox, so this is safe to render.
         <pre className="max-h-96 overflow-auto rounded-lg bg-muted p-3 font-mono text-xs whitespace-pre-wrap">

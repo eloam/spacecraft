@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge } from "@/components/StatusBadge";
@@ -12,7 +13,6 @@ import { describeRunProgress, formatRunDuration, isTerminal, runStatusLabel } fr
 /** Every pipeline this project has run, newest first. */
 export function ProjectRunsPage() {
   const { orgId = "", projectId = "" } = useParams();
-  const navigate = useNavigate();
   const [search, setSearch] = useSearchParams();
   const runs = useRuns(orgId, projectId);
 
@@ -50,53 +50,66 @@ export function ProjectRunsPage() {
         </div>
       )}
 
-      <QueryBoundary isLoading={runs.isLoading} error={runs.error}>
+      {/* This list polls every two seconds while a run is in flight, so a single dropped
+          poll must not take the table with it. */}
+      <QueryBoundary
+        isLoading={runs.isLoading}
+        error={runs.error}
+        hasData={runs.data !== undefined}
+      >
         {visible.length ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Status</TableHead>
-                <TableHead>Version</TableHead>
-                <TableHead>Progress</TableHead>
-                <TableHead className="text-right">Queued</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visible.map((run) => {
-                const queued = new Date(run.queuedAt);
-
-                return (
-                  <TableRow
-                    key={run.id}
-                    // The whole row is the target for a mouse; the link inside keeps it
-                    // reachable by keyboard and nameable by a screen reader.
-                    className="cursor-pointer"
-                    onClick={() => navigate(`/orgs/${orgId}/runs/${run.id}`)}
-                  >
-                    <TableCell>
-                      <Link
-                        to={`/orgs/${orgId}/runs/${run.id}`}
-                        // Without this every row announced just "Succeeded", leaving
-                        // three identical links with nothing to choose between them.
-                        aria-label={`Run ${run.resolvedVersion ?? "without a version"}, ${runStatusLabel[run.status]}, queued ${queued.toLocaleString()}`}
-                      >
-                        <RunStatusBadge status={run.status} />
-                      </Link>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{run.resolvedVersion ?? "—"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {isTerminal(run.status)
-                        ? formatRunDuration(run)
-                        : describeRunProgress(run)}
-                    </TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">
-                      {queued.toLocaleString()}
-                    </TableCell>
+          // Framed like the specs, targets, credentials and publications tables.
+          <Card className="py-0">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Version</TableHead>
+                    <TableHead>Progress</TableHead>
+                    <TableHead className="text-right">Queued</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                  {visible.map((run) => {
+                    const queued = new Date(run.queuedAt);
+
+                    return (
+                      // relative, so the link below can stretch over the whole row. The row
+                      // used to navigate from its own onClick, which meant the click on the
+                      // badge pushed the same URL twice (Back then needed two presses), a
+                      // Cmd-click on it opened a tab *and* moved this one, and everywhere
+                      // else on the row there was no hover target and no middle-click.
+                      <TableRow key={run.id} className="relative">
+                        <TableCell>
+                          <Link
+                            to={`/orgs/${orgId}/runs/${run.id}`}
+                            className="after:absolute after:inset-0 after:content-['']"
+                            // Without this every row announced just "Succeeded", leaving
+                            // three identical links with nothing to choose between them.
+                            aria-label={`Run ${run.resolvedVersion ?? "without a version"}, ${runStatusLabel[run.status]}, queued ${queued.toLocaleString()}`}
+                          >
+                            <RunStatusBadge status={run.status} />
+                          </Link>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {run.resolvedVersion ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {isTerminal(run.status)
+                            ? formatRunDuration(run)
+                            : describeRunProgress(run)}
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          {queued.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         ) : specFilter ? (
           // Distinguished from an empty project: nothing ran from *this* version, which is
           // an answer rather than an absence.

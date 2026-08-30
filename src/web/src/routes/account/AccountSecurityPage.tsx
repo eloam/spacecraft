@@ -10,8 +10,8 @@ import {
   Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle,
 } from "@/components/ui/item";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { QueryBoundary } from "@/components/QueryBoundary";
 import { ApiError } from "@/api/client";
 import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from "@/api/queries";
 
@@ -44,13 +44,26 @@ function PasswordCard() {
         onError: (error) => {
           // The server distinguishes a wrong current password from a weak new one; putting
           // the message on the right field is the difference between useful and baffling.
+          let onAField = false;
           if (error instanceof ApiError && error.errors) {
             for (const [field, messages] of Object.entries(error.errors)) {
               const key = field.charAt(0).toLowerCase() + field.slice(1);
               if (key === "currentPassword" || key === "newPassword") {
                 form.setError(key, { message: messages.join(" ") });
+                onAField = true;
               }
             }
+          }
+          // This endpoint is rate limited, so a refusal often arrives with no field errors at
+          // all. Without this the button would flip back to "Change password" and say nothing,
+          // leaving a failure indistinguishable from a click that never registered.
+          if (!onAField) {
+            form.setError("root", {
+              message:
+                error instanceof ApiError
+                  ? error.detail
+                  : "Could not change your password. Try again.",
+            });
           }
         },
       },
@@ -86,6 +99,12 @@ function PasswordCard() {
             ))}
           </FieldGroup>
 
+          {form.formState.errors.root && (
+            <p className="text-sm text-destructive" role="alert">
+              {form.formState.errors.root.message}
+            </p>
+          )}
+
           <Button type="submit" disabled={change.isPending}>
             {change.isPending ? "Changing…" : "Change password"}
           </Button>
@@ -111,62 +130,84 @@ function SessionsCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {sessions.isPending ? (
-          <Skeleton className="h-16 w-full" />
-        ) : (
-          <>
-            <ItemGroup>
-              {sessions.data?.map((session) => (
-                <Item key={session.id} role="listitem" variant="outline" size="sm">
-                  <ItemMedia variant="icon">
-                    <Laptop className="text-muted-foreground" aria-hidden />
-                  </ItemMedia>
-                  <ItemContent className="min-w-0">
-                    <ItemTitle>
-                      Started {new Date(session.startedAt).toLocaleDateString()}
-                      {session.isCurrent && <Badge variant="secondary">This device</Badge>}
-                    </ItemTitle>
-                    <ItemDescription>
-                      Last used {new Date(session.lastUsedAt).toLocaleString()}
-                    </ItemDescription>
-                  </ItemContent>
-                  {!session.isCurrent && (
-                    <ItemActions>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          revoke.mutate(session.id, {
-                            onSuccess: () => toast.success("Session signed out."),
-                          })
-                        }
-                        disabled={revoke.isPending}
-                      >
-                        <LogOut className="size-4" aria-hidden />
-                        <span className="sr-only">Sign out this session</span>
-                      </Button>
-                    </ItemActions>
-                  )}
-                </Item>
-              ))}
-            </ItemGroup>
+        {/* A failed load used to fall straight through to an empty list: this card of all
+            of them would then read as "no other sessions are open", which is a security
+            claim the app cannot make when it never heard back. Every revoke below
+            invalidates this query, so hasData is what keeps a good list on screen when it
+            is the refetch that failed rather than the first load. */}
+        <QueryBoundary
+          isLoading={sessions.isPending}
+          error={sessions.error}
+          hasData={sessions.data !== undefined}
+          rows={1}
+        >
+          <ItemGroup>
+            {sessions.data?.map((session) => (
+              <Item key={session.id} role="listitem" variant="outline" size="sm">
+                <ItemMedia variant="icon">
+                  <Laptop className="text-muted-foreground" aria-hidden />
+                </ItemMedia>
+                <ItemContent className="min-w-0">
+                  <ItemTitle>
+                    Started {new Date(session.startedAt).toLocaleDateString()}
+                    {session.isCurrent && <Badge variant="secondary">This device</Badge>}
+                  </ItemTitle>
+                  <ItemDescription>
+                    Last used {new Date(session.lastUsedAt).toLocaleString()}
+                  </ItemDescription>
+                </ItemContent>
+                {!session.isCurrent && (
+                  <ItemActions>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        revoke.mutate(session.id, {
+                          onSuccess: () => toast.success("Session signed out."),
+                          // The list is only invalidated on success, so a silent failure
+                          // leaves the row exactly as it was — and this card asks people to
+                          // revoke sessions they do not recognise. They have to be told the
+                          // session is still alive.
+                          onError: (error) =>
+                            toast.error(
+                              error instanceof ApiError
+                                ? error.detail
+                                : "Could not sign out that session.",
+                            ),
+                        })
+                      }
+                      disabled={revoke.isPending}
+                    >
+                      <LogOut className="size-4" aria-hidden />
+                      <span className="sr-only">Sign out this session</span>
+                    </Button>
+                  </ItemActions>
+                )}
+              </Item>
+            ))}
+          </ItemGroup>
 
-            {others.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  revokeOthers.mutate(undefined, {
-                    onSuccess: () => toast.success("Other sessions signed out."),
-                  })
-                }
-                disabled={revokeOthers.isPending}
-              >
-                Sign out {others.length} other session{others.length > 1 ? "s" : ""}
-              </Button>
-            )}
-          </>
-        )}
+          {others.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                revokeOthers.mutate(undefined, {
+                  onSuccess: () => toast.success("Other sessions signed out."),
+                  onError: (error) =>
+                    toast.error(
+                      error instanceof ApiError
+                        ? error.detail
+                        : "Could not sign out the other sessions.",
+                    ),
+                })
+              }
+              disabled={revokeOthers.isPending}
+            >
+              Sign out {others.length} other session{others.length > 1 ? "s" : ""}
+            </Button>
+          )}
+        </QueryBoundary>
       </CardContent>
     </Card>
   );

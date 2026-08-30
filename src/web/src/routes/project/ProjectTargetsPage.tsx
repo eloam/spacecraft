@@ -122,7 +122,14 @@ export function ProjectTargetsPage() {
 
   return (
     <div className="space-y-6">
-      <QueryBoundary isLoading={project.isLoading} error={project.error}>
+      {/* hasData: adding, editing and deleting a target all invalidate this query, so a
+          refetch that fails would otherwise replace a table the browser still holds with a
+          full-width error. */}
+      <QueryBoundary
+        isLoading={project.isLoading}
+        error={project.error}
+        hasData={project.data !== undefined}
+      >
         {targets.length ? (
           <div className="space-y-3">
             {/* Beside the table, not inside its frame: a toolbar band directly above the
@@ -241,7 +248,12 @@ export function ProjectTargetsPage() {
                           <TableCell className="text-xs">
                             {(() => {
                               if (!target.registryCredentialId) {
-                                return <span className="text-muted-foreground">not published</span>;
+                                // The words the picker that sets this uses. "not published"
+                                // read as an empty history — which is the very next column,
+                                // and answers "Nothing published yet" on its own.
+                                return (
+                                  <span className="text-muted-foreground">Do not publish</span>
+                                );
                               }
 
                               const named = (credentials.data ?? [])
@@ -413,10 +425,8 @@ export function ProjectTargetsPage() {
         title="Delete this SDK target?"
         description="The target and the runs that produced it are removed."
         confirmText={deleting?.packageName}
-        consequences={[
-          "Runs for this target, with their artifacts and logs",
-          "Packages already published stay in their registries",
-        ]}
+        consequences={["Runs for this target, with their artifacts and logs"]}
+        reassurances={["Packages already published stay in their registries"]}
         isPending={deleteTarget.isPending}
         error={deleteError}
         onConfirm={() =>
