@@ -60,11 +60,13 @@ export function ProjectsPage() {
               <Item
                 key={project.id}
                 variant="outline"
-                // Item's own hover is bg-muted, which in light is the ground exactly: a
-                // white tile turned page-colour and read as having sunk into the background
-                // rather than lifted. Half strength keeps it between the card and the ground
-                // in light and above the card in dark, and the border carries the rest.
-                className="h-full flex-col items-stretch bg-card [a]:hover:bg-muted/50 hover:border-foreground/20"
+                // Hover has to lift, and the two themes have different room to do it in.
+                // Dark lightens the fill, card to muted, moving away from the ground. Light
+                // cannot: the card is already white, and every tint available is a step
+                // *towards* the page grey — which is why Item's own bg-muted hover read as
+                // the tile sinking. So light keeps the fill and lifts with a shadow instead,
+                // the way a white card on grey is meant to. Both get the darker border.
+                className="h-full flex-col items-stretch bg-card transition-[background-color,border-color,box-shadow] [a]:hover:bg-card dark:[a]:hover:bg-muted/50 hover:border-foreground/20 hover:shadow-md dark:hover:shadow-none"
                 render={<Link to={`/orgs/${orgId}/projects/${project.slug}`} />}
               >
                 <ItemContent className="gap-1">
