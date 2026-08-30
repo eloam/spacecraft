@@ -109,14 +109,14 @@ export function OrganizationSettingsPage() {
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="slug">Address</FieldLabel>
+                <FieldLabel htmlFor="slug">Slug</FieldLabel>
                 <Input id="slug" value={nextSlug} readOnly disabled className="font-mono text-sm" />
                 {slugWillChange ? (
                   // Renaming moves the slug, and the slug is the URL. Saying so before the
                   // click is the difference between a rename and a broken link someone
                   // discovers later.
                   <FieldDescription className="text-xs text-destructive">
-                    Renaming changes this address. Existing links to{" "}
+                    Renaming changes the slug. Existing links to{" "}
                     <code className="font-mono">{currentSlug}</code> will stop working.
                   </FieldDescription>
                 ) : (
@@ -138,7 +138,9 @@ export function OrganizationSettingsPage() {
           title="Delete organization"
           description="Removes every project, run, credential and publication record it owns."
         >
-          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+          {/* self-start: CardContent is a flex column, which stretches its children,
+              and a delete button as wide as the card reads as the section itself. */}
+          <Button variant="destructive" className="self-start" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="size-4" aria-hidden />
             Delete organization
           </Button>

@@ -24,7 +24,10 @@ export function AccountAvatar({
       aria-hidden
       className={
         "inline-flex size-6 shrink-0 select-none items-center justify-center rounded-full " +
-        "bg-muted text-[11px] font-medium leading-none text-muted-foreground " +
+        // A tint of the text colour rather than --muted: in the light theme --muted is
+        // the page ground and a hair off the top bar, so a muted circle vanished into
+        // both. This is relative to whatever it is placed on, in either theme.
+        "bg-foreground/10 text-[11px] font-medium leading-none text-foreground " +
         className
       }
     >
