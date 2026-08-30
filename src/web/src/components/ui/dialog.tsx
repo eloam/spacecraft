@@ -105,7 +105,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-header"
       className={cn(
-        "sticky top-0 z-10 -mx-6 -mt-6 flex flex-col gap-1.5 bg-popover px-6 pt-6 pr-14 pb-2",
+        "sticky -top-6 z-10 -mx-6 -mt-6 flex flex-col gap-1.5 bg-popover px-6 pt-6 pr-14 pb-2",
         className
       )}
       {...props}
@@ -125,7 +125,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "sticky bottom-0 z-10 -mx-6 -mb-6 mt-2 flex flex-col-reverse gap-2 border-t bg-muted/40 px-6 py-4 sm:flex-row sm:justify-end",
+        "sticky -bottom-6 z-10 -mx-6 -mb-6 mt-2 flex flex-col-reverse gap-2 border-t bg-muted/40 px-6 py-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
