@@ -120,9 +120,63 @@ export function RunPage() {
 
               {/* The project belongs here, not in the table: that table is the SDK targets
                   one, and a project is not a property of a target. */}
-              {/* The id alone. The project moved into the table, where it is read rather
-                  than squinted at beside a guid. */}
-              <p className="font-mono text-xs text-muted-foreground">{runId}</p>
+              {/* The run's own facts, where the id used to be. The id is in the address
+                  bar for anyone who needs it; under a title it was a line of hexadecimal
+                  answering a question nobody had.
+
+                  The trigger appears only when the run started itself. "Started by hand" is
+                  the assumption a reader already holds, and the table saying publishing was
+                  turned off implies a person did it — a spec upload is the surprise, and the
+                  only thing here that nothing else names. */}
+              {run.data && (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  <Link
+                    to={`/orgs/${orgId}/projects/${run.data.apiProjectId}`}
+                    className="text-foreground underline-offset-4 hover:underline"
+                  >
+                    Spec #{run.data.specSequence}
+                  </Link>
+                  {run.data.trigger !== RunTrigger.Manual && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span>Started by a spec upload</span>
+                    </>
+                  )}
+                  <span aria-hidden>·</span>
+                  <Tooltip>
+                    <TooltipTrigger render={<span />}>
+                      Queued {timeAgo(run.data.queuedAt)}
+                    </TooltipTrigger>
+                    <TooltipContent>{new Date(run.data.queuedAt).toLocaleString()}</TooltipContent>
+                  </Tooltip>
+                  {run.data.startedAt && (
+                    <>
+                      <span aria-hidden>·</span>
+                      {/* Queued, waited, ran: "slow" and "sat in the queue" look identical
+                          without the middle number. */}
+                      <span>
+                        waited{" "}
+                        {formatSeconds(
+                          (new Date(run.data.startedAt).getTime() -
+                            new Date(run.data.queuedAt).getTime()) / 1000,
+                        )}
+                      </span>
+                    </>
+                  )}
+                  {run.data.startedAt && run.data.completedAt && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span>
+                        ran{" "}
+                        {formatSeconds(
+                          (new Date(run.data.completedAt).getTime() -
+                            new Date(run.data.startedAt).getTime()) / 1000,
+                        )}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -295,54 +349,6 @@ export function RunPage() {
                   </TableBody>
                 </Table>
 
-                {/* The run's own facts, under the target's: which document it was built
-                    from, what started it, and when. None of these belong in the SDK targets
-                    table above, and all of them were on the response unread. */}
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-4 py-3 text-xs text-muted-foreground">
-                  <Link
-                    to={`/orgs/${orgId}/projects/${run.data.apiProjectId}`}
-                    className="text-foreground underline-offset-4 hover:underline"
-                  >
-                    Spec #{run.data.specSequence}
-                  </Link>
-                  <span aria-hidden>·</span>
-                  <span>
-                    {run.data.trigger === RunTrigger.SpecUpload
-                      ? "Started by a spec upload"
-                      : "Started by hand"}
-                  </span>
-                  <span aria-hidden>·</span>
-                  {/* Queued, waited, ran — three numbers, because "slow" and "sat in the
-                      queue" look identical without the middle one. */}
-                  <Tooltip>
-                    <TooltipTrigger render={<span />}>
-                      Queued {timeAgo(run.data.queuedAt)}
-                    </TooltipTrigger>
-                    <TooltipContent>{new Date(run.data.queuedAt).toLocaleString()}</TooltipContent>
-                  </Tooltip>
-                  {run.data.startedAt && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span>
-                        waited {formatSeconds(
-                          (new Date(run.data.startedAt).getTime() -
-                            new Date(run.data.queuedAt).getTime()) / 1000,
-                        )}
-                      </span>
-                    </>
-                  )}
-                  {run.data.startedAt && run.data.completedAt && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span>
-                        ran {formatSeconds(
-                          (new Date(run.data.completedAt).getTime() -
-                            new Date(run.data.startedAt).getTime()) / 1000,
-                        )}
-                      </span>
-                    </>
-                  )}
-                </div>
               </CardContent>
 
               {run.data.failureReason && (
