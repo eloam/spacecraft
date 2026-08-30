@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Ban, Download, Hand, Zap } from "lucide-react";
+import { Ban, Download, FileUp, Hand, MousePointerClick, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,10 +124,8 @@ export function RunPage() {
                   bar for anyone who needs it; under a title it was a line of hexadecimal
                   answering a question nobody had.
 
-                  The trigger appears only when the run started itself. "Started by hand" is
-                  the assumption a reader already holds, and the table saying publishing was
-                  turned off implies a person did it — a spec upload is the surprise, and the
-                  only thing here that nothing else names. */}
+                  What started the run has its own column now, where the two answers sit
+                  side by side instead of one of them being inferred from silence. */}
               {run.data && (
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                   <Link
@@ -136,12 +134,6 @@ export function RunPage() {
                   >
                     Spec #{run.data.specSequence}
                   </Link>
-                  {run.data.trigger !== RunTrigger.Manual && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span>Started by a spec upload</span>
-                    </>
-                  )}
                   <span aria-hidden>·</span>
                   <Tooltip>
                     <TooltipTrigger render={<span />}>
@@ -252,6 +244,9 @@ export function RunPage() {
                           list of runs needs first, and it was in eleven-pixel grey beside a
                           guid. */}
                       <TableHead>Project</TableHead>
+                      {/* Beside the project, ahead of the target's own columns: both are
+                          facts about this run, and what follows describes the target. */}
+                      <TableHead className="w-40">Started</TableHead>
                       <TableHead>SDK</TableHead>
                       <TableHead className="w-32">Registry</TableHead>
                       <TableHead className="w-44">Publishing</TableHead>
@@ -273,6 +268,24 @@ export function RunPage() {
                         >
                           {run.data.projectName ?? "—"}
                         </Link>
+                      </TableCell>
+
+                      <TableCell>
+                        {/* Named in full rather than "Manual"/"Automatic": those two words
+                            already answer a different question one column to the right, and
+                            a reader meeting both would have to work out which axis each was
+                            on. */}
+                        {run.data.trigger === RunTrigger.SpecUpload ? (
+                          <span className="flex items-center gap-1.5 text-xs">
+                            <FileUp className="size-3.5 text-[var(--code-warning)]" aria-hidden />
+                            By a spec upload
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-xs">
+                            <MousePointerClick className="size-3.5 text-muted-foreground" aria-hidden />
+                            By hand
+                          </span>
+                        )}
                       </TableCell>
 
                       <TableCell>
