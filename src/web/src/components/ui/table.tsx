@@ -59,7 +59,10 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors last:border-b-0 hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        // Full muted, where the header band is muted/50: at the same value a hovered row was
+        // indistinguishable from the header, so the feedback landed on the one thing that
+        // was never going to move. A row holding an open menu reads as active the same way.
+        "border-b transition-colors last:border-b-0 hover:bg-muted has-aria-expanded:bg-muted data-[state=selected]:bg-muted",
         className
       )}
       {...props}
