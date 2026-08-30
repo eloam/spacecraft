@@ -20,7 +20,7 @@ import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { TargetDialog } from "@/routes/project/TargetDialog";
 import { ApiError } from "@/api/client";
 import { useCredentials, useDeleteTarget, useProject, usePublications } from "@/api/queries";
-import { LanguageDot } from "@/components/LanguageDot";
+import { LanguageMark } from "@/components/LanguageDot";
 import { PublicationStatus, languageLabel, registryLabel } from "@/api/types";
 import type { SdkTarget } from "@/api/types";
 import { timeAgo } from "@/lib/format";
@@ -203,9 +203,7 @@ export function ProjectTargetsPage() {
                                 rather than under it: the chip gives that alignment
                                 structurally, where the pl-4 it replaces only guessed at it. */}
                             <div className="flex items-center gap-3">
-                              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                                <LanguageDot language={target.language} className="size-2.5" />
-                              </div>
+                              <LanguageMark language={target.language} />
                               <div className="flex min-w-0 flex-col">
                                 {/* The obvious thing to click on a row that has settings, and
                                     the one part of it that did nothing. Underlined on row hover
