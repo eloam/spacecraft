@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Ban, Download, FileUp, Hand, MousePointerClick, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Item, ItemActions, ItemMedia, ItemTitle } from "@/components/ui/item";
@@ -247,7 +246,7 @@ export function RunPage() {
                       {/* Beside the project, ahead of the target's own columns: both are
                           facts about this run, and what follows describes the target. */}
                       <TableHead className="w-40">Started</TableHead>
-                      <TableHead>SDK</TableHead>
+                      <TableHead>Language</TableHead>
                       <TableHead className="w-32">Registry</TableHead>
                       <TableHead className="w-44">Publishing</TableHead>
                       {/* Only for a run that published. A destination shown for one that did
@@ -289,23 +288,23 @@ export function RunPage() {
                       </TableCell>
 
                       <TableCell>
+                        {/* The language alone. The package name was the second line here
+                            and is already the title of the page, three centimetres above —
+                            saying it twice made the cell look like it held two facts. */}
                         <div className="flex items-center gap-3">
                           <LanguageMark language={run.data.targetLanguage} />
-                          <div className="flex min-w-0 flex-col">
-                            <span className="font-medium">
-                              {languageLabel[run.data.targetLanguage] ?? "Unknown"}
-                            </span>
-                            <span className="truncate font-mono text-xs text-muted-foreground">
-                              {run.data.targetPackageName}
-                            </span>
-                          </div>
+                          <span className="font-medium">
+                            {languageLabel[run.data.targetLanguage] ?? "Unknown"}
+                          </span>
                         </div>
                       </TableCell>
 
-                      <TableCell>
-                        <Badge variant="outline" className="font-mono text-[10px]">
-                          {registryLabel[run.data.targetRegistry] ?? "—"}
-                        </Badge>
+                      <TableCell className="font-mono text-xs">
+                        {/* Plain, not a badge: on the SDK targets table the pill separates
+                            one registry from the next down a column of them. There is one
+                            row here, so it was a pill around a fact with nothing to be told
+                            apart from. */}
+                        {registryLabel[run.data.targetRegistry] ?? "—"}
                       </TableCell>
 
                       <TableCell>
