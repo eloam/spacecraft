@@ -79,42 +79,51 @@ export function RunPage() {
         </BackLink>
 
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="flex items-center gap-2.5 font-heading text-2xl font-medium tracking-tight">
-              {/* The state as its icon, at the title's size: a pill in the row of actions
-                  competed with the heading it qualifies, and the word it carried is the
-                  first thing the steps below spell out anyway. */}
-              {run.data && <RunStatusIcon status={run.data.status} className="size-6" />}
-              Pipeline run
-              {run.data && (
-                <>
-                  {/* The package this run produces, so the title names the thing rather than
-                      the page, with the version it resolved beside it — one line answering
-                      "what was built, and which version of it". */}
-                  <span className="text-muted-foreground"> — {run.data.targetPackageName}</span>
-                  {run.data.resolvedVersion && (
-                    <span className="ml-2 font-mono text-base text-muted-foreground">
-                      v{run.data.resolvedVersion}
-                    </span>
-                  )}
-                </>
-              )}
-            </h1>
-        {/* The project belongs here, not in the table: that table is the SDK targets one,
-            and a project is not a property of a target. */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {run.data && (
-            <>
-              <Link
-                to={`/orgs/${orgId}/projects/${run.data.apiProjectId}/targets`}
-                className="text-foreground underline-offset-4 hover:underline"
-              >
-                {run.data.projectName ?? "This project"}
-              </Link>
-              <span aria-hidden>·</span>
-            </>
-          )}
-              <span className="font-mono">{runId}</span>
+          {/* The icon sits outside the column holding both lines, rather than inside the
+              heading: padded to match, the subtitle would have hung under the icon whenever
+              there is no run yet to have a status. This way they line up because they share
+              an edge. */}
+          <div className="flex min-w-0 items-start gap-2.5">
+            {run.data && (
+              // mt-1 rather than items-center: aligned to the cap height of a 24px serif
+              // heading, where centring on the line box sat it visibly low.
+              <RunStatusIcon status={run.data.status} className="mt-1 size-6" />
+            )}
+
+            <div className="min-w-0">
+              <h1 className="font-heading text-2xl font-medium tracking-tight">
+                Pipeline run
+                {run.data && (
+                  <>
+                    {/* The package this run produces, so the title names the thing rather
+                        than the page, with the version it resolved beside it — one line
+                        answering "what was built, and which version of it". */}
+                    <span className="text-muted-foreground"> — {run.data.targetPackageName}</span>
+                    {run.data.resolvedVersion && (
+                      <span className="ml-2 font-mono text-base text-muted-foreground">
+                        v{run.data.resolvedVersion}
+                      </span>
+                    )}
+                  </>
+                )}
+              </h1>
+
+              {/* The project belongs here, not in the table: that table is the SDK targets
+                  one, and a project is not a property of a target. */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                {run.data && (
+                  <>
+                    <Link
+                      to={`/orgs/${orgId}/projects/${run.data.apiProjectId}/targets`}
+                      className="text-foreground underline-offset-4 hover:underline"
+                    >
+                      {run.data.projectName ?? "This project"}
+                    </Link>
+                    <span aria-hidden>·</span>
+                  </>
+                )}
+                <span className="font-mono">{runId}</span>
+              </div>
             </div>
           </div>
 
