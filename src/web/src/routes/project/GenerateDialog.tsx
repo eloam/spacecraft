@@ -1,7 +1,9 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Check, CircleAlert, Minus } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -33,8 +35,9 @@ export function GenerateDialog({
 }: {
   orgId: string;
   /**
-   * Fixed by the caller when it has one — a project page always does. The runs list does not
-   * unless its filter names one, so it passes nothing and the dialog asks first.
+   * What the project field starts on. A project page always has one; the runs list has one
+   * only when its filter names one. Either way the field is shown and can be changed — this
+   * chooses its initial value, it does not hide it.
    */
   projectId?: string;
   open: boolean;
@@ -43,7 +46,7 @@ export function GenerateDialog({
   const navigate = useNavigate();
 
   const [pickedProject, setPickedProject] = useState("");
-  const activeProject = projectId ?? pickedProject;
+  const activeProject = pickedProject || (projectId ?? "");
   // Only fetched when the dialog has to ask; a project page already knows the answer.
   const projects = useProjects(orgId);
 
@@ -58,7 +61,12 @@ export function GenerateDialog({
 
   const [specId, setSpecId] = useState("");
   const [targetId, setTargetId] = useState("");
-  const [publish, setPublish] = useState(false);
+  /**
+   * null means "whatever the target says". A target set to publish automatically should
+   * arrive with the switch already on, or this dialog would quietly propose the opposite of
+   * what the target is configured to do; an explicit answer here overrides it for this run.
+   */
+  const [publish, setPublish] = useState<boolean | null>(null);
 
   const selectedSpec = specId || usableSpecs[0]?.id || "";
   const selectedTarget = targetId || targets[0]?.id || "";
@@ -85,9 +93,11 @@ export function GenerateDialog({
         ? "no-credential"
         : null;
 
-  // Read, not reset: switching to a target that publishes nowhere must not leave a ticked box
+  // Read, not reset: switching to a target that publishes nowhere must not leave a switch on
   // behind promising something the queued run would then quietly skip.
-  const willPublish = publish && !publishBlocked;
+  const wantsPublish = publish ?? (target?.autoPublish ?? false);
+  const willPublish = wantsPublish && !publishBlocked;
+  const overridden = publish !== null && target !== undefined && publish !== target.autoPublish;
 
   // Named from what will actually run, so the summary at the top and the box below it cannot
   // disagree — it used to promise "publish" on every run, including the ones that do not.
@@ -130,11 +140,13 @@ export function GenerateDialog({
             {/* Every SelectValue carries its own children. Base UI falls back to the raw
                 value when it cannot resolve the selected item — a guid, in two of these
                 three — and it cannot resolve one whose children are not a plain string. */}
-            {projectId === undefined && (
-              <Field>
+            {/* Always shown, even when the caller names one: a filter that silently becomes
+                the subject of a dialog is a decision the reader cannot see, and cannot
+                change without closing it. Preselected, not hidden. */}
+            <Field>
                 <FieldLabel htmlFor="project">Project</FieldLabel>
                 <Select
-                  value={pickedProject}
+                  value={activeProject}
                   onValueChange={(value) => {
                     setPickedProject(String(value));
                     // A spec and a target both belong to a project. Carried across, they
@@ -145,7 +157,7 @@ export function GenerateDialog({
                 >
                   <SelectTrigger id="project" className="w-full">
                     <SelectValue>
-                      {(projects.data ?? []).find((p) => p.slug === pickedProject)?.name ??
+                      {(projects.data ?? []).find((p) => p.slug === activeProject)?.name ??
                         "Choose a project…"}
                     </SelectValue>
                   </SelectTrigger>
@@ -157,12 +169,15 @@ export function GenerateDialog({
                     ))}
                   </SelectContent>
                 </Select>
-              </Field>
-            )}
+            </Field>
 
-            <Field>
+            <Field data-disabled={!activeProject || undefined}>
               <FieldLabel htmlFor="spec">Spec version</FieldLabel>
-              <Select value={selectedSpec} onValueChange={(value) => setSpecId(String(value))}>
+              <Select
+                value={selectedSpec}
+                disabled={!activeProject}
+                onValueChange={(value) => setSpecId(String(value))}
+              >
                 <SelectTrigger id="spec" className="w-full">
                   <SelectValue>{specLabel(usableSpecs.find((s) => s.id === selectedSpec))}</SelectValue>
                 </SelectTrigger>
@@ -176,23 +191,83 @@ export function GenerateDialog({
               </Select>
             </Field>
 
-            <Field>
+            <Field data-disabled={!activeProject || undefined}>
               <FieldLabel htmlFor="target">Target</FieldLabel>
-              <Select value={selectedTarget} onValueChange={(value) => setTargetId(String(value))}>
+              <Select
+                value={selectedTarget}
+                disabled={!activeProject}
+                onValueChange={(value) => {
+                  setTargetId(String(value));
+                  // Back to following the new target: an override belongs to the target it
+                  // was set against, not to the dialog.
+                  setPublish(null);
+                }}
+              >
                 <SelectTrigger id="target" className="w-full">
                   <SelectValue>
-                    {target ? `${languageLabel[target.language]} — ${target.packageName}` : ""}
+                    {target
+                      ? `${languageLabel[target.language]} — ${target.packageName} · ${target.autoPublish ? "Automatic" : "Manual"}`
+                      : ""}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {targets.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
-                      {languageLabel[t.language]} — {t.packageName}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate">
+                          {languageLabel[t.language]} — {t.packageName}
+                        </span>
+                        {/* How this target publishes, where it is chosen: it decides what
+                            the switch below arrives set to, and picking blind then finding
+                            the switch already on reads as the dialog deciding for you. */}
+                        <Badge variant="outline" className="shrink-0 text-[10px]">
+                          {t.autoPublish ? "Automatic" : "Manual"}
+                        </Badge>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Field>
+
+            {/* What the run will do, in the shape the delete dialogs use for what a delete
+                costs. The steps were only ever named in one line of prose at the top, and
+                the one that cannot be undone read the same as the three that can. */}
+            {target && (
+              <div className="space-y-3 rounded-2xl border bg-muted/40 p-3.5 text-sm">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                    This run
+                  </p>
+                  <ul className="space-y-1.5">
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                      <span>
+                        Validates the document, generates {target.packageName} and builds it
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      {willPublish ? (
+                        <>
+                          <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden />
+                          <span>
+                            Publishes to {registryLabel[target.registry]} — a version accepted
+                            by a registry cannot be taken back
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Minus className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                          <span className="text-muted-foreground">
+                            Publishes nothing. The build stays here, downloadable from the run.
+                          </span>
+                        </>
+                      )}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
 
             {/* A switch, like the auto-publish toggle on the SDK target it names: both answer
                 "does this go to a registry", and answering it two different ways on two
@@ -202,11 +277,15 @@ export function GenerateDialog({
                 data-disabled as well as a disabled switch, because Field dims its own label
                 from it — the control greying out alone left the sentence beside it reading
                 as an available choice. */}
-            <Field
-              orientation="horizontal"
-              className="justify-between gap-6"
-              data-disabled={Boolean(publishBlocked) || undefined}
-            >
+            {/* With the ledger, not before it: with no target chosen, publishBlocked reads
+                "no-credential" from an undefined target, and the row announced that "this
+                target publishes nowhere" about a target nobody had picked. */}
+            {target && (
+              <Field
+                orientation="horizontal"
+                className="justify-between gap-6"
+                data-disabled={Boolean(publishBlocked) || undefined}
+              >
               <FieldContent>
                 <FieldLabel htmlFor="publish">
                   {/* The destination, not the abstraction: "the registry" gave no way to tell
@@ -230,8 +309,16 @@ export function GenerateDialog({
                     </>
                   ) : publishBlocked === "not-admin" ? (
                     "Publishing to a registry cannot be undone, so it takes an admin. This run generates and builds only."
+                  ) : overridden ? (
+                    // The override is the point of the switch, so it says which way it went
+                    // rather than repeating the warning the ledger above already carries.
+                    target?.autoPublish
+                      ? "Overriding this target: it publishes automatically, and this one run will not."
+                      : "Overriding this target: it publishes manually, and this one run will."
+                  ) : target?.autoPublish ? (
+                    "Following this target, which publishes automatically. Turn it off to generate and build only."
                   ) : (
-                    `Pushing to ${target ? registryLabel[target.registry] : "a registry"} cannot be undone once it is accepted.`
+                    "Following this target, which publishes manually. Turn it on to publish this one run."
                   )}
                 </FieldDescription>
               </FieldContent>
@@ -241,7 +328,8 @@ export function GenerateDialog({
                 disabled={Boolean(publishBlocked)}
                 onCheckedChange={(checked) => setPublish(checked)}
               />
-            </Field>
+              </Field>
+            )}
           </FieldGroup>
 
           <DialogFooter>
