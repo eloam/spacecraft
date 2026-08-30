@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { FolderGit2, Plus, Settings } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FolderGit2, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Item, ItemContent, ItemDescription } from "@/components/ui/item";
 import { Input } from "@/components/ui/input";
 import {
   Field,
@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { LanguageDot } from "@/components/LanguageDot";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { useCreateProject, useProjects } from "@/api/queries";
@@ -51,47 +52,43 @@ export function ProjectsPage() {
 
       <QueryBoundary isLoading={isLoading} error={error}>
         {data?.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((project) => (
-              <Card
+              // The whole tile is the link, the way the organization tiles are. The count
+              // leads as the label because in a list of projects the name is what varies
+              // and the slug is what someone copies, so neither wants the quiet slot.
+              <Item
                 key={project.id}
-                className="relative h-full transition-colors hover:border-foreground/20"
+                variant="muted"
+                className="h-full flex-col items-stretch"
+                render={<Link to={`/orgs/${orgId}/projects/${project.slug}`} />}
               >
-                <Link
-                  to={`/orgs/${orgId}/projects/${project.slug}`}
-                  className="absolute inset-0"
-                  aria-label={project.name}
-                />
-                <CardHeader>
-                  <CardTitle className="truncate">{project.name}</CardTitle>
-                  <CardDescription className="font-mono text-xs">{project.slug}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm text-muted-foreground">
-                      {project.specVersionCount}{" "}
-                      {project.specVersionCount === 1 ? "spec version" : "spec versions"}
-                    </p>
-                    <Link
-                      to={`/orgs/${orgId}/projects/${project.slug}/settings`}
-                      // Above the card-wide link, so it wins the click.
-                      className={`relative z-10 ${buttonVariants({ variant: "ghost", size: "sm" })}`}
-                    >
-                      <Settings className="size-4" aria-hidden />
-                      <span className="sr-only">{project.name} settings</span>
-                    </Link>
-                  </div>
-                  {project.targets.length > 0 && (
+                <ItemContent className="gap-1">
+                  <ItemDescription className="text-xs font-medium tracking-wider uppercase">
+                    {project.specVersionCount}{" "}
+                    {project.specVersionCount === 1 ? "spec version" : "spec versions"}
+                  </ItemDescription>
+                  <span className="truncate font-heading text-lg font-semibold">
+                    {project.name}
+                  </span>
+                  <span className="truncate font-mono text-xs text-muted-foreground">
+                    {project.slug}
+                  </span>
+                </ItemContent>
+
+                {project.targets.length > 0 && (
+                  <ItemContent className="flex-none">
                     <div className="flex flex-wrap gap-1.5">
                       {project.targets.map((target) => (
-                        <Badge key={target.id} variant="outline">
+                        <Badge key={target.id} variant="outline" className="gap-1.5">
+                          <LanguageDot language={target.language} />
                           {languageLabel[target.language]}
                         </Badge>
                       ))}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </ItemContent>
+                )}
+              </Item>
             ))}
           </div>
         ) : (

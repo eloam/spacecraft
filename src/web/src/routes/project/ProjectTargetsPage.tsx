@@ -20,6 +20,7 @@ import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { TargetDialog } from "@/routes/project/TargetDialog";
 import { ApiError } from "@/api/client";
 import { useCredentials, useDeleteTarget, useProject, usePublications } from "@/api/queries";
+import { LanguageDot } from "@/components/LanguageDot";
 import { PublicationStatus, languageLabel, registryLabel } from "@/api/types";
 import type { SdkTarget } from "@/api/types";
 import { timeAgo } from "@/lib/format";
@@ -30,15 +31,6 @@ import { cn } from "@/lib/utils";
  * Brand hues rather than theme tokens: they carry the same meaning in either theme, and a
  * palette drawn from the theme would give six languages six shades of the same colour.
  */
-const languageColor: Record<number, string> = {
-  1: "bg-[#3178c6]", // TypeScript
-  2: "bg-[#8a51a5]", // C#
-  3: "bg-[#e76f00]", // Java
-  4: "bg-[#ffd43b]", // Python
-  5: "bg-[#787cb5]", // PHP
-  6: "bg-[#00add8]", // Go
-};
-
 type Filter = "all" | "automatic" | "manual";
 
 /**
@@ -201,13 +193,7 @@ export function ProjectTargetsPage() {
                               two columns the eye had to join them back up on every row. */}
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <span
-                                className={cn(
-                                  "size-2 shrink-0 rounded-full",
-                                  languageColor[target.language] ?? "bg-muted-foreground",
-                                )}
-                                aria-hidden
-                              />
+                              <LanguageDot language={target.language} />
                               {/* The obvious thing to click on a row that has settings, and
                                   the one part of it that did nothing. Underlined on row hover
                                   rather than its own: the pointer is somewhere on the row long

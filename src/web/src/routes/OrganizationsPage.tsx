@@ -1,16 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Building2, Plus, Settings } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Building2, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Item, ItemContent, ItemDescription } from "@/components/ui/item";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { CreateOrganizationDialog } from "@/components/CreateOrganizationDialog";
@@ -38,37 +30,34 @@ export function OrganizationsPage() {
 
       <QueryBoundary isLoading={isLoading} error={error}>
         {data?.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((org) => (
-              // The card is the link; settings sit inside it as their own control, so the
-              // organization's own page is reachable without entering it first — which was
-              // the only way to find them before.
-              <Card
+              // The whole tile is the link. It used to be a card with an absolutely
+              // positioned link stretched over it and a settings cog floating above that,
+              // stacking three things where one was meant: Item renders as the anchor
+              // itself, so the hover state and the focus ring come with it.
+              <Item
                 key={org.id}
-                className="relative h-full transition-colors hover:border-foreground/20"
+                variant="muted"
+                className="h-full flex-col items-stretch"
+                render={<Link to={`/orgs/${org.slug}`} />}
               >
-                <Link to={`/orgs/${org.slug}`} className="absolute inset-0" aria-label={org.name} />
-                <CardHeader>
-                  <CardTitle className="truncate">{org.name}</CardTitle>
-                  <CardAction>
-                    <Badge variant="secondary">{roleLabel[org.role] ?? "Member"}</Badge>
-                  </CardAction>
-                  <CardDescription className="font-mono text-xs">{org.slug}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex items-end justify-between text-sm text-muted-foreground">
-                  <span>
+                <ItemContent className="gap-1">
+                  <ItemDescription className="text-xs font-medium tracking-wider uppercase">
+                    {roleLabel[org.role] ?? "Member"}
+                  </ItemDescription>
+                  <span className="truncate font-heading text-lg font-semibold">{org.name}</span>
+                  <span className="truncate font-mono text-xs text-muted-foreground">
+                    {org.slug}
+                  </span>
+                </ItemContent>
+
+                <ItemContent className="flex-none">
+                  <span className="text-sm text-muted-foreground">
                     {org.projectCount} {org.projectCount === 1 ? "project" : "projects"}
                   </span>
-                  <Link
-                    to={`/orgs/${org.slug}/settings`}
-                    // Above the card-wide link, so it wins the click.
-                    className={`relative z-10 ${buttonVariants({ variant: "ghost", size: "sm" })}`}
-                  >
-                    <Settings className="size-4" aria-hidden />
-                    <span className="sr-only">{org.name} settings</span>
-                  </Link>
-                </CardContent>
-              </Card>
+                </ItemContent>
+              </Item>
             ))}
           </div>
         ) : (
