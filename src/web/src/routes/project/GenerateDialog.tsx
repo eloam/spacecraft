@@ -3,18 +3,27 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Field, FieldContent, FieldDescription, FieldGroup, FieldLabel,
 } from "@/components/ui/field";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { ApiError } from "@/api/client";
 import { useCreateRun, useOrganizations, useProject, useProjects, useSpecs } from "@/api/queries";
 import {
   OrganizationRole, SpecValidationStatus, StepKind, languageLabel, registryLabel, stepKindLabel,
 } from "@/api/types";
+
+/** Written once, so the closed trigger and the open list cannot drift apart. */
+function specLabel(spec?: { sequence: number; apiTitle: string | null; apiVersion: string | null }) {
+  if (!spec) return "";
+  return `#${spec.sequence} — ${spec.apiTitle ?? "untitled"} ${spec.apiVersion ?? ""}`.trim();
+}
 
 export function GenerateDialog({
   orgId,
@@ -118,75 +127,86 @@ export function GenerateDialog({
           </DialogHeader>
 
           <FieldGroup className="py-4">
+            {/* Every SelectValue carries its own children. Base UI falls back to the raw
+                value when it cannot resolve the selected item — a guid, in two of these
+                three — and it cannot resolve one whose children are not a plain string. */}
             {projectId === undefined && (
               <Field>
                 <FieldLabel htmlFor="project">Project</FieldLabel>
-                <select
-                  id="project"
+                <Select
                   value={pickedProject}
-                  onChange={(e) => {
-                    setPickedProject(e.target.value);
+                  onValueChange={(value) => {
+                    setPickedProject(String(value));
                     // A spec and a target both belong to a project. Carried across, they
                     // would name rows the newly chosen one does not own.
                     setSpecId("");
                     setTargetId("");
                   }}
-                  className="h-9 w-full rounded-lg border bg-background px-3 text-sm"
                 >
-                  <option value="">Choose a project…</option>
-                  {(projects.data ?? []).map((p) => (
-                    <option key={p.id} value={p.slug}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="project" className="w-full">
+                    <SelectValue>
+                      {(projects.data ?? []).find((p) => p.slug === pickedProject)?.name ??
+                        "Choose a project…"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(projects.data ?? []).map((p) => (
+                      <SelectItem key={p.id} value={p.slug}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
             )}
 
             <Field>
               <FieldLabel htmlFor="spec">Spec version</FieldLabel>
-              <select
-                id="spec"
-                value={selectedSpec}
-                onChange={(e) => setSpecId(e.target.value)}
-                className="h-9 w-full rounded-lg border bg-background px-3 text-sm"
-              >
-                {usableSpecs.map((spec) => (
-                  <option key={spec.id} value={spec.id}>
-                    #{spec.sequence} — {spec.apiTitle ?? "untitled"} {spec.apiVersion ?? ""}
-                  </option>
-                ))}
-              </select>
+              <Select value={selectedSpec} onValueChange={(value) => setSpecId(String(value))}>
+                <SelectTrigger id="spec" className="w-full">
+                  <SelectValue>{specLabel(usableSpecs.find((s) => s.id === selectedSpec))}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {usableSpecs.map((spec) => (
+                    <SelectItem key={spec.id} value={spec.id}>
+                      {specLabel(spec)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
 
             <Field>
               <FieldLabel htmlFor="target">Target</FieldLabel>
-              <select
-                id="target"
-                value={selectedTarget}
-                onChange={(e) => setTargetId(e.target.value)}
-                className="h-9 w-full rounded-lg border bg-background px-3 text-sm"
-              >
-                {targets.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {languageLabel[t.language]} — {t.packageName}
-                  </option>
-                ))}
-              </select>
+              <Select value={selectedTarget} onValueChange={(value) => setTargetId(String(value))}>
+                <SelectTrigger id="target" className="w-full">
+                  <SelectValue>
+                    {target ? `${languageLabel[target.language]} — ${target.packageName}` : ""}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {targets.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {languageLabel[t.language]} — {t.packageName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
 
-            {/* The Checkbox primitive, like every other tick in the app: a bare input beside
-                styled fields read as part of the page's furniture rather than a choice.
-                data-disabled as well as a disabled box, because Field dims its own label
-                from it — a 16px square greying out alone left the sentence beside it
-                reading as an available choice. */}
-            <Field orientation="horizontal" data-disabled={Boolean(publishBlocked) || undefined}>
-              <Checkbox
-                id="publish"
-                checked={willPublish}
-                disabled={Boolean(publishBlocked)}
-                onCheckedChange={(checked) => setPublish(checked)}
-              />
+            {/* A switch, like the auto-publish toggle on the SDK target it names: both answer
+                "does this go to a registry", and answering it two different ways on two
+                screens made them look like different questions. Content first and the
+                control last, the way that row reads.
+
+                data-disabled as well as a disabled switch, because Field dims its own label
+                from it — the control greying out alone left the sentence beside it reading
+                as an available choice. */}
+            <Field
+              orientation="horizontal"
+              className="justify-between gap-6"
+              data-disabled={Boolean(publishBlocked) || undefined}
+            >
               <FieldContent>
                 <FieldLabel htmlFor="publish">
                   {/* The destination, not the abstraction: "the registry" gave no way to tell
@@ -215,6 +235,12 @@ export function GenerateDialog({
                   )}
                 </FieldDescription>
               </FieldContent>
+              <Switch
+                id="publish"
+                checked={willPublish}
+                disabled={Boolean(publishBlocked)}
+                onCheckedChange={(checked) => setPublish(checked)}
+              />
             </Field>
           </FieldGroup>
 
