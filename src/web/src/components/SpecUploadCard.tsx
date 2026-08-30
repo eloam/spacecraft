@@ -3,6 +3,14 @@ import { CopyCheck, FileUp, SquareCode, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -10,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { useUploadSpec } from "@/api/queries";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
@@ -62,7 +71,11 @@ export function SpecUploadCard({
   return (
     <>
       <div className="space-y-4">
-        <div
+        {/* The same Empty composition every other panel in the app uses — icon in its
+            rounded surface, serif title, muted line under it. The drop zone says what to
+            do rather than what is there, but there is no reason for it to say so in a
+            different visual language. */}
+        <Empty
           onDragOver={(e) => {
             e.preventDefault();
             setDragging(true);
@@ -74,38 +87,47 @@ export function SpecUploadCard({
             const file = e.dataTransfer.files[0];
             if (file) send(file);
           }}
-          className={`flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center transition-colors ${
-            dragging ? "border-foreground/40 bg-muted/50" : ""
-          }`}
+          className={cn(
+            "rounded-2xl border border-dashed transition-colors",
+            dragging && "border-foreground/40 bg-muted/50",
+          )}
         >
-          <FileUp className="mb-3 size-7 text-muted-foreground" aria-hidden />
-          <p className="text-sm font-medium">Drop an OpenAPI document here</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            .yaml, .yml or .json — up to 10 MB. External <code>$ref</code>s are rejected.
-          </p>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FileUp aria-hidden />
+            </EmptyMedia>
+            <EmptyTitle>Drop an OpenAPI document here</EmptyTitle>
+            <EmptyDescription>
+              {/* Non-breaking: EmptyHeader is max-w-sm, and the line broke between the
+                  number and its unit. */}
+              .yaml, .yml or .json — up to 10&nbsp;MB. External <code>$ref</code>s are
+              rejected.
+            </EmptyDescription>
+          </EmptyHeader>
 
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".yaml,.yml,.json,application/json,application/yaml"
-            className="sr-only"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) send(file);
-              e.target.value = "";
-            }}
-          />
+          <EmptyContent>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".yaml,.yml,.json,application/json,application/yaml"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) send(file);
+                e.target.value = "";
+              }}
+            />
 
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-5"
-            onClick={() => inputRef.current?.click()}
-            disabled={upload.isPending}
-          >
-            {upload.isPending ? "Uploading…" : "Choose a file"}
-          </Button>
-        </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => inputRef.current?.click()}
+              disabled={upload.isPending}
+            >
+              {upload.isPending ? "Uploading…" : "Choose a file"}
+            </Button>
+          </EmptyContent>
+        </Empty>
 
         {findingCount > 0 && (
           <Alert>

@@ -4,7 +4,6 @@ import {
   ArrowLeftRight,
   CircleAlert,
   CircleCheck,
-  FileCode2,
   History,
   Layers,
   MoreHorizontal,
@@ -25,7 +24,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
@@ -476,12 +474,15 @@ export function ProjectSpecsPage() {
             </Card>
           </div>
         ) : (
-          // The drop zone above is not an empty state: it says what to do, not what is there.
-          <EmptyState
-            icon={<FileCode2 aria-hidden />}
-            title="No document yet"
-            description="Upload an OpenAPI document above. Each upload is kept as a version, so you can compare them and see what every published package was generated from."
-          />
+          // The drop zone above already is this page's empty state, and a better one: it
+          // says what to do rather than what is absent. Now that both are built from the
+          // same Empty composition, a second dashed panel under it framed the same
+          // emptiness twice. What it carried and the drop zone does not — that uploads
+          // accumulate rather than replace — is kept as a line.
+          <p className="text-center text-sm text-balance text-muted-foreground">
+            Each upload is kept as a version, so you can compare them and see what every
+            published package was generated from.
+          </p>
         )}
       </QueryBoundary>
 
