@@ -1,14 +1,27 @@
 using Xunit;
+using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Pipelines;
+using SpaceCraft.Domain.Projects;
+using SpaceCraft.Domain.Registries;
 using Shouldly;
 
 namespace SpaceCraft.UnitTests;
 
 public class PipelineRunTests
 {
+    /// <summary>
+    /// A real target, because a run copies its settings at construction and there is no
+    /// other way in: SdkTarget's constructor is internal, so it comes from a project, which
+    /// comes from an organization.
+    /// </summary>
+    private static SdkTarget NewTarget() =>
+        new Organization("Acme", "acme", Guid.CreateVersion7())
+            .AddProject("Billing", "billing")
+            .AddTarget(SdkLanguage.TypeScript, "billing-sdk", RegistryKind.Npm);
+
     private static PipelineRun NewRun(bool publish = true) =>
-        new(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
-            RunTrigger.Manual, publish);
+        new(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), NewTarget(),
+            "https://registry.npmjs.org", RunTrigger.Manual, publish);
 
     [Fact]
     public void A_new_run_is_queued_with_all_four_steps()

@@ -433,13 +433,22 @@ public static class SpecEndpoints
         var triggered = new List<Guid>();
         if (specVersion.IsGeneratable)
         {
+            // One lookup for the whole loop rather than one per target: several targets in a
+            // project commonly share a credential, and this runs on the upload path.
+            var credentialUrls = await db.RegistryCredentials.AsNoTracking()
+                .Where(c => c.OrganizationId == organizationId)
+                .ToDictionaryAsync(c => c.Id, c => c.RegistryUrl, ct);
+
             foreach (var target in project.Targets.Where(t => t.AutoPublish && t.Language.IsSupported()))
             {
                 var run = new PipelineRun(
                     organizationId,
                     projectId,
                     specVersion.Id,
-                    target.Id,
+                    target,
+                    target.RegistryCredentialId is { } id && credentialUrls.TryGetValue(id, out var url)
+                        ? url
+                        : null,
                     RunTrigger.SpecUpload,
                     publishRequested: true,
                     principal.Id());

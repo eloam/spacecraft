@@ -17,6 +17,11 @@ public sealed class PipelineRunConfiguration : IEntityTypeConfiguration<Pipeline
         builder.Property(r => r.FailureReason).HasMaxLength(2000);
         builder.Property(r => r.ArtifactStorageKey).HasMaxLength(512);
 
+        // The target's settings as they were when this run was queued. Same lengths as the
+        // columns they are copied from, so a value that fits on a target fits here.
+        builder.Property(r => r.TargetPackageName).HasMaxLength(214).IsRequired();
+        builder.Property(r => r.TargetRegistryUrl).HasMaxLength(512);
+
         // No optimistic concurrency token here on purpose. Claiming goes through
         // SELECT ... FOR UPDATE SKIP LOCKED, so Postgres serialises competing workers at
         // the row level: a second worker skips the locked row instead of racing for it.

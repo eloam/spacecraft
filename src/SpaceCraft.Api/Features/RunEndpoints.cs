@@ -2,6 +2,8 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Pipelines;
+using SpaceCraft.Domain.Projects;
+using SpaceCraft.Domain.Registries;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Storage;
 using Microsoft.AspNetCore.Mvc;
@@ -29,6 +31,19 @@ public sealed record RunResponse(
     string? ProjectName,
     Guid SpecVersionId,
     Guid SdkTargetId,
+    /// <summary>
+    /// What the SDK target said when this run was queued, not what it says now. A target
+    /// renamed or repointed since would otherwise rewrite the history of every run before it.
+    /// </summary>
+    SdkLanguage TargetLanguage,
+    /// <inheritdoc cref="TargetLanguage"/>
+    string TargetPackageName,
+    /// <inheritdoc cref="TargetLanguage"/>
+    RegistryKind TargetRegistry,
+    /// <inheritdoc cref="TargetLanguage"/>
+    bool TargetAutoPublish,
+    /// <summary>Where its credential pointed then; null when it had none.</summary>
+    string? TargetRegistryUrl,
     RunStatus Status,
     RunTrigger Trigger,
     bool PublishRequested,
@@ -165,11 +180,21 @@ public static class RunEndpoints
             return ApiResults.Conflict("A run for this spec version and target is already in progress.");
         }
 
+        // Read now, stored on the run: the address travels with the credential, so revoking
+        // or repointing one later must not change where this run says it published.
+        var registryUrl = target.RegistryCredentialId is { } credentialId
+            ? await db.RegistryCredentials.AsNoTracking()
+                .Where(c => c.Id == credentialId && c.OrganizationId == organizationId)
+                .Select(c => c.RegistryUrl)
+                .FirstOrDefaultAsync(ct)
+            : null;
+
         var run = new PipelineRun(
             organizationId,
             project.Id,
             spec.Id,
-            target.Id,
+            target,
+            registryUrl,
             RunTrigger.Manual,
             request.Publish,
             principal.Id());
@@ -330,6 +355,11 @@ public static class RunEndpoints
             projectName,
             run.SpecVersionId,
             run.SdkTargetId,
+            run.TargetLanguage,
+            run.TargetPackageName,
+            run.TargetRegistry,
+            run.TargetAutoPublish,
+            run.TargetRegistryUrl,
             run.Status,
             run.Trigger,
             run.PublishRequested,

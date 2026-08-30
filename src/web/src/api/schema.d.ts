@@ -2565,6 +2565,11 @@ export interface components {
             specVersionId: string;
             /** Format: uuid */
             sdkTargetId: string;
+            targetLanguage: components["schemas"]["SdkLanguage"];
+            targetPackageName: string;
+            targetRegistry: components["schemas"]["RegistryKind"];
+            targetAutoPublish: boolean;
+            targetRegistryUrl: null | string;
             status: components["schemas"]["RunStatus"];
             trigger: components["schemas"]["RunTrigger"];
             publishRequested: boolean;

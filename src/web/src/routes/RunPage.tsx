@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Ban, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,11 +10,13 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge, StepStatusIcon } from "@/components/StatusBadge";
 import { api } from "@/api/client";
 import { useCancelRun, useRun, useStepLog } from "@/api/queries";
-import { StepStatus, isTerminal, stepKindLabel, stepStatusLabel } from "@/api/types";
+import { StepStatus, isTerminal, languageLabel, registryLabel, stepKindLabel, stepStatusLabel } from "@/api/types";
 import type { ArtifactDownload } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 import { BackLink } from "@/components/BackLink";
+import { LanguageDot } from "@/components/LanguageDot";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function RunPage() {
   const { orgId = "", runId = "" } = useParams();
@@ -62,22 +64,26 @@ export function RunPage() {
 
   return (
     <div className="space-y-6">
-      {/* Same shape as a project page. The run knows its project, so it goes back to the
-          list this run was opened from — and only falls back to the organization while that
-          is still loading, where "All runs" would name a list it cannot yet link to. */}
+      {/* The runs list is the organization's now, narrowed back to the project this run
+          belongs to. It used to point at /projects/{id}/runs, a route that stopped existing
+          when the tab moved — React Router matched the catch-all and sent "All runs" to the
+          organizations page. */}
       <div>
         <BackLink
-          to={
-            run.data
-              ? `/orgs/${orgId}/projects/${run.data.apiProjectId}/runs`
-              : `/orgs/${orgId}`
-          }
+          to={run.data ? `/orgs/${orgId}/runs?project=${run.data.apiProjectId}` : `/orgs/${orgId}/runs`}
           className="mb-2"
         >
-          {run.data ? "All runs" : "All projects"}
+          All runs
         </BackLink>
 
-        <h1 className="font-heading text-2xl font-medium tracking-tight">Pipeline run</h1>
+        <h1 className="font-heading text-2xl font-medium tracking-tight">
+          Pipeline run
+          {run.data && (
+            // The package this run produces, so the title names the thing rather than the
+            // page. Kept after "Pipeline run" because that is what the reader arrived for.
+            <span className="text-muted-foreground"> — {run.data.targetPackageName}</span>
+          )}
+        </h1>
         <p className="font-mono text-xs text-muted-foreground">{runId}</p>
       </div>
 
@@ -146,6 +152,77 @@ export function RunPage() {
                   </div>
                 </div>
               </CardHeader>
+
+              {/* What this run was pointed at, as it was pointed then. Read off the run, not
+                  off the target: the target may since have been renamed, repointed at another
+                  registry, switched between automatic and manual, or deleted outright, and a
+                  page describing history has to keep saying what happened.
+
+                  Rows separated by hairlines rather than boxed: these are five facts about
+                  one thing, and each in its own frame reads as five things. */}
+              <CardContent>
+                <dl className="text-sm">
+                  {[
+                    {
+                      term: "Project",
+                      value: (
+                        <Link
+                          to={`/orgs/${orgId}/projects/${run.data.apiProjectId}/targets`}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {run.data.projectName ?? "—"}
+                        </Link>
+                      ),
+                    },
+                    {
+                      term: "SDK",
+                      value: (
+                        <span className="flex items-center gap-2">
+                          <LanguageDot language={run.data.targetLanguage} />
+                          {languageLabel[run.data.targetLanguage] ?? "—"}
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {run.data.targetPackageName}
+                          </span>
+                        </span>
+                      ),
+                    },
+                    { term: "Registry", value: registryLabel[run.data.targetRegistry] ?? "—" },
+                    {
+                      term: "Publishing",
+                      value: run.data.targetAutoPublish ? "Automatic" : "Manual",
+                    },
+                    {
+                      term: "Publishes to",
+                      value: run.data.targetRegistryUrl ? (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={<span className="block max-w-[22rem] truncate font-mono text-xs" />}
+                          >
+                            {run.data.targetRegistryUrl}
+                          </TooltipTrigger>
+                          {/* break-all: a registry URL has no spaces to wrap at, so the
+                              tooltip would clip the address it was opened to reveal. */}
+                          <TooltipContent className="break-all">
+                            {run.data.targetRegistryUrl}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          Nowhere — this target had no credential
+                        </span>
+                      ),
+                    },
+                  ].map(({ term, value }) => (
+                    <div
+                      key={term}
+                      className="flex items-baseline justify-between gap-6 border-b py-2 last:border-b-0"
+                    >
+                      <dt className="shrink-0 text-muted-foreground">{term}</dt>
+                      <dd className="min-w-0 text-right">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </CardContent>
 
               {run.data.failureReason && (
                 <CardContent>

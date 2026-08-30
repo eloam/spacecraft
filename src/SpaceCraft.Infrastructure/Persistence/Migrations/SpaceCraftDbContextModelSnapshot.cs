@@ -329,6 +329,29 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("status");
 
+                    b.Property<bool>("TargetAutoPublish")
+                        .HasColumnType("boolean")
+                        .HasColumnName("target_auto_publish");
+
+                    b.Property<int>("TargetLanguage")
+                        .HasColumnType("integer")
+                        .HasColumnName("target_language");
+
+                    b.Property<string>("TargetPackageName")
+                        .IsRequired()
+                        .HasMaxLength(214)
+                        .HasColumnType("character varying(214)")
+                        .HasColumnName("target_package_name");
+
+                    b.Property<int>("TargetRegistry")
+                        .HasColumnType("integer")
+                        .HasColumnName("target_registry");
+
+                    b.Property<string>("TargetRegistryUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("target_registry_url");
+
                     b.Property<int>("Trigger")
                         .HasColumnType("integer")
                         .HasColumnName("trigger");

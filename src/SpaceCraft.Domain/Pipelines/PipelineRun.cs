@@ -20,19 +20,42 @@ public sealed class PipelineRun : Entity
 
     private PipelineRun() { }
 
+    /// <summary>
+    /// The target is passed whole, and its settings are copied rather than referenced.
+    /// <para>
+    /// A run is history. Reading the target's language, package name, registry, publishing
+    /// mode or address back off the target would show what it says today — so a target
+    /// renamed, repointed at another registry, or switched from manual to automatic would
+    /// rewrite every run that came before, and a deleted one would leave them describing
+    /// nothing. Copied here, a run keeps saying what it actually did.
+    /// </para>
+    /// <para>
+    /// <paramref name="targetRegistryUrl"/> comes from the credential the target names, read
+    /// at the same moment for the same reason: the endpoint travels with the credential, and
+    /// revoking or repointing one must not change where an old run says it published.
+    /// </para>
+    /// </summary>
     public PipelineRun(
         Guid organizationId,
         Guid apiProjectId,
         Guid specVersionId,
-        Guid sdkTargetId,
+        SdkTarget target,
+        string? targetRegistryUrl,
         RunTrigger trigger,
         bool publishRequested,
         Guid? triggeredByUserId = null)
     {
+        ArgumentNullException.ThrowIfNull(target);
+
         OrganizationId = organizationId;
         ApiProjectId = apiProjectId;
         SpecVersionId = specVersionId;
-        SdkTargetId = sdkTargetId;
+        SdkTargetId = target.Id;
+        TargetLanguage = target.Language;
+        TargetPackageName = target.PackageName;
+        TargetRegistry = target.Registry;
+        TargetAutoPublish = target.AutoPublish;
+        TargetRegistryUrl = targetRegistryUrl;
         Trigger = trigger;
         PublishRequested = publishRequested;
         TriggeredByUserId = triggeredByUserId;
@@ -54,6 +77,27 @@ public sealed class PipelineRun : Entity
     public Guid ApiProjectId { get; private set; }
     public Guid SpecVersionId { get; private set; }
     public Guid SdkTargetId { get; private set; }
+
+    /// <summary>
+    /// What the target said when this run was queued. See the constructor for why these are
+    /// copies rather than a lookup.
+    /// </summary>
+    public SdkLanguage TargetLanguage { get; private set; }
+
+    /// <inheritdoc cref="TargetLanguage"/>
+    public string TargetPackageName { get; private set; } = "";
+
+    /// <inheritdoc cref="TargetLanguage"/>
+    public RegistryKind TargetRegistry { get; private set; }
+
+    /// <inheritdoc cref="TargetLanguage"/>
+    public bool TargetAutoPublish { get; private set; }
+
+    /// <summary>
+    /// Where the credential this target named pointed when the run was queued. Null when the
+    /// target had none, which is also why the run could not publish.
+    /// </summary>
+    public string? TargetRegistryUrl { get; private set; }
     public Guid? TriggeredByUserId { get; private set; }
 
     public RunTrigger Trigger { get; private set; }
