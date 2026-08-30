@@ -120,20 +120,9 @@ export function RunPage() {
 
               {/* The project belongs here, not in the table: that table is the SDK targets
                   one, and a project is not a property of a target. */}
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                {run.data && (
-                  <>
-                    <Link
-                      to={`/orgs/${orgId}/projects/${run.data.apiProjectId}/targets`}
-                      className="text-foreground underline-offset-4 hover:underline"
-                    >
-                      {run.data.projectName ?? "This project"}
-                    </Link>
-                    <span aria-hidden>·</span>
-                  </>
-                )}
-                <span className="font-mono">{runId}</span>
-              </div>
+              {/* The id alone. The project moved into the table, where it is read rather
+                  than squinted at beside a guid. */}
+              <p className="font-mono text-xs text-muted-foreground">{runId}</p>
             </div>
           </div>
 
@@ -205,10 +194,17 @@ export function RunPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {/* Ahead of the SDK: the project is what someone landing here from a
+                          list of runs needs first, and it was in eleven-pixel grey beside a
+                          guid. */}
+                      <TableHead>Project</TableHead>
                       <TableHead>SDK</TableHead>
                       <TableHead className="w-32">Registry</TableHead>
-                      <TableHead className="w-40">Publishing</TableHead>
-                      <TableHead className="w-64">Publishes to</TableHead>
+                      <TableHead className="w-44">Publishing</TableHead>
+                      {/* Only for a run that published. A destination shown for one that did
+                          not is a URL in evidence beside a package that never reached it —
+                          the exact misreading the Publishing cell was just fixed to avoid. */}
+                      {run.data.publishRequested && <TableHead className="w-64">Publishes to</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -216,6 +212,15 @@ export function RunPage() {
                         to pick from. The primitive lifts a row on hover because rows
                         are usually targets; this one is a fact. */}
                     <TableRow className="hover:bg-transparent">
+                      <TableCell>
+                        <Link
+                          to={`/orgs/${orgId}/projects/${run.data.apiProjectId}/targets`}
+                          className="font-medium underline-offset-4 hover:underline"
+                        >
+                          {run.data.projectName ?? "—"}
+                        </Link>
+                      </TableCell>
+
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <LanguageMark language={run.data.targetLanguage} />
@@ -261,6 +266,7 @@ export function RunPage() {
                         </div>
                       </TableCell>
 
+                      {run.data.publishRequested && (
                       <TableCell>
                         {run.data.targetRegistryUrl ? (
                           <div className="max-w-[16rem]">
@@ -281,9 +287,10 @@ export function RunPage() {
                             </Tooltip>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">Not published</span>
+                          <span className="text-muted-foreground">Nowhere — no credential</span>
                         )}
                       </TableCell>
+                      )}
                     </TableRow>
                   </TableBody>
                 </Table>
