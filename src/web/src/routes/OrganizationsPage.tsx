@@ -38,8 +38,8 @@ export function OrganizationsPage() {
               // itself, so the hover state and the focus ring come with it.
               <Item
                 key={org.id}
-                variant="muted"
-                className="h-full flex-col items-stretch border-border"
+                variant="outline"
+                className="h-full flex-col items-stretch bg-card"
                 render={<Link to={`/orgs/${org.slug}`} />}
               >
                 <ItemContent className="gap-1">

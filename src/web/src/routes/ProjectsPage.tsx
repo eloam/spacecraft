@@ -59,8 +59,8 @@ export function ProjectsPage() {
               // and the slug is what someone copies, so neither wants the quiet slot.
               <Item
                 key={project.id}
-                variant="muted"
-                className="h-full flex-col items-stretch border-border"
+                variant="outline"
+                className="h-full flex-col items-stretch bg-card"
                 render={<Link to={`/orgs/${orgId}/projects/${project.slug}`} />}
               >
                 <ItemContent className="gap-1">

@@ -90,20 +90,21 @@
        single surface so they read as one piece of chrome rather than two stacked strips.
        Opaque rather than muted/30: the global bar is sticky, and a translucent one would
        let the page scroll through it. Mixed rather than hand-picked so it keeps tracking
-       --muted and --page if either is retuned.
+       --card and --page if either is retuned.
 
-       Against --page, not --background: the bar has to separate from the ground it sits on,
-       and --background stopped being that ground. Left anchored there, raising --page above
-       it turned the bar darker than the page instead of lighter — the one relationship this
-       colour exists to hold. */
-    --topbar: color-mix(in oklch, var(--muted) 30%, var(--page));
+       Mixed toward --card, and against --page rather than --background: the bar has to
+       separate from the ground it sits on, and it has to do so in both themes. --muted is
+       below the ground in light and above it in dark, and at the light ground's current
+       value it *is* the ground — a bar mixed from it disappeared. --card is above the page
+       in both, so the bar lands on the lit side of it either way. */
+    --topbar: color-mix(in oklch, var(--card) 30%, var(--page));
 
     /* The ground the whole app sits on, named rather than borrowed. It used to be --muted,
        which also paints table headers, muted tiles and the icon chips in empty states: any
        value that suited the page flattened those, since a tile at muted/50 over a muted
        ground is the same colour. mauve-50 and mauve-900 are the palette's own steps, so a
        preset change still tracks them, unlike the raw bg-mauve-50 utility this replaces. */
-    --page: oklch(0.985 0 0);
+    --page: oklch(0.96 0.003 325.6);
 
     /* Source colours for the spec viewer. Kept at very low chroma so a document reads as
        part of this greyscale interface rather than as an editor pasted into it — structure
@@ -172,7 +173,7 @@
     --code-warning: oklch(0.78 0.1 75);
     --success: oklch(0.76 0.1 155);
     --filter-all: oklch(0.76 0.12 300);
-    --page: oklch(0.212 0.019 322.12);
+    --page: oklch(0.212 0.008 322.12);
 
 }
 
