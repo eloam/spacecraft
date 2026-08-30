@@ -24,6 +24,7 @@ import {
 import type { ArtifactDownload } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
+import { LanguageDot } from "@/components/LanguageDot";
 import { timeAgo } from "@/lib/format";
 import { BackLink } from "@/components/BackLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -235,32 +236,26 @@ export function RunPage() {
                   repointed, switched between automatic and manual, or deleted, and a page
                   describing history has to keep saying what happened. */}
               <CardContent className="p-0">
-                <Table>
+                {/* table-fixed: the columns divide the width evenly instead of being
+                    measured from their contents, which for one row meant four narrow
+                    cells and one enormous one. */}
+                <Table className="table-fixed">
                   <TableHeader>
                     <TableRow>
                       {/* Ahead of the SDK: the project is what someone landing here from a
                           list of runs needs first, and it was in eleven-pixel grey beside a
                           guid. */}
-                      {/* No widths. They were inherited from the SDK targets table, where
-                          they hold a column of rows to one shape; here there is one row, so
-                          they were five numbers chosen for content that is no longer in
-                          these cells. Auto layout sizes each to what it holds, and the last
-                          column takes the slack. */}
                       <TableHead>Project</TableHead>
                       {/* Beside the project, ahead of the target's own columns: both are
                           facts about this run, and what follows describes the target. */}
                       <TableHead>Started</TableHead>
                       <TableHead>Language</TableHead>
                       <TableHead>Registry</TableHead>
-                      <TableHead className={run.data.publishRequested ? undefined : "w-full"}>
-                        Publishing
-                      </TableHead>
+                      <TableHead>Publishing</TableHead>
                       {/* Only for a run that published. A destination shown for one that did
                           not is a URL in evidence beside a package that never reached it —
                           the exact misreading the Publishing cell was just fixed to avoid. */}
-                      {run.data.publishRequested && (
-                        <TableHead className="w-full">Publishes to</TableHead>
-                      )}
+                      {run.data.publishRequested && <TableHead>Publishes to</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -296,11 +291,14 @@ export function RunPage() {
                       </TableCell>
 
                       <TableCell>
-                        {/* The word alone. The package name was the second line here and is
-                            already the title of the page; the mark was a 40px badge for a
-                            single row, where it identified nothing the word did not. */}
-                        <span className="font-medium">
-                          {languageLabel[run.data.targetLanguage] ?? "Unknown"}
+                        {/* The dot, not the 40px mark: the same colour identifying the same
+                            language, at a weight that belongs beside four other cells rather
+                            than dominating them. */}
+                        <span className="flex items-center gap-2">
+                          <LanguageDot language={run.data.targetLanguage} />
+                          <span className="truncate font-medium">
+                            {languageLabel[run.data.targetLanguage] ?? "Unknown"}
+                          </span>
                         </span>
                       </TableCell>
 
@@ -340,7 +338,7 @@ export function RunPage() {
                       {run.data.publishRequested && (
                       <TableCell>
                         {run.data.targetRegistryUrl ? (
-                          <div className="max-w-[16rem]">
+                          <div className="min-w-0">
                             <p className="truncate">{run.data.targetCredentialLabel ?? "—"}</p>
                             <Tooltip>
                               <TooltipTrigger
