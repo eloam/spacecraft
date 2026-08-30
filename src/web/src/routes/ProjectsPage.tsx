@@ -40,6 +40,7 @@ export function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
+          <h1 className="font-heading text-2xl font-medium tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground">
             One project per API. Each keeps its spec history and the SDKs generated from it.
           </p>

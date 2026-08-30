@@ -71,6 +71,7 @@ export function OrganizationSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
+        <h1 className="font-heading text-2xl font-medium tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">
           Naming and removal for this organization.
         </p>

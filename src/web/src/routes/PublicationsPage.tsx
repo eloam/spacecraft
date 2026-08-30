@@ -15,6 +15,7 @@ export function PublicationsPage() {
   return (
     <div className="space-y-6">
       <div>
+        <h1 className="font-heading text-2xl font-medium tracking-tight">Published</h1>
         <p className="text-sm text-muted-foreground">
           Every version this organization has pushed to a registry.
         </p>

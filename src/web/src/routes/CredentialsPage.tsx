@@ -71,6 +71,7 @@ export function CredentialsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
+          <h1 className="font-heading text-2xl font-medium tracking-tight">Credentials</h1>
           <p className="text-sm text-muted-foreground">
             Tokens used to publish generated SDKs. Encrypted at rest and never shown again.
           </p>
