@@ -22,7 +22,7 @@ export function AppShell() {
   const { orgId } = useParams();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Bordered only when nothing follows it. When the organization's sections are below,
           the two bars share a surface and a border between them would cut in half something
           meant to read as one. The section bar carries the closing border instead. */}
