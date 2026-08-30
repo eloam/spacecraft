@@ -119,6 +119,25 @@ async function toError(response: Response): Promise<ApiError> {
   return new ApiError(response.status, title, detail || title, errors);
 }
 
+/** The name the API asked the browser to save a file under, if it named one. */
+function fileNameFrom(response: Response): string | null {
+  const header = response.headers.get("content-disposition") ?? "";
+
+  // RFC 6266 puts a non-ASCII name in filename*, percent-encoded, and repeats an ASCII
+  // approximation in filename for older clients. The starred form wins where both are sent.
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1]);
+    } catch {
+      // A malformed header should not cost the download the bytes that came with it.
+    }
+  }
+
+  const plain = /filename="?([^";]+)"?/i.exec(header);
+  return plain ? plain[1] : null;
+}
+
 async function parse<T>(response: Response): Promise<T> {
   if (!response.ok) throw await toError(response);
   if (response.status === 204) return undefined as T;
@@ -139,4 +158,17 @@ export const api = {
   delete: <T>(path: string, body?: unknown) => send(path, { method: "DELETE", body }).then((r) => parse<T>(r)),
   upload: <T>(path: string, formData: FormData) =>
     send(path, { method: "POST", formData }).then((r) => parse<T>(r)),
+
+  /**
+   * A file, fetched with the session's token and handed back as bytes.
+   *
+   * Separate from `get` because the response is not text: `parse` would decode a gzip stream
+   * into a mangled string. The name travels in Content-Disposition, so the saved file keeps
+   * the one the API packed it under rather than the URL's last segment.
+   */
+  download: async (path: string): Promise<{ blob: Blob; fileName: string | null }> => {
+    const response = await send(path, { method: "GET" });
+    if (!response.ok) throw await toError(response);
+    return { blob: await response.blob(), fileName: fileNameFrom(response) };
+  },
 };

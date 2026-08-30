@@ -96,15 +96,6 @@ public sealed class S3ObjectStorage(IAmazonS3 client, IOptions<ObjectStorageOpti
             throw new ObjectNotFoundException(sourceKey, ex);
         }
     }
-
-    public string GetDownloadUrl(string key, TimeSpan validFor) =>
-        client.GetPreSignedURL(new GetPreSignedUrlRequest
-        {
-            BucketName = _options.BucketName,
-            Key = key,
-            Expires = DateTime.UtcNow.Add(validFor),
-            Verb = HttpVerb.GET,
-        });
 }
 
 public sealed class ObjectNotFoundException(string key, Exception? inner = null)

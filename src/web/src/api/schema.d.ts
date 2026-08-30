@@ -1570,7 +1570,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns a time-limited artifact download URL. */
+        /** Returns the packaged SDK this run produced. */
         get: {
             parameters: {
                 query?: never;
@@ -1588,9 +1588,7 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["ArtifactDownloadResponse"];
-                    };
+                    content?: never;
                 };
                 /** @description Not Found */
                 404: {
@@ -2359,11 +2357,6 @@ export interface components {
             autoPublish: boolean;
             /** Format: uuid */
             registryCredentialId?: null | string;
-        };
-        ArtifactDownloadResponse: {
-            url: string;
-            /** Format: int32 */
-            expiresInSeconds: number;
         };
         AuthResponse: {
             accessToken: string;

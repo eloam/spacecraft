@@ -13,8 +13,6 @@ namespace SpaceCraft.Api.Features;
 
 public sealed record CreateRunRequest(Guid SpecVersionId, Guid SdkTargetId, bool Publish);
 
-public sealed record ArtifactDownloadResponse(string Url, int ExpiresInSeconds);
-
 public sealed record StepResponse(
     StepKind Kind,
     StepStatus Status,
@@ -94,9 +92,9 @@ public static class RunEndpoints
             .WithSummary("Returns a step's captured log.");
 
         group.MapGet("/{runId:guid}/artifact", GetArtifactAsync)
-            .Produces<ArtifactDownloadResponse>()
+            .Produces(StatusCodes.Status200OK, contentType: "application/gzip")
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .WithSummary("Returns a time-limited artifact download URL.");
+            .WithSummary("Returns the packaged SDK this run produced.");
 
         return api;
     }
@@ -356,11 +354,27 @@ public static class RunEndpoints
             return ApiResults.NotFound("An artifact for this run");
         }
 
-        // Hand out a short-lived presigned URL rather than streaming tens of megabytes
-        // through the API process.
-        var validFor = TimeSpan.FromMinutes(10);
-        var url = storage.GetDownloadUrl(run.ArtifactStorageKey, validFor);
-        return TypedResults.Ok(new ArtifactDownloadResponse(url, (int)validFor.TotalSeconds));
+        try
+        {
+            // Streamed through the API rather than handed out as a presigned bucket URL, the
+            // way spec content and step logs already are. A presigned URL is a bearer token
+            // in a link: anyone holding it reads the object for as long as it lasts, from a
+            // bucket that then has to be reachable from a browser. Proxying costs this
+            // process the bytes and buys a download that is authorized per request, against
+            // a bucket with no public surface and no CORS policy at all.
+            var content = await storage.GetAsync(run.ArtifactStorageKey, ct);
+
+            // The key's last segment is the name the runner packed the tarball under, so the
+            // saved file keeps it instead of being named after the run's id.
+            var fileName = run.ArtifactStorageKey[(run.ArtifactStorageKey.LastIndexOf('/') + 1)..];
+            return TypedResults.File(content, "application/gzip", fileName);
+        }
+        catch (ObjectNotFoundException)
+        {
+            // The row names an artifact the bucket no longer holds — a lifecycle rule that
+            // swept it, or a restore that missed it. Not a server error to the caller.
+            return ApiResults.NotFound("An artifact for this run");
+        }
     }
 
     private static RunResponse ToResponse(PipelineRun run, string? projectName = null) =>

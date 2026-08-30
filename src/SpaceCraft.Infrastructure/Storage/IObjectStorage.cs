@@ -25,9 +25,4 @@ public interface IObjectStorage
     /// back. Throws <see cref="ObjectNotFoundException"/> when the source is absent.
     /// </summary>
     Task CopyAsync(string sourceKey, string destinationKey, CancellationToken ct = default);
-
-    /// <summary>
-    /// Time-limited download URL, so the API never proxies large artifact bodies itself.
-    /// </summary>
-    string GetDownloadUrl(string key, TimeSpan validFor);
 }

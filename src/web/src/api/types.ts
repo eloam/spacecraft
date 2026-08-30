@@ -219,4 +219,3 @@ export function describeRunProgress(run: {
     : `${settled}/${run.steps.length} steps`;
 }
 
-export type ArtifactDownload = Schemas["ArtifactDownloadResponse"];

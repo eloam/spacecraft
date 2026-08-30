@@ -21,7 +21,6 @@ import {
   stepKindLabel,
   stepStatusLabel,
 } from "@/api/types";
-import type { ArtifactDownload } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 import { LanguageDot } from "@/components/LanguageDot";
@@ -37,36 +36,31 @@ export function RunPage() {
   const [downloading, setDownloading] = useState(false);
 
   async function download() {
-    // The tab is opened here, synchronously, and pointed at the artifact once the presign
-    // comes back. Opening it after the await put it outside the click that asked for it:
-    // Safari refuses that outright and the others once the request outlives the few seconds
-    // of transient activation — and a refused popup returns null instead of throwing, so
-    // the button did nothing at all and said nothing either.
-    //
-    // "about:blank" and no noopener, both deliberately: window.open returns null whenever
-    // noopener is passed, which would leave no handle to point anywhere. The reverse
-    // reference is severed by hand instead.
-    const tab = window.open("about:blank", "_blank");
-    if (tab) tab.opener = null;
-
     setDownloading(true);
     try {
-      const result = await api.get<ArtifactDownload>(`/organizations/${orgId}/runs/${runId}/artifact`);
-      if (tab) {
-        // A presigned URL: the browser fetches the bytes straight from object storage.
-        // replace, so the blank placeholder is not a Back step in the new tab.
-        tab.location.replace(result.url);
-      } else {
-        toast.error("Your browser blocked the download tab.", {
-          // The retry runs inside a click of its own, which is what the blocker wanted.
-          action: {
-            label: "Open",
-            onClick: () => window.open(result.url, "_blank", "noopener,noreferrer"),
-          },
-        });
-      }
+      // Fetched through the API rather than from a presigned bucket URL. A presigned URL is
+      // a bearer token in a link — whoever holds it reads the object until it expires, and
+      // the bucket has to be reachable from a browser for it to work at all. Here the bytes
+      // only ever answer a request carrying this session's token.
+      const file = await api.download(`/organizations/${orgId}/runs/${runId}/artifact`);
+
+      // A blob URL and a synthetic click: no popup, so nothing for a blocker to swallow,
+      // and the page the user is reading stays where it is.
+      const href = URL.createObjectURL(file.blob);
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = file.fileName ?? `${run.data?.targetPackageName ?? "artifact"}.tgz`;
+
+      // Attached before clicking: Firefox ignores a click on an anchor that is not in the
+      // document.
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // Revoked on a later task, not in this one: the save is still reading the blob when
+      // click() returns, and revoking underneath it truncates the file.
+      setTimeout(() => URL.revokeObjectURL(href), 0);
     } catch (err) {
-      tab?.close();
       toast.error(err instanceof ApiError ? err.detail : "Could not fetch the artifact.");
     } finally {
       setDownloading(false);
