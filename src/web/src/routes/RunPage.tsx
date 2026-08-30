@@ -26,7 +26,6 @@ import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 import { timeAgo } from "@/lib/format";
 import { BackLink } from "@/components/BackLink";
-import { LanguageMark } from "@/components/LanguageDot";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function RunPage() {
@@ -288,15 +287,12 @@ export function RunPage() {
                       </TableCell>
 
                       <TableCell>
-                        {/* The language alone. The package name was the second line here
-                            and is already the title of the page, three centimetres above —
-                            saying it twice made the cell look like it held two facts. */}
-                        <div className="flex items-center gap-3">
-                          <LanguageMark language={run.data.targetLanguage} />
-                          <span className="font-medium">
-                            {languageLabel[run.data.targetLanguage] ?? "Unknown"}
-                          </span>
-                        </div>
+                        {/* The word alone. The package name was the second line here and is
+                            already the title of the page; the mark was a 40px badge for a
+                            single row, where it identified nothing the word did not. */}
+                        <span className="font-medium">
+                          {languageLabel[run.data.targetLanguage] ?? "Unknown"}
+                        </span>
                       </TableCell>
 
                       <TableCell className="font-mono text-xs">
