@@ -306,37 +306,44 @@ export function ProjectSpecsPage() {
 
                       {/* Title, with the details that used to cost three columns of their own. */}
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-muted-foreground">
+                        {/* The sequence number in a chip rather than inline before the title:
+                            it is this version's short name, the way a ticker is a holding's,
+                            and inline it read as part of the title it precedes. */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border font-mono text-xs font-medium text-muted-foreground tabular-nums">
                             #{spec.sequence}
-                          </span>
-                          {/* The name is the obvious thing to click to read a document, and
-                              was the one part of the row that did nothing. Underlined on row
-                              hover rather than its own: the pointer is somewhere on the row
-                              long before it reaches the six characters of a title. */}
-                          <button
-                            type="button"
-                            onClick={() => setOpenFor(spec.id)}
-                            className="cursor-pointer rounded-sm font-medium group-hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                          >
-                            {spec.apiTitle ?? "Untitled"}
-                          </button>
-                          {spec.id === latestId && (
-                            // Which document a new run generates from is the question this
-                            // table is usually opened to answer.
-                            <Badge variant="secondary" className="text-[10px]">
-                              Latest
-                            </Badge>
-                          )}
+                          </div>
+                          <div className="flex min-w-0 flex-col">
+                            <div className="flex items-center gap-2">
+                              {/* The name is the obvious thing to click to read a document, and
+                                  was the one part of the row that did nothing. Underlined on row
+                                  hover rather than its own: the pointer is somewhere on the row
+                                  long before it reaches the six characters of a title. */}
+                              <button
+                                type="button"
+                                onClick={() => setOpenFor(spec.id)}
+                                className="cursor-pointer truncate rounded-sm text-left font-medium group-hover:underline focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+                              >
+                                {spec.apiTitle ?? "Untitled"}
+                              </button>
+                              {spec.id === latestId && (
+                                // Which document a new run generates from is the question this
+                                // table is usually opened to answer.
+                                <Badge variant="secondary" className="text-[10px]">
+                                  Latest
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="truncate font-mono text-xs text-muted-foreground tabular-nums">
+                              {spec.apiVersion ?? "no version"} · {fileSize(spec.sizeInBytes)}
+                            </span>
+                          </div>
                         </div>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          {spec.apiVersion ?? "no version"} · {fileSize(spec.sizeInBytes)}
-                        </p>
                       </TableCell>
 
                       <TableCell>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xs">{spec.openApiVersion ?? "—"}</span>
+                          <span className="font-mono text-xs tabular-nums">{spec.openApiVersion ?? "—"}</span>
                           <Badge variant="outline" className="font-mono text-[10px] uppercase">
                             {spec.format}
                           </Badge>

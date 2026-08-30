@@ -199,23 +199,30 @@ export function ProjectTargetsPage() {
                           {/* Language and package name together: they name one thing, and as
                               two columns the eye had to join them back up on every row. */}
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <LanguageDot language={target.language} />
-                              {/* The obvious thing to click on a row that has settings, and
-                                  the one part of it that did nothing. Underlined on row hover
-                                  rather than its own: the pointer is somewhere on the row long
-                                  before it reaches ten characters of label. */}
-                              <button
-                                type="button"
-                                onClick={() => openDialog(target)}
-                                className="cursor-pointer rounded-sm font-medium group-hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                              >
-                                {languageLabel[target.language]}
-                              </button>
+                            {/* The dot sits in a media chip, and the package name beside it
+                                rather than under it: the chip gives that alignment
+                                structurally, where the pl-4 it replaces only guessed at it. */}
+                            <div className="flex items-center gap-3">
+                              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                                <LanguageDot language={target.language} className="size-2.5" />
+                              </div>
+                              <div className="flex min-w-0 flex-col">
+                                {/* The obvious thing to click on a row that has settings, and
+                                    the one part of it that did nothing. Underlined on row hover
+                                    rather than its own: the pointer is somewhere on the row long
+                                    before it reaches ten characters of label. */}
+                                <button
+                                  type="button"
+                                  onClick={() => openDialog(target)}
+                                  className="cursor-pointer rounded-sm text-left font-medium group-hover:underline focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+                                >
+                                  {languageLabel[target.language]}
+                                </button>
+                                <span className="truncate font-mono text-xs text-muted-foreground">
+                                  {target.packageName}
+                                </span>
+                              </div>
                             </div>
-                            <p className="pl-4 font-mono text-xs text-muted-foreground">
-                              {target.packageName}
-                            </p>
                           </TableCell>
 
                           <TableCell>
