@@ -50,6 +50,7 @@
     --color-foreground: var(--foreground);
     --color-background: var(--background);
     --color-topbar: var(--topbar);
+    --color-page: var(--page);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -92,6 +93,13 @@
        --muted and --background if either is retuned. */
     --topbar: color-mix(in oklch, var(--muted) 30%, var(--background));
 
+    /* The ground the whole app sits on, named rather than borrowed. It used to be --muted,
+       which also paints table headers, muted tiles and the icon chips in empty states: any
+       value that suited the page flattened those, since a tile at muted/50 over a muted
+       ground is the same colour. mauve-50 and mauve-900 are the palette's own steps, so a
+       preset change still tracks them, unlike the raw bg-mauve-50 utility this replaces. */
+    --page: oklch(0.985 0 0);
+
     /* Source colours for the spec viewer. Kept at very low chroma so a document reads as
        part of this greyscale interface rather than as an editor pasted into it — structure
        comes mostly from weight, with just enough tone to separate keys from values.
@@ -124,12 +132,12 @@
 .dark {
     --background: oklch(0.145 0.008 326);
     --foreground: oklch(0.985 0 0);
-    --card: oklch(0.212 0.019 322.12);
+    --card: oklch(0.212 0.015 322.12);
     --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.212 0.019 322.12);
+    --popover: oklch(0.212 0.015 322.12);
     --popover-foreground: oklch(0.985 0 0);
     --primary: oklch(0.922 0.005 325.62);
-    --primary-foreground: oklch(0.212 0.019 322.12);
+    --primary-foreground: oklch(0.212 0.015 322.12);
     --secondary: oklch(0.263 0.024 320.12);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.263 0.024 320.12);
@@ -145,7 +153,7 @@
     --chart-3: oklch(0.435 0.029 321.78);
     --chart-4: oklch(0.364 0.029 323.89);
     --chart-5: oklch(0.263 0.024 320.12);
-    --sidebar: oklch(0.212 0.019 322.12);
+    --sidebar: oklch(0.212 0.015 322.12);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.488 0.243 264.376);
     --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -159,6 +167,7 @@
     --code-warning: oklch(0.78 0.1 75);
     --success: oklch(0.76 0.1 155);
     --filter-all: oklch(0.76 0.12 300);
+    --page: oklch(0.212 0.019 322.12);
 
 }
 
@@ -167,7 +176,7 @@
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-muted dark:bg-background text-foreground;
+    @apply bg-page text-foreground;
     }
   html {
     @apply font-sans;
