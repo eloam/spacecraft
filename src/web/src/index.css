@@ -167,19 +167,32 @@
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-muted dark:bg-background text-foreground;
     }
   html {
     @apply font-sans;
     }
-  /* The preset's pointer option. A <button> is cursor:default by default, which reads as
-     inert on a control that is not — and the app is full of icon buttons where nothing else
-     signals they can be clicked. */
-  button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]),
-  [role="option"],
-  [role="menuitem"],
-  label[for] {
-    cursor: pointer;
-    }
+}
+
+/* The preset's pointer option. A <button> is cursor:default by default, which reads as
+   inert on a control that is not — and the app is full of icon buttons where nothing else
+   signals they can be clicked.
+
+   Deliberately outside @layer base. Tailwind orders base before utilities, and the
+   registry's menu and select items carry a cursor-default utility of their own; cascade
+   layers are compared before specificity, so no base rule can beat it however precise the
+   selector. Unlayered declarations sit above every layer, which is the only place this
+   works from. Verified: inside base, [role="menuitem"] computed to `default`.
+
+   Disabled controls are excluded rather than overridden — Base UI marks them with
+   data-disabled, shadcn with disabled:cursor-not-allowed, and this rule outranks both. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="option"]:not([data-disabled]),
+[role="menuitem"]:not([data-disabled]),
+[role="menuitemcheckbox"]:not([data-disabled]),
+[role="menuitemradio"]:not([data-disabled]),
+[role="tab"]:not([data-disabled]),
+label[for] {
+  cursor: pointer;
 }
