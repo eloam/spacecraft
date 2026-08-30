@@ -57,8 +57,19 @@ claim, so removing someone takes effect immediately instead of when their access
 expires. A non-member and a non-existent organization are reported identically (404), so the
 API cannot be used to probe which organizations exist.
 
+A member whose role is too low is answered differently: 403, naming the role the action
+needs. The 404 mask exists to keep an organization id from being confirmed, and against
+someone already reading that organization it conceals nothing while costing a true answer —
+it told a viewer that the organization they were looking at did not exist. Both refusals are
+issued from one place, `OrganizationAccessGuard.DenyUnlessAsync`, so they cannot drift apart.
+
 Publishing requires a higher role than generating: `Admin` versus `Member`. Pushing to a
 public registry cannot be undone.
+
+Artifacts, step logs and spec sources are streamed by the API, never handed out as presigned
+bucket URLs: a presigned URL is a bearer credential in a link, and it would require the
+bucket to be reachable from a browser. The bucket has no public surface and needs no CORS
+policy. All three reads require `Viewer`.
 
 ## Auth
 

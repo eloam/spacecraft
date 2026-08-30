@@ -90,9 +90,9 @@ public static class CredentialEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         // Two queries rather than one: a per-row subquery joining another table is not
@@ -146,9 +146,9 @@ public static class CredentialEndpoints
         ISecretProtector protector,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         if (string.IsNullOrWhiteSpace(request.Label))
@@ -234,9 +234,9 @@ public static class CredentialEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var credential = await db.RegistryCredentials
@@ -270,9 +270,9 @@ public static class CredentialEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var credential = await db.RegistryCredentials
@@ -333,9 +333,9 @@ public static class CredentialEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var credential = await db.RegistryCredentials

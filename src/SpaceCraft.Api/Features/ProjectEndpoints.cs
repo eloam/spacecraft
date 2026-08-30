@@ -144,9 +144,9 @@ public static class ProjectEndpoints
         CancellationToken ct)
     {
         // Member, like renaming: reversible, and it publishes nothing.
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Member, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var project = await db.ApiProjects
@@ -176,9 +176,9 @@ public static class ProjectEndpoints
         CancellationToken ct)
     {
         // Member, not Admin: renaming is reversible and does not touch anything published.
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Member, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var name = request.Name?.Trim();
@@ -228,9 +228,9 @@ public static class ProjectEndpoints
     {
         // Admin: destroying a project's history is not the same kind of act as uploading a
         // spec, which any member may do.
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var project = await db.ApiProjects
@@ -268,9 +268,9 @@ public static class ProjectEndpoints
         ResourceDeleter deleter,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var target = await db.SdkTargets
@@ -303,9 +303,9 @@ public static class ProjectEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var projects = await db.ApiProjects
@@ -334,9 +334,9 @@ public static class ProjectEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         if (!ResourceName.IsValid(request.Name))
@@ -401,9 +401,9 @@ public static class ProjectEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var project = await db.ApiProjects
@@ -429,9 +429,9 @@ public static class ProjectEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         // The domain models six languages; only the ones with a working generator, builder
@@ -519,9 +519,9 @@ public static class ProjectEndpoints
         CancellationToken ct)
     {
         // Admin, like adding and deleting one: it decides what gets published where.
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var target = await db.SdkTargets

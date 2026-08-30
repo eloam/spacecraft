@@ -20,8 +20,42 @@ public interface IOrganizationAccess
     /// caller: probing for slugs should not reveal which ones exist.
     /// </summary>
     Task<OrganizationRole?> GetRoleAsync(Guid organizationId, Guid userId, CancellationToken ct = default);
+}
 
-    Task<bool> HasAtLeastAsync(Guid organizationId, Guid userId, OrganizationRole required, CancellationToken ct = default);
+/// <summary>
+/// The guard every organization-scoped endpoint opens with.
+/// </summary>
+public static class OrganizationAccessGuard
+{
+    /// <summary>
+    /// Returns the refusal to return, or null when the caller may proceed.
+    /// <para>
+    /// Written once rather than at each of the three dozen call sites so the two refusals
+    /// cannot drift apart. They are genuinely different answers. A non-member gets 404,
+    /// because confirming that an organization id is real would turn the API into a
+    /// directory of them. A member whose role is too low gets 403 naming the role: nothing
+    /// is left to conceal from someone already reading the organization, and telling them it
+    /// does not exist contradicts the page they are standing on.
+    /// </para>
+    /// </summary>
+    public static async Task<IResult?> DenyUnlessAsync(
+        this IOrganizationAccess access,
+        Guid organizationId,
+        Guid userId,
+        OrganizationRole required,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(access);
+
+        var role = await access.GetRoleAsync(organizationId, userId, ct);
+
+        if (role is null)
+        {
+            return ApiResults.NotFoundOrForbidden();
+        }
+
+        return role < required ? ApiResults.Forbidden(required) : null;
+    }
 }
 
 public sealed class OrganizationAccess(SpaceCraftDbContext db) : IOrganizationAccess
@@ -35,15 +69,5 @@ public sealed class OrganizationAccess(SpaceCraftDbContext db) : IOrganizationAc
             .FirstOrDefaultAsync(ct);
 
         return membership;
-    }
-
-    public async Task<bool> HasAtLeastAsync(
-        Guid organizationId,
-        Guid userId,
-        OrganizationRole required,
-        CancellationToken ct = default)
-    {
-        var role = await GetRoleAsync(organizationId, userId, ct);
-        return role is not null && role >= required;
     }
 }

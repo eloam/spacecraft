@@ -61,9 +61,9 @@ public static class MemberEndpoints
     {
         var caller = principal.Id();
 
-        if (!await access.HasAtLeastAsync(organizationId, caller, OrganizationRole.Viewer, ct))
+        if (await access.DenyUnlessAsync(organizationId, caller, OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var members = await LoadAsync(db, organizationId, caller, ct);
@@ -83,9 +83,9 @@ public static class MemberEndpoints
 
         // Admin, not Member: adding people changes who can reach the organization's
         // credentials and publish under its packages.
-        if (!await access.HasAtLeastAsync(organizationId, caller, OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, caller, OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var organization = await db.Organizations
@@ -138,9 +138,9 @@ public static class MemberEndpoints
     {
         var caller = principal.Id();
 
-        if (!await access.HasAtLeastAsync(organizationId, caller, OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, caller, OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var organization = await db.Organizations
@@ -180,9 +180,9 @@ public static class MemberEndpoints
         // Anyone may remove themselves; removing someone else takes Admin.
         var required = caller == userId ? OrganizationRole.Viewer : OrganizationRole.Admin;
 
-        if (!await access.HasAtLeastAsync(organizationId, caller, required, ct))
+        if (await access.DenyUnlessAsync(organizationId, caller, required, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var organization = await db.Organizations

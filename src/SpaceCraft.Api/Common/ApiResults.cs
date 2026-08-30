@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using SpaceCraft.Domain.Organizations;
 
 namespace SpaceCraft.Api.Common;
 
@@ -35,4 +36,21 @@ public static class ApiResults
     /// </summary>
     public static ProblemHttpResult NotFoundOrForbidden() =>
         NotFound("The organization");
+
+    /// <summary>
+    /// Used where the caller <em>is</em> a member but their role is too low, which is a
+    /// different answer from <see cref="NotFoundOrForbidden"/> and deserves a different one.
+    /// <para>
+    /// The 404 mask exists to keep the API from confirming that an organization id is real.
+    /// Against a member that purpose is already spent — they are looking at the organization
+    /// — so the mask conceals nothing and costs a true answer: it told a viewer clicking
+    /// Download that the organization they were reading did not exist. Naming the role
+    /// reveals only the permission model, which is documented.
+    /// </para>
+    /// </summary>
+    public static ProblemHttpResult Forbidden(OrganizationRole required) =>
+        Problem(
+            "Forbidden",
+            $"This action requires the {required} role.",
+            StatusCodes.Status403Forbidden);
 }

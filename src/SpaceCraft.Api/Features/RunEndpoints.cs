@@ -108,9 +108,9 @@ public static class RunEndpoints
         [FromQuery] Guid? projectId = null,
         [FromQuery] int limit = 50)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var runs = await db.PipelineRuns
@@ -144,9 +144,9 @@ public static class RunEndpoints
         // Publishing is irreversible on a public registry, so it needs a higher role than
         // simply generating and building.
         var required = request.Publish ? OrganizationRole.Admin : OrganizationRole.Member;
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), required, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), required, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var spec = await db.SpecVersions.AsNoTracking()
@@ -225,9 +225,9 @@ public static class RunEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var run = await db.PipelineRuns
@@ -258,9 +258,9 @@ public static class RunEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Member, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var run = await db.PipelineRuns
@@ -293,9 +293,9 @@ public static class RunEndpoints
         IObjectStorage storage,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         if (!Enum.TryParse<StepKind>(step, ignoreCase: true, out var kind))
@@ -340,9 +340,14 @@ public static class RunEndpoints
         IObjectStorage storage,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        // Viewer, like every other read of this run — its detail, and the step logs that
+        // describe how this very tarball was built. Member was a reasonable floor while this
+        // handed out a presigned bucket URL, which is a credential rather than a read; now
+        // that the bytes are streamed, holding the artifact above the logs that narrate it
+        // guarded nothing and left the button on the run page refusing a whole role class.
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var run = await db.PipelineRuns

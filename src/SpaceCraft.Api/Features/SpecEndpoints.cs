@@ -129,9 +129,9 @@ public static class SpecEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var scoped = db.SpecVersions
@@ -163,9 +163,9 @@ public static class SpecEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         // The organization is part of the lookup, not just of the permission check: without
@@ -199,9 +199,9 @@ public static class SpecEndpoints
         IObjectStorage storage,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var storageKey = await db.SpecVersions
@@ -254,9 +254,9 @@ public static class SpecEndpoints
         CancellationToken ct)
     {
         // Member, not Viewer: this rewrites what the project records about a document.
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Member, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var project = await db.ApiProjects
@@ -332,9 +332,9 @@ public static class SpecEndpoints
         ResourceDeleter deleter,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Member, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         if (file is null || file.Length == 0)
@@ -480,9 +480,9 @@ public static class SpecEndpoints
         ResourceDeleter deleter,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Member, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Member, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var exists = await db.SpecVersions

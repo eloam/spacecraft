@@ -66,9 +66,9 @@ public static class OrganizationEndpoints
         IOrganizationAccess access,
         CancellationToken ct)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var name = request.Name?.Trim();
@@ -119,9 +119,9 @@ public static class OrganizationEndpoints
     {
         // Owner, not Admin: this removes every project, run and credential the organization
         // has, and an admin was added by someone else.
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Owner, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Owner, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         var organization = await db.Organizations

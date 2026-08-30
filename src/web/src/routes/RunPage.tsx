@@ -181,7 +181,7 @@ export function RunPage() {
                   {/* The spinner replaces the icon and the label stays put, as on the
                       Generate button: a label that changes is a width that changes, and this
                       one sits next to Cancel in a right-aligned row that would slide sideways
-                      for as long as the presign takes. */}
+                      for as long as the download takes. */}
                   {downloading ? <Spinner /> : <Download className="size-4" aria-hidden />}
                   Artifact
                 </Button>

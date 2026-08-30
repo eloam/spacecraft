@@ -53,9 +53,9 @@ public static class PublicationEndpoints
         [FromQuery] Guid? projectId = null,
         [FromQuery] int limit = 50)
     {
-        if (!await access.HasAtLeastAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct))
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Viewer, ct) is { } denied)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return denied;
         }
 
         // A publication points at its target, and the target at its project. Joining here
