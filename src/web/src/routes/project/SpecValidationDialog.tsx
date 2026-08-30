@@ -347,18 +347,24 @@ export function SpecValidationDialog({
   return (
     <Dialog open={specId !== null} onOpenChange={(open) => !open && close()}>
       <DialogContent
-        className="flex h-[92vh] w-[min(1600px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
+        className="@container flex h-[92vh] w-[min(1600px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
         showCloseButton={false}
       >
-        <div className="flex flex-wrap items-center gap-2 border-b bg-topbar px-3 py-2">
+        {/* Three columns once the bar is wide enough, so the filters sit in its middle rather
+            than wherever the title happens to end — which moves with the document's name.
+            Below 64rem it wraps instead: centring needs both side columns as wide as the
+            wider one, and the controls on the right measure ~360px, so anything narrower
+            pushed the counter out of its column and over the chips. Measured, twice. A container query, not a
+            viewport one, because what runs out of room is the bar. */}
+        <div className="flex flex-wrap items-center gap-2 border-b bg-topbar px-3 py-2 @5xl:grid @5xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           {/* font-sans, against DialogTitle's own heading face: this title sits in a toolbar
               at 14px beside buttons, where the serif read as a different component
               rather than as the name of the thing being looked at. */}
-          <DialogTitle className="mr-1 flex items-baseline gap-1.5 font-sans text-sm font-normal">
+          <DialogTitle className="mr-1 flex min-w-0 items-baseline gap-1.5 font-sans text-sm font-normal">
             <span className="font-mono text-xs text-muted-foreground tabular-nums">
               #{spec?.sequence ?? "—"}
             </span>
-            {spec?.title ?? "Untitled"}
+            <span className="truncate">{spec?.title ?? "Untitled"}</span>
           </DialogTitle>
 
           {/* One bordered set rather than three loose buttons, the way the specs table
@@ -406,7 +412,7 @@ export function SpecValidationDialog({
                 className={cn(
                   // font-medium whether on or off: a weight that changes on click is a width
                   // that changes on click, and each toggle nudged the two beside it.
-                  "flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-xs font-medium transition-colors",
+                  "flex cursor-pointer items-center gap-1.5 rounded-[calc(var(--radius)-2px)] px-2.5 py-1 text-xs font-medium transition-colors",
                   off
                     ? "text-muted-foreground hover:text-foreground"
                     : "bg-secondary text-secondary-foreground",
@@ -420,8 +426,10 @@ export function SpecValidationDialog({
           })}
           </div>
 
-          <div className="ml-auto flex items-center gap-1">
-            <span className="mr-1 text-xs tabular-nums text-muted-foreground">{counter()}</span>
+          <div className="ml-auto flex items-center gap-1 @5xl:ml-0 @5xl:justify-end">
+            <span className="mr-1 text-xs whitespace-nowrap tabular-nums text-muted-foreground">
+              {counter()}
+            </span>
             <Button
               size="icon-sm"
               variant="ghost"

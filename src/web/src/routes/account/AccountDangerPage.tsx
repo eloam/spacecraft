@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ShieldAlert, Trash2 } from "lucide-react";
+import { CircleAlert, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -51,21 +51,31 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
     >
       <div className="space-y-3">
         {blocked && (
-          <div className="flex gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
-            <ShieldAlert className="size-4 shrink-0 text-destructive" aria-hidden />
-            <div className="text-sm">
-              <p className="font-medium">Hand these over first</p>
-              <ul className="mt-1 space-y-0.5 text-muted-foreground">
+          // The same ledger the delete dialogs use: a red frame around a grey icon put the
+          // warning colour on the panel rather than on the thing being warned about, and
+          // this list is not a warning — it is the list of what stands in the way.
+          <div className="space-y-3 rounded-2xl border bg-muted/40 p-3.5 text-sm">
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium tracking-wider text-destructive uppercase">
+                Hand these over first
+              </p>
+              <ul className="space-y-1.5">
                 {blockers.data?.map((b) => (
-                  <li key={b.organizationName}>
-                    {b.organizationName} — {b.reason.toLowerCase()}
+                  <li key={b.organizationName} className="flex items-start gap-2.5">
+                    {/* A blocker, not a removal: these organizations are not going anywhere,
+                        they are what has to move before you can. */}
+                    <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden />
+                    <span>
+                      {b.organizationName} — {b.reason.toLowerCase()}
+                    </span>
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-muted-foreground">
-                Add another owner, or delete the organization, then come back.
-              </p>
             </div>
+
+            <p className="text-muted-foreground">
+              Add another owner, or delete the organization, then come back.
+            </p>
           </div>
         )}
 

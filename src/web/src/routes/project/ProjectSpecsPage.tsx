@@ -252,7 +252,7 @@ export function ProjectSpecsPage() {
                         // changes on click is a width that changes on click, and each
                         // selection nudged the buttons beside it. Background and colour say
                         // which is active without moving anything.
-                        "flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-xs font-medium transition-colors",
+                        "flex cursor-pointer items-center gap-1.5 rounded-[calc(var(--radius)-2px)] px-2.5 py-1 text-xs font-medium transition-colors",
                         "disabled:cursor-not-allowed disabled:opacity-40",
                         filter === id
                           ? "bg-secondary text-secondary-foreground"
