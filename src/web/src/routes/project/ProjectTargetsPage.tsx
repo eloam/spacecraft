@@ -282,7 +282,12 @@ export function ProjectTargetsPage() {
                                     >
                                       {named.registryUrl}
                                     </TooltipTrigger>
-                                    <TooltipContent>{named.registryUrl}</TooltipContent>
+                                    {/* break-all: see CredentialsPage — an unbroken URL
+                                        cannot wrap, so the tooltip would clip the very
+                                        address it was opened to reveal. */}
+                                    <TooltipContent className="break-all">
+                                      {named.registryUrl}
+                                    </TooltipContent>
                                   </Tooltip>
                                 </div>
                               );

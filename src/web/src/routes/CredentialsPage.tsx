@@ -111,7 +111,12 @@ export function CredentialsPage() {
                       >
                         {credential.registryUrl}
                       </TooltipTrigger>
-                      <TooltipContent>{credential.registryUrl}</TooltipContent>
+                      {/* break-all, because the tooltip exists to show the whole URL: a
+                          registry address has no spaces to wrap at, so max-w-xs would clip it
+                          at a third of its length and quietly claim that was all of it. */}
+                      <TooltipContent className="break-all">
+                        {credential.registryUrl}
+                      </TooltipContent>
                     </Tooltip>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
