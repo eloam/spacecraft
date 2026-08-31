@@ -2676,6 +2676,7 @@ export interface components {
             registry: components["schemas"]["RegistryKind"];
             label: string;
             token: string;
+            username: null | string;
             /** Format: date-time */
             expiresAt: null | string;
             registryUrl?: null | string;
@@ -2936,6 +2937,7 @@ export interface components {
             source: components["schemas"]["SpecSource"];
             /** Format: date-time */
             createdAt: string;
+            publishesAs: components["schemas"]["VersionRenderingResponse"][];
         };
         StepKind: number;
         StepResponse: {
@@ -2981,6 +2983,11 @@ export interface components {
             id: string;
             email: string;
             displayName: null | string;
+        };
+        VersionRenderingResponse: {
+            registry: components["schemas"]["RegistryKind"];
+            version: null | string;
+            refusal: null | string;
         };
         WaitlistSignupRequest: {
             email: string;

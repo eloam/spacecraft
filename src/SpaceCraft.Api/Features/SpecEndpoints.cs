@@ -11,6 +11,7 @@ using SpaceCraft.Infrastructure.Storage;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+using SpaceCraft.Domain.Registries;
 namespace SpaceCraft.Api.Features;
 
 public sealed record SpecVersionResponse(
@@ -27,7 +28,20 @@ public sealed record SpecVersionResponse(
     int ErrorCount,
     long SizeInBytes,
     SpecSource Source,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    /// <summary>
+    /// What this document's version becomes at each registry, or why it would be refused.
+    /// </summary>
+    /// <remarks>
+    /// Computed here rather than in the client because the rules belong to the domain and a
+    /// second implementation would drift from it. It also lets a target say what it will
+    /// publish before a run is started, which is the moment an unpublishable version is
+    /// cheapest to fix.
+    /// </remarks>
+    IReadOnlyList<VersionRenderingResponse> PublishesAs);
+
+/// <summary>One registry's reading of an info.version.</summary>
+public sealed record VersionRenderingResponse(RegistryKind Registry, string? Version, string? Refusal);
 
 /// <summary>
 /// The document as uploaded, so findings can be shown against the source they came from.
@@ -442,6 +456,12 @@ public static class SpecEndpoints
 
             foreach (var target in project.Targets.Where(t => t.AutoPublish && t.Language.IsSupported()))
             {
+                // Targets whose registry cannot take this version are queued like any other,
+                // and fail at validation. Skipping them was quieter and worse: an automatic
+                // target simply produced nothing — no run, no failure, no explanation — and
+                // the person who pushed the commit had only the spec's own warning to find,
+                // in a place they had no reason to open.
+
                 var run = new PipelineRun(
                     organizationId,
                     projectId,
@@ -520,5 +540,10 @@ public static class SpecEndpoints
             s.ErrorCount,
             s.SizeInBytes,
             s.Source,
-            s.CreatedAt);
+            s.CreatedAt,
+            [.. Enum.GetValues<RegistryKind>().Select(registry =>
+            {
+                var rendered = RegistryVersion.Render(registry, s.ApiVersion);
+                return new VersionRenderingResponse(registry, rendered.Version, rendered.Refusal);
+            })]);
 }

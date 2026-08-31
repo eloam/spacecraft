@@ -77,26 +77,46 @@ public static partial class SemanticVersion
     {
         if (Numbers(left) is not { } a || Numbers(right) is not { } b) return null;
 
-        for (var i = 0; i < 3; i++)
+        // A missing component is zero, so 1.2 and 1.2.0 are the same release and 1.2.0.1
+        // comes after both.
+        for (var i = 0; i < Math.Max(a.Length, b.Length); i++)
         {
-            if (a[i] != b[i]) return a[i].CompareTo(b[i]);
+            var x = i < a.Length ? a[i] : 0;
+            var y = i < b.Length ? b[i] : 0;
+
+            if (x != y) return x.CompareTo(y);
         }
 
         return 0;
     }
 
+    /// <summary>Every numeric component, however many a registry allows.</summary>
+    /// <remarks>
+    /// Not three. Reading only the first three meant a four-part version — ordinary in NuGet,
+    /// legal in Maven — parsed as nothing at all, and the strict policy that refuses a version
+    /// which repeats or goes backwards fell silent exactly where versions are least ordinary.
+    /// </remarks>
     private static int[]? Numbers(string? version)
     {
-        if (TryNormalize(version) is not { } normalized) return null;
+        if (string.IsNullOrWhiteSpace(version)) return null;
 
-        var match = Loose().Match(normalized);
+        var trimmed = version.Trim();
+
+        // A date is not a version to order against. Left in, "2024-01-15" reads as major 2024
+        // and every date in a year compares equal to every other — so a strict policy would
+        // announce a repeat where two documents merely share a year, on top of the format rule
+        // that already refuses dates outright. Two findings for one problem, and one of them
+        // wrong.
+        if (CalendarDate().IsMatch(trimmed)) return null;
+
+        var match = AnyNumeric().Match(trimmed);
         if (!match.Success) return null;
 
-        return
-        [
-            int.Parse(match.Groups["major"].Value, System.Globalization.CultureInfo.InvariantCulture),
-            int.Parse(match.Groups["minor"].Value, System.Globalization.CultureInfo.InvariantCulture),
-            int.Parse(match.Groups["patch"].Value, System.Globalization.CultureInfo.InvariantCulture),
-        ];
+        return [.. match.Groups["numbers"].Value
+            .Split('.')
+            .Select(part => int.Parse(part, System.Globalization.CultureInfo.InvariantCulture))];
     }
+
+    [GeneratedRegex(@"^v?(?<numbers>\d+(?:\.\d+)*)(?:[-+.].*)?$")]
+    private static partial Regex AnyNumeric();
 }

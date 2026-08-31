@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text;
 using SpaceCraft.Domain.Projects;
 using SpaceCraft.Infrastructure.OpenApi;
@@ -274,5 +275,60 @@ public class SpecValidatorTests
 
         result.IsGeneratable.ShouldBeTrue();
         result.ApiVersion.ShouldBe("2.0.0");
+    }
+
+    // --- version format -----------------------------------------------------------------
+
+    [Fact]
+    public async Task A_four_part_version_warns_without_strict_mode_and_names_both_camps()
+    {
+        // Nothing checked the format at all before: the parser reports whether info.version
+        // is present, which is not whether a registry will take it, and an unusable version
+        // was discovered by a run failing after upload.
+        var result = await ValidateAsync(MinimalValid.Replace("version: 1.0.0", "version: 1.2.3.4", StringComparison.Ordinal));
+
+        var finding = result.Diagnostics.Single(d => d.JsonPointer == "#/info/version");
+
+        // A warning, not an error: which registry this document publishes to is not known
+        // here, and 1.2.3.4 is an ordinary NuGet version. Calling it invalid would repeat the
+        // mistake of applying one registry's rules to all of them.
+        finding.Severity.ShouldBe(DiagnosticSeverity.Warning);
+        finding.Message.ShouldContain("NuGet");
+        finding.Message.ShouldContain("Npm");
+        result.Status.ShouldNotBe(SpecValidationStatus.Invalid);
+    }
+
+    [Fact]
+    public async Task A_version_no_registry_takes_is_an_error()
+    {
+        var result = await ValidateAsync(MinimalValid.Replace("version: 1.0.0", "version: '2024-01-15'", StringComparison.Ordinal));
+
+        var finding = result.Diagnostics.Single(d => d.JsonPointer == "#/info/version");
+
+        finding.Severity.ShouldBe(DiagnosticSeverity.Error);
+        result.Status.ShouldBe(SpecValidationStatus.Invalid);
+    }
+
+    [Fact]
+    public async Task A_three_part_version_says_nothing_at_all()
+    {
+        // The common case must stay quiet, or the warning becomes noise nobody reads.
+        var result = await ValidateAsync(MinimalValid);
+
+        result.Diagnostics.ShouldNotContain(d => d.JsonPointer == "#/info/version");
+    }
+
+    [Fact]
+    public async Task Strict_mode_reports_a_repeat_it_used_to_miss()
+    {
+        // Comparison read three components, so a fourth made it give up silently: the same
+        // NuGet-shaped version published twice slipped past the very rule meant to catch it.
+        var result = await ValidateAsync(
+            MinimalValid.Replace("version: 1.0.0", "version: 1.2.3.4", StringComparison.Ordinal),
+            strict: true,
+            previousApiVersion: "1.2.3.4");
+
+        result.Diagnostics.ShouldContain(d =>
+            d.Severity == DiagnosticSeverity.Error && d.Message.Contains("will not take the same version twice", StringComparison.Ordinal));
     }
 }

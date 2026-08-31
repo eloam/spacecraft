@@ -179,6 +179,13 @@ public static class RunEndpoints
             return ApiResults.Conflict("This spec version failed validation and cannot be generated from.");
         }
 
+        // A version the target's registry cannot take is deliberately not refused here. The
+        // pipeline's first step is validation, and judging the document against the registry
+        // it is bound for is what that step is for. Refusing at creation would be quieter in
+        // the wrong way: no run, no step, no log, and nothing in the history for someone
+        // waiting on a publish to find. A run that fails at validate says the same sentence
+        // and leaves it written down.
+
         // Refuse to queue a second run for the same spec and target while one is in flight.
         var alreadyQueued = await db.PipelineRuns.AnyAsync(
             r => r.SpecVersionId == spec.Id

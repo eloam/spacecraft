@@ -68,8 +68,11 @@ public static partial class StrictSdkPolicy
         var declared = document.Info?.Version;
         if (string.IsNullOrWhiteSpace(declared)) yield break;
 
-        // Null means one of the two carries no version a registry would take, which the
-        // metadata rules already report on their own.
+        // Null now means one of the two carries no version number at all — the format rule
+        // reports that on its own, and it does so for every upload rather than only in strict
+        // mode. This used to be reached far more often, because comparison read three
+        // components and gave up on a fourth: a NuGet-shaped 1.2.3.4 published twice in a row
+        // slipped past the very check this method exists to make.
         if (SemanticVersion.Compare(declared, previousApiVersion) is not { } order) yield break;
 
         if (order == 0)
@@ -732,23 +735,12 @@ public static partial class StrictSdkPolicy
                 "#/tags");
         }
 
-        var declared = info?.Version;
-        if (string.IsNullOrWhiteSpace(declared)) yield break;
-
-        var normalised = SemanticVersion.TryNormalize(declared);
-
-        if (normalised is null)
-        {
-            yield return Error(
-                $"info.version '{declared}' cannot be read as major.minor.patch, which registries require.",
-                "#/info/version");
-        }
-        else if (!string.Equals(normalised, declared, StringComparison.Ordinal))
-        {
-            yield return Information(
-                $"info.version '{declared}' will be published as '{normalised}'.",
-                "#/info/version");
-        }
+        // info.version is reported by the always-on format rule in OpenApiSpecValidator, not
+        // here. It used to be a strict-only Error saying "registries require major.minor.patch",
+        // which is npm's rule stated as though every registry shared it: 1.2.3.4 is an ordinary
+        // NuGet version and a legal Maven one, and refusing it made those unreachable from a
+        // strict project. The replacement runs on every upload, names which registries accept
+        // the version and which refuse it, and is a warning unless none of them will take it.
     }
 
     // --- plumbing --------------------------------------------------------------------------

@@ -61,6 +61,13 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
         builder.UseSetting("ConnectionStrings:Postgres", _postgres.GetConnectionString());
         builder.UseSetting("KeyProtection:Provider", "None");
         builder.UseSetting("Database:MigrateOnStartup", "false");
+
+        // Every test registers its own account, and the credential endpoints are deliberately
+        // throttled per address — which in a test host is one address for the whole suite, so
+        // the tenth test would be refused for reasons that have nothing to do with what it
+        // asserts. Raised rather than removed, so a runaway loop still stops.
+        builder.UseSetting("RateLimits:CredentialPermitsPerWindow", "10000");
+        builder.UseSetting("RateLimits:GlobalPermitsPerMinute", "100000");
     }
 
     /// <summary>A client already signed in as a brand-new account.</summary>

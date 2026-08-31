@@ -5,6 +5,7 @@ using Microsoft.OpenApi;
 using Microsoft.OpenApi.Reader;
 using Microsoft.OpenApi.YamlReader;
 
+using SpaceCraft.Domain.Registries;
 namespace SpaceCraft.Infrastructure.OpenApi;
 
 /// <summary>
@@ -117,11 +118,86 @@ public sealed partial class OpenApiSpecValidator(ILogger<OpenApiSpecValidator> l
     /// <summary>
     /// Checks that go beyond "is this valid OpenAPI" and into "can we emit a usable SDK from it".
     /// </summary>
+    /// <summary>
+    /// Reports a version some registries will refuse, naming which.
+    /// </summary>
+    /// <remarks>
+    /// A warning rather than an error, and deliberately so: which registry this document ends
+    /// up publishing to is not known here — one spec feeds every target in its project, and
+    /// they may publish to different registries. <c>1.2.3.4</c> is an ordinary NuGet version
+    /// and inexpressible in npm, so calling it invalid would repeat the mistake this replaces:
+    /// one registry's rules applied to all of them.
+    /// </remarks>
+    private static IEnumerable<SpecDiagnostic> VersionFormat(OpenApiDocument document)
+    {
+        var declared = document.Info?.Version;
+        if (string.IsNullOrWhiteSpace(declared))
+        {
+            yield break;
+        }
+
+        var accepted = new List<RegistryKind>();
+        var refused = new List<RegistryKind>();
+
+        foreach (var registry in Enum.GetValues<RegistryKind>())
+        {
+            if (RegistryVersion.Render(registry, declared).Accepted)
+            {
+                accepted.Add(registry);
+            }
+            else
+            {
+                refused.Add(registry);
+            }
+        }
+
+        if (refused.Count == 0)
+        {
+            // Accepted everywhere, but not necessarily under the string that was written:
+            // npm completes 1.0 to 1.0.0 where Maven keeps it as it stands. Said at upload,
+            // which is where the person who wrote the version is looking.
+            var rewritten = accepted
+                .Select(registry => (Registry: registry, RegistryVersion.Render(registry, declared).Version))
+                .Where(r => !string.Equals(r.Version, declared, StringComparison.Ordinal))
+                .ToList();
+
+            if (rewritten.Count > 0)
+            {
+                yield return new SpecDiagnostic(
+                    DiagnosticSeverity.Information,
+                    $"info.version '{declared}' is published as "
+                    + string.Join(", ", rewritten.Select(r => $"'{r.Version}' to {r.Registry}"))
+                    + ", and as declared elsewhere.",
+                    "#/info/version");
+            }
+
+            yield break;
+        }
+
+        // Refused everywhere is a different statement from refused by some, and the second is
+        // the one that needs the list.
+        yield return accepted.Count == 0
+            ? new SpecDiagnostic(
+                DiagnosticSeverity.Error,
+                $"info.version '{declared}' cannot be published to any registry. "
+                + "Set a version like 1.0.0.",
+                "#/info/version")
+            : new SpecDiagnostic(
+                DiagnosticSeverity.Warning,
+                $"info.version '{declared}' is not a three-part version. "
+                + $"{string.Join(", ", accepted)} accept it; {string.Join(", ", refused)} refuse it, "
+                + "so targets publishing there will fail. Set a version like 1.0.0 to publish anywhere.",
+                "#/info/version");
+    }
+
     private static IEnumerable<SpecDiagnostic> ApplyPolicy(OpenApiDocument document, int operationCount)
     {
-        // info.title and info.version are not checked here: the parser's own InfoRequiredFields
-        // rule already reports both, and saying it twice would put two findings on one line
-        // for a single problem.
+        // info.title is not checked here: the parser's own InfoRequiredFields rule already
+        // reports it, and saying it twice would put two findings on one line for a single
+        // problem. That rule reports whether info.version is *present*, which is not the same
+        // as whether a registry will take it — nothing checked the format at all, in strict
+        // mode or out of it, and an unusable version was discovered by a run failing.
+        foreach (var finding in VersionFormat(document)) yield return finding;
 
         if (operationCount == 0)
         {

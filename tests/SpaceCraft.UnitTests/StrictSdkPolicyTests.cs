@@ -251,10 +251,12 @@ public class StrictSdkPolicyTests
     public async Task A_version_registries_cannot_take_is_caught_at_upload()
     {
         // Without this the run fails after a build, which is a much later place to learn it.
+        // The rule moved out of strict mode and now runs on every upload: it is an error only
+        // when no registry at all would take the version, which "spring-release" is.
         var result = await StrictAsync(Clean.Replace("version: 1.0.0", "version: spring-release"));
 
         result.Status.ShouldBe(SpecValidationStatus.Invalid);
-        result.Diagnostics.ShouldContain(d => d.Message.Contains("major.minor.patch"));
+        result.Diagnostics.ShouldContain(d => d.Message.Contains("cannot be published to any registry"));
     }
 
     [Fact]
@@ -262,9 +264,12 @@ public class StrictSdkPolicyTests
     {
         var result = await StrictAsync(Clean.Replace("version: 1.0.0", "version: \"1.0\""));
 
+        // Every registry takes 1.0, but not all under the same string: npm completes it and
+        // Maven does not, so the note names who rewrites it rather than claiming one answer.
         result.Status.ShouldBe(SpecValidationStatus.Valid);
         result.Diagnostics.ShouldContain(d =>
-            d.Severity == DiagnosticSeverity.Information && d.Message.Contains("published as '1.0.0'"));
+            d.Severity == DiagnosticSeverity.Information
+            && d.Message.Contains("published as '1.0.0' to Npm"));
     }
 
     [Fact]

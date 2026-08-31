@@ -172,21 +172,28 @@ public sealed class PipelineExecutor(
             return false;
         }
 
-        // Registries require a semantic version; real specs frequently do not carry one
-        // (Keycloak's Admin API declares "1.0"). Normalising here means an unpublishable
-        // version fails in validation, not after a fifteen-minute build.
-        var resolvedVersion = SemanticVersion.TryNormalize(result.ApiVersion);
-        if (resolvedVersion is null)
+        // Rendered for the registry this run publishes to, not once for every registry.
+        // Applying npm's rules to all of them is wrong in both directions: 1.2.3.4 is an
+        // ordinary NuGet version and a legal Maven one, while npm cannot express it; and
+        // completing 1.0 to 1.0.0 is required for npm and wrong for Maven, where the two
+        // name different artifacts. The run knows its registry from the target snapshot
+        // taken when it was queued, so nothing has to be looked up to decide this.
+        //
+        // Still at validation rather than at publish: an unpublishable version should fail
+        // before a build, not fifteen minutes after one.
+        var rendering = RegistryVersion.Render(run.TargetRegistry, result.ApiVersion);
+        if (rendering.Version is null)
         {
-            var reason =
-                $"info.version is '{result.ApiVersion}', which cannot be turned into a semantic version. "
-                + "Package registries require major.minor.patch — set a version like 1.0.0 in the document.";
+            // The registry that refused says why, and what to write instead.
+            var reason = rendering.Refusal!;
 
             step.Fail(reason, logKey);
             run.Fail(reason);
             await db.SaveChangesAsync(ct);
             return false;
         }
+
+        var resolvedVersion = rendering.Version;
 
         if (resolvedVersion != result.ApiVersion)
         {
