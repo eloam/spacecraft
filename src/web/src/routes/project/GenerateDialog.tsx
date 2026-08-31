@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Check, CircleAlert, Minus } from "lucide-react";
 import { toast } from "sonner";
@@ -46,7 +46,34 @@ export function GenerateDialog({
   const navigate = useNavigate();
 
   const [pickedProject, setPickedProject] = useState("");
+  const [specId, setSpecId] = useState("");
+  const [targetId, setTargetId] = useState("");
+  /**
+   * null means "whatever the target says". A target set to publish automatically should
+   * arrive with the switch already on, or this dialog would quietly propose the opposite of
+   * what the target is configured to do; an explicit answer here overrides it for this run.
+   */
+  const [publish, setPublish] = useState<boolean | null>(null);
+
   const activeProject = pickedProject || (projectId ?? "");
+
+  // Cleared when the project this dialog was opened for changes.
+  //
+  // Nothing remounts it: the project route swaps its params without replacing the layout that
+  // holds this component, so a selection made on one project survived onto the next. Opening
+  // it from a second project offered — and would have queued — a run for the first, with a
+  // spec and a target that belong to neither the page nor the picker. The API cannot catch
+  // it either: the pairing it validates is internally consistent, just not the one on screen,
+  // and for an auto-publishing target that is an irreversible push to a registry.
+  const openedFor = useRef(projectId);
+  if (openedFor.current !== projectId) {
+    openedFor.current = projectId;
+
+    if (pickedProject) setPickedProject("");
+    if (specId) setSpecId("");
+    if (targetId) setTargetId("");
+    if (publish !== null) setPublish(null);
+  }
   // Only fetched when the dialog has to ask; a project page already knows the answer.
   const projects = useProjects(orgId);
 
@@ -59,14 +86,6 @@ export function GenerateDialog({
   const usableSpecs = specs.data?.items.filter((s) => s.validationStatus !== SpecValidationStatus.Invalid) ?? [];
   const targets = project.data?.targets ?? [];
 
-  const [specId, setSpecId] = useState("");
-  const [targetId, setTargetId] = useState("");
-  /**
-   * null means "whatever the target says". A target set to publish automatically should
-   * arrive with the switch already on, or this dialog would quietly propose the opposite of
-   * what the target is configured to do; an explicit answer here overrides it for this run.
-   */
-  const [publish, setPublish] = useState<boolean | null>(null);
 
   const selectedSpec = specId || usableSpecs[0]?.id || "";
   const selectedTarget = targetId || targets[0]?.id || "";

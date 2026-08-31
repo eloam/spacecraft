@@ -40,18 +40,39 @@ async function refreshSession(): Promise<boolean> {
   const { refreshToken } = useAuthStore.getState();
   if (!refreshToken) return false;
 
-  const response = await fetch(`${BASE_URL}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // Offline, or the API is not answering. The token is not the problem, so keep it.
+    return false;
+  }
 
   if (!response.ok) {
-    useAuthStore.getState().clear();
+    // Only when the token itself was rejected. Signing out on any failure meant a 429 from
+    // the rate limiter, or a 502 while the API redeployed, threw away a refresh token good
+    // for another fortnight — the user was logged out by a passing hiccup and had to sign in
+    // again for reasons that had nothing to do with their session.
+    if (response.status === 401 || response.status === 403) {
+      useAuthStore.getState().clear();
+    }
+
     return false;
   }
 
   const payload = (await response.json()) as AuthResponse;
+
+  // Only if this is still the session that asked. A refresh in flight when someone signs out
+  // used to land afterwards and write a live access token back into the cleared store,
+  // putting them straight back into the application they had just left.
+  if (useAuthStore.getState().refreshToken !== refreshToken) {
+    return false;
+  }
+
   useAuthStore.getState().updateTokens(payload.accessToken, payload.refreshToken);
   return true;
 }

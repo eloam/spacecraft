@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Minus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,15 +78,19 @@ export function ConfirmDeleteDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  function change(next: boolean) {
-    if (!next) {
+  // Cleared whenever the dialog closes, not only when the user closed it. A successful
+  // delete closes it by flipping `open` from the outside, which never reached the handler
+  // below — so the next row bearing the same name opened with its confirmation already
+  // typed in, and a permanent delete was one click away from a dialog that looked as
+  // careful as ever.
+  useEffect(() => {
+    if (!open) {
       setTyped("");
     }
-    onOpenChange(next);
-  }
+  }, [open]);
 
   return (
-    <Dialog open={open} onOpenChange={change}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Resolved when focus is placed, not when the element is described: a bare ref
           whose element never attached would leave Base UI with nothing to focus, and
           focus outside a modal is worse than focus on the wrong control inside it.

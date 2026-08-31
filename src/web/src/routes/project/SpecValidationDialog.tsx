@@ -85,7 +85,15 @@ const tones: Record<number, string> = {
  * addresses something the document does not contain.
  */
 function useFindingLines(text: string | undefined, pointers: (string | null | undefined)[]) {
-  const [indexed, setIndexed] = useState<{ text: string; lines: (number | null)[] } | null>(null);
+  const [indexed, setIndexed] = useState<
+    { text: string; key: string; lines: (number | null)[] } | null
+  >(null);
+
+  // The document alone did not identify the answer. Revalidating leaves the text untouched
+  // and replaces the findings, so a result computed for the previous set was still considered
+  // current — and the new findings were drawn against the old ones' line numbers, pointing at
+  // whatever happened to sit there.
+  const key = pointers.join("\u0000");
 
   useEffect(() => {
     if (text === undefined) return;
@@ -95,18 +103,20 @@ function useFindingLines(text: string | undefined, pointers: (string | null | un
     });
 
     worker.onmessage = (event: MessageEvent<IndexResponse>) => {
-      setIndexed({ text, lines: event.data.lines });
+      setIndexed({ text, key, lines: event.data.lines });
       worker.terminate();
     };
 
     worker.postMessage({ text, pointers });
 
     return () => worker.terminate();
-  }, [text, pointers]);
+  }, [text, pointers, key]);
 
   // Carrying the document it was computed for means "not indexed yet" is derived from the
   // state rather than written into it when the document changes.
-  return indexed !== null && indexed.text === text ? indexed.lines : null;
+  return indexed !== null && indexed.text === text && indexed.key === key
+    ? indexed.lines
+    : null;
 }
 
 /** Ragged lines, so the wait reads as a document arriving rather than as a stalled panel. */
