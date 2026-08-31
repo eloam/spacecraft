@@ -53,7 +53,8 @@ public static class CredentialEndpoints
     {
         var group = api.MapGroup("/organizations/{organizationId:guid}/credentials")
             .WithTags("Credentials")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         group.MapGet("/", ListAsync)
             .Produces<List<CredentialResponse>>()

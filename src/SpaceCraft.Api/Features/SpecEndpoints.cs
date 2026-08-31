@@ -77,7 +77,8 @@ public static class SpecEndpoints
     {
         var group = api.MapGroup("/organizations/{organizationId:guid}/projects/{projectId:guid}/specs")
             .WithTags("Specs")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         group.MapGet("/", ListAsync)
             .Produces<SpecListResponse>()

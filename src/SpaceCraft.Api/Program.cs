@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Serilog;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +37,10 @@ builder.Services.AddSpaceCraftCors(builder.Configuration);
 builder.Services.AddSpaceCraftRateLimiting(builder.Configuration);
 
 builder.Services.AddMemoryCache();
+
+// Empties the slug cache the moment a save moves a slug, so a renamed or freshly created
+// name can never be resolved to the row that used to answer to it.
+builder.Services.AddScoped<ISaveChangesInterceptor, SpaceCraft.Api.Common.SlugCacheInvalidator>();
 builder.Services.AddScoped<SpaceCraft.Api.Features.Deletion.ResourceDeleter>();
 builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.IsDevelopment());
 
@@ -96,9 +101,18 @@ app.UseMiddleware<SpaceCraft.Api.Common.SlugRouteMiddleware>();
 app.UseRouting();
 
 app.UseCors(ApiServiceExtensions.SpaCorsPolicy);
-app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// After authentication, not before it. The global limiter partitions on the caller's user id
+// and falls back to their address when there is no user — and running ahead of
+// UseAuthentication meant context.User was still the empty principal every time, so the
+// fallback was the only branch ever taken and the per-user isolation its comment promises
+// never existed: everyone behind one address shared a single budget. The cost of the new
+// order is that a token is validated before the limiter sees the request, which is signature
+// work, not database work; the credential endpoints that must refuse traffic before anything
+// expensive keep their own per-address policy and are unaffected.
+app.UseRateLimiter();
 
 app.MapHealthChecks("/health").AllowAnonymous();
 

@@ -8,6 +8,7 @@ using SpaceCraft.Infrastructure.Security;
 using SpaceCraft.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -32,7 +33,7 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("Postgres")
             ?? throw new InvalidOperationException("ConnectionStrings:Postgres is not configured.");
 
-        services.AddDbContext<SpaceCraftDbContext>(options =>
+        services.AddDbContext<SpaceCraftDbContext>((provider, options) =>
         {
             options.UseNpgsql(connectionString, npgsql =>
             {
@@ -41,6 +42,11 @@ public static class DependencyInjection
                 // here avoids failing a run for a two-second blip.
                 npgsql.EnableRetryOnFailure(maxRetryCount: 3, TimeSpan.FromSeconds(5), null);
             });
+
+            // Whatever the layers above registered, resolved from the application's own
+            // container. This keeps the direction of knowledge right: a caller can react to
+            // what is being saved without persistence having to know that it exists.
+            options.AddInterceptors(provider.GetServices<ISaveChangesInterceptor>());
         });
 
         services.AddScoped<IPipelineRunQueue, PipelineRunQueue>();

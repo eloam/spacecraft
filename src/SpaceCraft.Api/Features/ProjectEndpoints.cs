@@ -74,7 +74,8 @@ public static class ProjectEndpoints
     {
         var group = api.MapGroup("/organizations/{organizationId:guid}/projects")
             .WithTags("Projects")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         group.MapGet("/", ListAsync)
             .Produces<List<ProjectResponse>>()

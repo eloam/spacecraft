@@ -22,8 +22,13 @@ public sealed class SlugRouteMiddleware(RequestDelegate next, IMemoryCache cache
     private const string Prefix = "/api/v1/organizations/";
 
     /// <summary>
-    /// Slugs are immutable once created, so a resolved id cannot go stale while an entry
-    /// lives. Short enough that a deleted organization stops resolving promptly.
+    /// How long a resolution is trusted when nothing has invalidated it.
+    /// <para>
+    /// This used to read "slugs are immutable once created", which the domain contradicts:
+    /// <c>Rename</c> recomputes the slug from the new name. Entries are now dropped the moment
+    /// a save moves a slug — see <see cref="SlugCacheInvalidator"/> — so this is a ceiling on
+    /// how long an entry may sit unused, not the window in which it may be wrong.
+    /// </para>
     /// </summary>
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(5);
 
@@ -74,7 +79,7 @@ public sealed class SlugRouteMiddleware(RequestDelegate next, IMemoryCache cache
         }
 
         var resolved = await ResolveAsync(
-            $"proj:{organizationId}:{raw}",
+            SlugCacheKeys.Project(organizationId, raw),
             () => db.ApiProjects
                 .AsNoTracking()
                 .Where(p => p.OrganizationId == organizationId && p.Slug == raw)
@@ -110,7 +115,7 @@ public sealed class SlugRouteMiddleware(RequestDelegate next, IMemoryCache cache
         if (!Guid.TryParse(segments[4], out var organizationId))
         {
             var resolved = await ResolveAsync(
-                $"org:{segments[4]}",
+                SlugCacheKeys.Organization(segments[4]),
                 () => db.Organizations
                     .AsNoTracking()
                     .Where(o => o.Slug == segments[4])
@@ -139,7 +144,7 @@ public sealed class SlugRouteMiddleware(RequestDelegate next, IMemoryCache cache
             var scoped = organizationId;
 
             var resolved = await ResolveAsync(
-                $"proj:{scoped}:{slug}",
+                SlugCacheKeys.Project(scoped, slug),
                 () => db.ApiProjects
                     .AsNoTracking()
                     .Where(p => p.OrganizationId == scoped && p.Slug == slug)

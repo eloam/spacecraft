@@ -35,7 +35,8 @@ public static class PublicationEndpoints
     {
         var group = api.MapGroup("/organizations/{organizationId:guid}/publications")
             .WithTags("Publications")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         group.MapGet("/", ListAsync)
             .Produces<List<PublicationResponse>>()

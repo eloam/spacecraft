@@ -27,7 +27,8 @@ public static class MemberEndpoints
     {
         var group = api.MapGroup("/organizations/{organizationId:guid}/members")
             .WithTags("Members")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         group.MapGet("/", ListAsync)
             .Produces<List<MemberResponse>>()

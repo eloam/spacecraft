@@ -46,11 +46,15 @@ public static class OrganizationEndpoints
 
         group.MapPatch("/{organizationId:guid}", RenameAsync)
             .Produces<OrganizationResponse>()
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesValidationProblem()
-            .WithSummary("Renames an organization. The slug is left unchanged.");
+            // The slug moves with the name — Rename recomputes it, which is why this handler
+            // has to check for a collision at all. The summary used to promise the opposite.
+            .WithSummary("Renames an organization, and its slug with it. Links to the old address stop resolving.");
 
         group.MapDelete("/{organizationId:guid}", DeleteAsync)
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem()
             .WithSummary("Permanently deletes an organization and everything in it.");
