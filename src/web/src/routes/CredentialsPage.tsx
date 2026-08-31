@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Field, FieldDescription, FieldError, FieldGroup, FieldLabel,
+  Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel,
 } from "@/components/ui/field";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle,
@@ -43,8 +45,81 @@ import type { Credential } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
-/** The public npm registry: the default, and what the field shows until told otherwise. */
-const NPM_REGISTRY = "https://registry.npmjs.org";
+/**
+ * Everything that differs between registries, in one table.
+ *
+ * A credential has always carried its registry — the domain models five of them — but this
+ * dialog only ever wrote npm. Adding the next one is a row here rather than a branch at each
+ * field, because what changes between them is vocabulary, not structure: PyPI calls the
+ * secret an API token, NuGet an API key, and each has its own public address.
+ *
+ * `publicUrl` mirrors SpaceCraft.Domain.Registries.RegistryEndpoints.DefaultFor. It is only
+ * ever displayed: when the endpoint is left out the server fills in its own default, so the
+ * two cannot disagree about what a credential actually points at.
+ */
+interface RegistryProfile {
+  kind: number;
+  /** Which languages publish here, so the choice can be made by what is being shipped. */
+  languages: string;
+  publicUrl: string;
+  /** What this registry calls the secret. Not "token" everywhere. */
+  secretLabel: string;
+  secretPlaceholder: string;
+  /** Named products rather than "a private registry", which names nothing. */
+  privateExamples: string;
+  /** False until the pipeline can publish there — the SDK target dialog says the same. */
+  wired: boolean;
+}
+
+const REGISTRIES: RegistryProfile[] = [
+  {
+    kind: RegistryKind.Npm,
+    languages: "TypeScript",
+    publicUrl: "https://registry.npmjs.org",
+    secretLabel: "Token",
+    secretPlaceholder: "npm_…",
+    privateExamples: "Verdaccio, Nexus, Artifactory",
+    wired: true,
+  },
+  {
+    kind: RegistryKind.NuGet,
+    languages: "C#",
+    publicUrl: "https://api.nuget.org/v3/index.json",
+    secretLabel: "API key",
+    secretPlaceholder: "oy2…",
+    privateExamples: "Azure Artifacts, Nexus",
+    wired: false,
+  },
+  {
+    kind: RegistryKind.Maven,
+    languages: "Java",
+    publicUrl: "https://repo1.maven.org/maven2",
+    secretLabel: "Token",
+    secretPlaceholder: "the deploy token for your server",
+    privateExamples: "Nexus, Artifactory",
+    wired: false,
+  },
+  {
+    kind: RegistryKind.PyPI,
+    languages: "Python",
+    publicUrl: "https://upload.pypi.org/legacy/",
+    secretLabel: "API token",
+    secretPlaceholder: "pypi-…",
+    privateExamples: "devpi, Artifactory",
+    wired: false,
+  },
+  {
+    kind: RegistryKind.Packagist,
+    languages: "PHP",
+    publicUrl: "https://packagist.org",
+    secretLabel: "Token",
+    secretPlaceholder: "the API token from your account",
+    privateExamples: "Private Packagist, Satis",
+    wired: false,
+  },
+];
+
+const DEFAULT_REGISTRY = REGISTRIES[0];
 
 export function CredentialsPage() {
   const { orgId = "" } = useParams();
@@ -446,9 +521,12 @@ function AddCredentialDialog({
 }) {
   const [label, setLabel] = useState("");
   const [token, setToken] = useState("");
-  // Prefilled rather than left blank: the public registry is what almost everyone wants, and
-  // an empty field would make people wonder whether it is required.
-  const [registryUrl, setRegistryUrl] = useState(NPM_REGISTRY);
+  const [registry, setRegistry] = useState<number>(DEFAULT_REGISTRY.kind);
+  // Off by default, and the address field only exists while it is on. Almost every credential
+  // points at the public registry, and a prefilled URL that must not be edited is a field
+  // asking to be misread as a decision the person has to make.
+  const [privateRegistry, setPrivateRegistry] = useState(false);
+  const [registryUrl, setRegistryUrl] = useState("");
   // Beside the field that caused them, not in a toast: a rejected token is something to look
   // at while fixing it, and a notification is gone by the time the value is read back.
   const [errors, setErrors] = useState<
@@ -460,13 +538,23 @@ function AddCredentialDialog({
     setErrors({});
 
     create.mutate(
-      { registry: RegistryKind.Npm, label, token, registryUrl },
+      {
+        registry,
+        label,
+        token,
+        // Left out rather than sent as the public address: the server fills in the default
+        // for whichever registry this is, so one place decides what "public" means and this
+        // dialog cannot drift from it.
+        ...(privateRegistry ? { registryUrl: registryUrl.trim() } : {}),
+      },
       {
         onSuccess: () => {
           toast.success("Credential stored");
           setLabel("");
           setToken("");
-          setRegistryUrl(NPM_REGISTRY);
+          setRegistry(DEFAULT_REGISTRY.kind);
+          setPrivateRegistry(false);
+          setRegistryUrl("");
           onOpenChange(false);
         },
         onError: (err) => {
@@ -495,93 +583,167 @@ function AddCredentialDialog({
       <DialogContent>
         <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>Add an npm credential</DialogTitle>
+            <DialogTitle>Add a registry credential</DialogTitle>
             <DialogDescription>
               The token is encrypted immediately and only decrypted inside the publish step.
             </DialogDescription>
           </DialogHeader>
 
-          <FieldGroup className="py-4">
-            <Field data-invalid={Boolean(errors.label)}>
-              <FieldLabel htmlFor="label">Label</FieldLabel>
-              <Input
-                id="label"
-                value={label}
-                onChange={(e) => {
-                  setLabel(e.target.value);
-                  setErrors((current) => ({ ...current, label: undefined }));
-                }}
-                placeholder="npm automation token (acme)"
-                aria-invalid={Boolean(errors.label)}
-                aria-describedby={errors.label ? "label-error" : undefined}
-                autoFocus
-              />
-              {/* The id is what `aria-describedby` above points at, so it stays on the error
-                  itself: `FieldError` renders nothing at all while there is no message. */}
-              <FieldError id="label-error">{errors.label}</FieldError>
-            </Field>
+          {/* The registry is chosen first because it decides what the rest of the form means:
+              what the secret is called, what it looks like, and where it goes when no address
+              is given. Only the active panel is mounted, so the field ids below stay unique. */}
+          <Tabs
+            value={String(registry)}
+            onValueChange={(value) => {
+              setRegistry(Number(value));
+              // A rejection recorded against another registry no longer describes anything:
+              // its token format and its address were judged by different rules.
+              setErrors((current) => ({ ...current, token: undefined, registryUrl: undefined }));
+            }}
+            className="pt-4"
+          >
+            {/* Scrolls rather than breaks: the dialog is 448px wide and five registry names
+                fit only just, so a longer one arriving later must not push the strip out of
+                the panel. */}
+            <TabsList className="w-full overflow-x-auto">
+              {REGISTRIES.map((entry) => (
+                // Shown but not selectable until the pipeline can publish there. Hiding them
+                // would say the product is npm-only; enabling them would store a credential
+                // no target could use.
+                <TabsTrigger key={entry.kind} value={String(entry.kind)} disabled={!entry.wired}>
+                  {registryLabel[entry.kind]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-            <Field data-invalid={Boolean(errors.token)}>
-              <FieldLabel htmlFor="token">Token</FieldLabel>
-              <Input
-                id="token"
-                type="password"
-                value={token}
-                onChange={(e) => {
-                  // Cleared as it is retyped: leaving the field red while somebody corrects it
-                  // says the new value is wrong too, which nothing has checked yet.
-                  setToken(e.target.value);
-                  setErrors((current) => ({ ...current, token: undefined }));
-                }}
-                placeholder="npm_…"
-                aria-invalid={Boolean(errors.token)}
-                aria-describedby={errors.token ? "token-error" : undefined}
-                autoComplete="off"
-              />
-              <FieldError id="token-error">{errors.token}</FieldError>
-            </Field>
+            {REGISTRIES.map((entry) => (
+              <TabsContent key={entry.kind} value={String(entry.kind)}>
+                <FieldGroup className="py-4">
+                  <p className="text-sm text-muted-foreground">
+                    {entry.languages} publishes to {registryLabel[entry.kind]}.
+                    {REGISTRIES.some((r) => !r.wired)
+                      && " The greyed-out registries are modelled but not yet wired up."}
+                  </p>
 
-            <Field data-invalid={Boolean(errors.registryUrl)}>
-              <FieldLabel htmlFor="registry-url">Registry</FieldLabel>
-              <Input
-                id="registry-url"
-                value={registryUrl}
-                onChange={(e) => {
-                  setRegistryUrl(e.target.value);
-                  setErrors((current) => ({ ...current, registryUrl: undefined }));
-                }}
-                placeholder={NPM_REGISTRY}
-                aria-invalid={Boolean(errors.registryUrl)}
-                aria-describedby={errors.registryUrl ? "registry-url-error" : undefined}
-                autoComplete="off"
-              />
-              {/* Still one or the other: the hint explains what the field is for, and once a
-                  value has been rejected the reason it was rejected is the more useful line. */}
-              {errors.registryUrl ? (
-                <FieldError id="registry-url-error">{errors.registryUrl}</FieldError>
-              ) : (
-                <FieldDescription>
-                  Where packages using this token are published. Point it at a private registry
-                  — Verdaccio, Nexus, Artifactory — to keep them off the public one.
-                </FieldDescription>
-              )}
-            </Field>
+                  <Field data-invalid={Boolean(errors.label)}>
+                    <FieldLabel htmlFor="label">Label</FieldLabel>
+                    <Input
+                      id="label"
+                      value={label}
+                      onChange={(e) => {
+                        setLabel(e.target.value);
+                        setErrors((current) => ({ ...current, label: undefined }));
+                      }}
+                      placeholder="npm automation token (acme)"
+                      aria-invalid={Boolean(errors.label)}
+                      aria-describedby={errors.label ? "label-error" : undefined}
+                    />
+                    {/* The id is what `aria-describedby` above points at, so it stays on the
+                        error itself: `FieldError` renders nothing while there is no message. */}
+                    <FieldError id="label-error">{errors.label}</FieldError>
+                  </Field>
 
-            {/* Announced like every other error in the app: silent, the only sign the save
-                was refused is a red line a screen reader never reaches, and the dialog looks
-                as though the click did nothing. */}
-            {errors.form && (
-              <p className="text-sm text-destructive" role="alert">
-                {errors.form}
-              </p>
-            )}
-          </FieldGroup>
+                  <Field data-invalid={Boolean(errors.token)}>
+                    <FieldLabel htmlFor="token">{entry.secretLabel}</FieldLabel>
+                    <Input
+                      id="token"
+                      type="password"
+                      value={token}
+                      onChange={(e) => {
+                        // Cleared as it is retyped: leaving the field red while somebody
+                        // corrects it says the new value is wrong too, which nothing has
+                        // checked yet.
+                        setToken(e.target.value);
+                        setErrors((current) => ({ ...current, token: undefined }));
+                      }}
+                      placeholder={entry.secretPlaceholder}
+                      aria-invalid={Boolean(errors.token)}
+                      aria-describedby={errors.token ? "token-error" : undefined}
+                      autoComplete="off"
+                    />
+                    <FieldError id="token-error">{errors.token}</FieldError>
+                  </Field>
+
+                  <Field orientation="horizontal" className="justify-between gap-6">
+                    <FieldContent>
+                      <FieldLabel htmlFor="private-registry">Private registry</FieldLabel>
+                      <FieldDescription>
+                        {privateRegistry
+                          ? `Give the address of your own server — ${entry.privateExamples}.`
+                          : `Publishes to ${entry.publicUrl}.`}
+                      </FieldDescription>
+                    </FieldContent>
+                    <Switch
+                      id="private-registry"
+                      checked={privateRegistry}
+                      onCheckedChange={(checked) => {
+                        setPrivateRegistry(checked);
+                        // The address is what decides how the token is judged, so a rejection
+                        // recorded under the other setting no longer describes anything.
+                        setErrors((current) => ({
+                          ...current, registryUrl: undefined, token: undefined,
+                        }));
+                      }}
+                    />
+                  </Field>
+
+                  {/* Only while the switch is on. Absent rather than disabled: a greyed-out
+                      field still reads as something to fill in, and there is nothing to. */}
+                  {privateRegistry && (
+                    <Field data-invalid={Boolean(errors.registryUrl)}>
+                      <FieldLabel htmlFor="registry-url">Address</FieldLabel>
+                      <Input
+                        id="registry-url"
+                        value={registryUrl}
+                        onChange={(e) => {
+                          setRegistryUrl(e.target.value);
+                          setErrors((current) => ({ ...current, registryUrl: undefined }));
+                        }}
+                        placeholder="https://npm.acme.internal"
+                        aria-invalid={Boolean(errors.registryUrl)}
+                        aria-describedby={errors.registryUrl ? "registry-url-error" : undefined}
+                        autoComplete="off"
+                        autoFocus
+                      />
+                      {/* Still one or the other: the hint explains what the field is for, and
+                          once a value has been rejected the reason is the more useful line. */}
+                      {errors.registryUrl ? (
+                        <FieldError id="registry-url-error">{errors.registryUrl}</FieldError>
+                      ) : (
+                        <FieldDescription>
+                          Where packages using this token are published, instead of the public
+                          registry. The token is the one this server issued.
+                        </FieldDescription>
+                      )}
+                    </Field>
+                  )}
+
+                  {/* Announced like every other error in the app: silent, the only sign the
+                      save was refused is a red line a screen reader never reaches, and the
+                      dialog looks as though the click did nothing. */}
+                  {errors.form && (
+                    <p className="text-sm text-destructive" role="alert">
+                      {errors.form}
+                    </p>
+                  )}
+                </FieldGroup>
+              </TabsContent>
+            ))}
+          </Tabs>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!label.trim() || !token.trim() || create.isPending}>
+            <Button
+              type="submit"
+              disabled={
+                !label.trim()
+                || !token.trim()
+                || (privateRegistry && !registryUrl.trim())
+                || create.isPending
+              }
+            >
               {create.isPending ? "Saving…" : "Save credential"}
             </Button>
           </DialogFooter>

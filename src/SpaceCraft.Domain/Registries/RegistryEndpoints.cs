@@ -24,6 +24,16 @@ public static class RegistryEndpoints
     };
 
     /// <summary>
+    /// True when this endpoint is the registry's own public one rather than something an
+    /// organization runs itself. Compared on host, so a trailing slash or a scoped path does
+    /// not change the answer.
+    /// </summary>
+    public static bool IsPublicFor(RegistryKind registry, string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var given)
+        && Uri.TryCreate(DefaultFor(registry), UriKind.Absolute, out var known)
+        && string.Equals(given.Host, known.Host, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// True for an absolute http or https URL. Anything else is refused at the edge: a
     /// malformed endpoint would surface as an npm error in the middle of a publish, long
     /// after the person who typed it has moved on.

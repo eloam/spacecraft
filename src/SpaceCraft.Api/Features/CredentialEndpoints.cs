@@ -166,7 +166,24 @@ public static class CredentialEndpoints
         // Told apart from an empty field on purpose. Both used to answer "Provide the registry
         // token", which reads as "you left it blank" to somebody who did type something, and
         // sends them looking at the form rather than at what they pasted.
-        if (request.Registry == RegistryKind.Npm && !LooksLikeNpmToken(token))
+        // Checked before the token, because which endpoint this will be presented to is what
+        // decides what the token should look like.
+        if (!string.IsNullOrWhiteSpace(request.RegistryUrl)
+            && !RegistryEndpoints.IsValid(request.RegistryUrl.Trim()))
+        {
+            return ApiResults.Invalid(
+                nameof(request.RegistryUrl),
+                $"'{request.RegistryUrl}' is not an absolute http or https URL. Leave it empty "
+                + $"to publish to {RegistryEndpoints.DefaultFor(request.Registry)}.");
+        }
+
+        // Only npmjs.org issues npm_ tokens. A registry an organization runs mints its own —
+        // Verdaccio hands out a 108-character base64 string, Nexus and Artifactory their own
+        // shapes — so holding those to npm's format refused the very credentials the endpoint
+        // field exists to store.
+        if (request.Registry == RegistryKind.Npm
+            && RegistryEndpoints.IsPublicFor(RegistryKind.Npm, request.RegistryUrl?.Trim() ?? RegistryEndpoints.DefaultFor(RegistryKind.Npm))
+            && !LooksLikeNpmToken(token))
         {
             return ApiResults.Invalid(
                 nameof(request.Token),
@@ -181,15 +198,6 @@ public static class CredentialEndpoints
                 nameof(request.Token),
                 $"That token is {token.Length} characters. A registry token is far longer — "
                 + "check that the whole value was pasted.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.RegistryUrl)
-            && !RegistryEndpoints.IsValid(request.RegistryUrl.Trim()))
-        {
-            return ApiResults.Invalid(
-                nameof(request.RegistryUrl),
-                $"'{request.RegistryUrl}' is not an absolute http or https URL. Leave it empty "
-                + $"to publish to {RegistryEndpoints.DefaultFor(request.Registry)}.");
         }
 
         // Encrypted here and never again held in plaintext outside the publish step.
