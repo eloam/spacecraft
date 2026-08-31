@@ -102,6 +102,27 @@ services:
       timeout: 5s
       retries: 10
 
+  # Stands in for Scaleway Key Manager, in the same spirit as MinIO for Object Storage and
+  # Mailpit for SMTP: the code that wraps the Data Protection key ring in production is the
+  # code that runs here, so a wrong header or a mis-encoded payload fails on this machine
+  # rather than in production. It is a fake — the key sits in a file beside it — which is why
+  # the application refuses a plaintext key-manager URL outside Development.
+  fake-scaleway-kms:
+    build:
+      context: .
+      dockerfile: infra/SpaceCraft.FakeScalewayKms/Dockerfile
+    ports:
+      - "8099:8099"
+    volumes:
+      # The key ring in Postgres is encrypted with the key in here. Regenerating it would
+      # strand every credential the database still holds, so it outlives the container.
+      - fake-kms-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8099/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   # The pipeline, from the image production deploys. Same entrypoint, same toolchain, same
   # in-process execution — so a run that works here works there, and one that does not fails
   # here first.
@@ -117,7 +138,22 @@ services:
         condition: service_healthy
       verdaccio:
         condition: service_healthy
+      fake-scaleway-kms:
+        condition: service_healthy
     environment:
+      # The image is the one production deploys; the environment it runs in is not. Saying so
+      # is what lets key protection refuse a plaintext key-manager URL everywhere else — the
+      # fake next door is reachable over http on a private network, and that must never be a
+      # shape production can take. Every setting below is passed explicitly, so this changes
+      # no behaviour beyond the environment name itself.
+      DOTNET_ENVIRONMENT: "Development"
+      # The runner decrypts what the API encrypted, so it must reach the same key manager
+      # with the same key. Divergence here is a publish that cannot read its own credential.
+      KeyProtection__Provider: "ScalewayKms"
+      KeyProtection__Kms__BaseUrl: "http://fake-scaleway-kms:8099"
+      KeyProtection__Kms__Region: "fr-par"
+      KeyProtection__Kms__KeyId: "00000000-0000-4000-8000-000000000001"
+      KeyProtection__Kms__SecretKey: "fake-token"
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"
       ObjectStorage__ServiceUrl: "http://minio:9000"
       ObjectStorage__BucketName: "openapi-bucket"
@@ -138,5 +174,6 @@ services:
 
 volumes:
   postgres-data:
+  fake-kms-data:
   minio-data:
   verdaccio-storage:

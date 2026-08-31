@@ -1,4 +1,5 @@
 using SpaceCraft.Infrastructure;
+using SpaceCraft.Infrastructure.Security;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.DataProtection;
 using SpaceCraft.Pipeline;
@@ -33,11 +34,12 @@ builder.Services.AddSpaceCraftPipeline(builder.Configuration);
 
 // The runner decrypts registry tokens, so it must resolve the same Data Protection key ring
 // as the API that encrypted them. Same application name, same persisted key store.
-builder.Services.AddDataProtection()
-    .SetApplicationName("spacecraft")
-    // Shared through Postgres: the API encrypts registry tokens and the runner
-    // decrypts them from another container, with no filesystem between them.
-    .PersistKeysToDbContext<SpaceCraftDbContext>();
+// One call for both hosts: the API encrypts registry tokens and the runner decrypts them, so
+// they have to agree about the ring and its wrapping key down to the last setting. This used
+// to be the same five lines copied into each.
+builder.Services.AddSpaceCraftDataProtection(
+    builder.Configuration,
+    builder.Environment.IsDevelopment());
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<RunExecutor>();

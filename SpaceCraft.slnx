@@ -21,6 +21,10 @@
     <Project Path="src/SpaceCraft.Pipeline/SpaceCraft.Pipeline.csproj" />
     <Project Path="src/SpaceCraft.Runner/SpaceCraft.Runner.csproj" />
   </Folder>
+  <Folder Name="/infra/">
+    <Project Path="infra/SpaceCraft.FakeScalewayKms/SpaceCraft.FakeScalewayKms.csproj" />
+    <File Path="infra/verdaccio/config.yaml" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SpaceCraft.UnitTests/SpaceCraft.UnitTests.csproj" />
   </Folder>

@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Serilog;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using SpaceCraft.Infrastructure.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,11 +48,12 @@ builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.I
 // Data Protection encrypts registry tokens at rest. The default key ring is per-machine and
 // ephemeral in a container, which would make every stored token unreadable after a restart —
 // so it must be persisted (and KMS-wrapped) outside Development.
-builder.Services.AddDataProtection()
-    .SetApplicationName("spacecraft")
-    // Shared through Postgres: the API encrypts registry tokens and the runner
-    // decrypts them from another container, with no filesystem between them.
-    .PersistKeysToDbContext<SpaceCraftDbContext>();
+// One call for both hosts: the API encrypts registry tokens and the runner decrypts them, so
+// they have to agree about the ring and its wrapping key down to the last setting. This used
+// to be the same five lines copied into each.
+builder.Services.AddSpaceCraftDataProtection(
+    builder.Configuration,
+    builder.Environment.IsDevelopment());
 
 builder.Services.AddProblemDetails();
 // Runs before the default handler, which would answer 500 to a request the caller malformed.

@@ -46,9 +46,28 @@ the duration of one command.
   patterns for tokens we were never told about. Redaction fails closed: if the scan times
   out, the output is withheld rather than persisted unscanned.
 
-**Deployment requirement:** the Data Protection key ring must be persisted to shared storage
-and wrapped by a KMS key. The default is per-machine and ephemeral in a container — losing it
-makes every stored token unreadable; leaking it makes them all readable.
+### The key ring
+
+The Data Protection key ring is persisted to Postgres, so the API and the runner share it
+without a filesystem between them, and **wrapped by a Scaleway Key Manager key** before it is
+written. The wrapping is what makes the encryption mean anything: stored in clear, the ring
+sat in the same database as the credentials it protects, and a single dump carried both the
+ciphertext and the key that opens it. The only unwrapped secret now lives in the deployment —
+`KeyProtection:Kms:SecretKey` — where a database dump cannot reach it.
+
+Development points the same client at `infra/SpaceCraft.FakeScalewayKms`, a stand-in that
+speaks Key Manager's documented routes, in the same spirit as MinIO for Object Storage and
+Mailpit for SMTP. There is no "if development" branch: the code that wraps the ring in
+production is the code that runs on a developer machine. Outside Development the application
+refuses to start without a provider, and refuses a plaintext key-manager URL.
+
+**Startup proves the key manager can still read what is stored**, not merely that it answers.
+A fresh probe succeeds against a key manager holding a brand-new master key — restored from a
+backup, or rotated destructively — while every key already stored was wrapped by the old one.
+Left to run, Data Protection discards the unreadable key, mints a replacement, and carries on:
+new credentials are protected normally while every earlier one is unreadable for good, and
+nothing in the logs says so. Every stored key is therefore unwrapped at boot, and a failure is
+a failed start.
 
 ## Tenancy
 
