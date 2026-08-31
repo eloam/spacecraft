@@ -48,6 +48,31 @@ while a job runs a single run, so trigger `--run <id>` per run rather than drain
 See [security.md](security.md) for what that gives up, and for why it becomes a real decision
 the day a language whose build system executes code (Gradle, Maven, `setup.py`) is added.
 
+### One image per language, not one image with every language
+
+Decided before the second language rather than during it, because the answer shapes the
+image, the triggers and the isolation together.
+
+A single image carrying every toolchain is the cheaper thing to build and the wrong thing to
+run. A JDK and Maven are around 400 MB that every TypeScript run would pull and never touch,
+and the image would be rebuilt for a Java advisory that cannot reach a TypeScript build. The
+weightier objection is the one security.md already makes: Gradle, Maven and `setup.py`
+execute code from the package being built. Putting them beside each other means the blast
+radius of one hostile spec is every toolchain in the image, rather than the one its own
+language needs.
+
+So: a shared base stage carrying .NET, the runner and Kiota, and one thin image per language
+on top of it. Nothing new is needed to route to them — a run records its target's language
+when it is queued (`PipelineRun.TargetLanguage`), and deployment already triggers one job per
+run with `--run <id>`, so the trigger picks the image the same way it picks the id. The cost
+is N images to keep current, which the shared base bounds.
+
+The one place this would need code is a queue that drains rather than being triggered per
+run: `--drain` claims whatever is queued, so it would need a `--language` filter on the claim
+to stop a TypeScript image picking up a Java run. That is a predicate on the existing claim
+query, not a new mechanism — worth writing the day draining is used in production, and not
+before, since a filter for a language nothing produces cannot be tested.
+
 ## Order of operations for a release
 
 1. Build and push both images.
@@ -75,6 +100,16 @@ ConnectionStrings__Postgres=Host=…;Port=5432;Database=spacecraft;Username=…;
 Jwt__SigningKey=…
 Jwt__Issuer=spacecraft
 Jwt__Audience=spacecraft-api
+
+# Key protection — startup fails without these outside Development, and the API and the
+# runner must agree: the API encrypts registry credentials, the runner decrypts them, and
+# they share one key ring. SecretKey is the one secret that must not live in the database
+# it protects, so it comes from the deployment and nowhere else.
+KeyProtection__Provider=ScalewayKms
+KeyProtection__Kms__BaseUrl=https://api.scaleway.com
+KeyProtection__Kms__Region=fr-par
+KeyProtection__Kms__KeyId=…
+KeyProtection__Kms__SecretKey=…
 
 # Scaleway account — shared by every service that talks to it
 
