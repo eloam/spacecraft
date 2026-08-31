@@ -72,6 +72,22 @@ export function GenerateDialog({
   const selectedTarget = targetId || targets[0]?.id || "";
   const target = targets.find((t) => t.id === selectedTarget);
 
+  /**
+   * Why this run would fail before it did anything, said here rather than by a toast.
+   *
+   * A version can be publishable to one registry and refused by another — 1.2.3.4 is ordinary
+   * for NuGet and inexpressible in npm — so the document is valid, the target is fine, and
+   * this pairing will still fail. Said here so the ledger below is read knowing it, and not
+   * used to disable anything: the run is queued and fails at validation, which is the step
+   * that exists to judge exactly this and the only outcome that leaves a record behind.
+   */
+  const versionRefusal = target
+    ? (usableSpecs
+        .find((s) => s.id === selectedSpec)
+        ?.publishesAs.find((r: { registry: number }) => r.registry === target.registry)
+        ?.refusal ?? null)
+    : null;
+
   // Slug or id: the route carries the slug, but links minted before that still carry the id.
   const role = organizations.data?.find((o) => o.slug === orgId || o.id === orgId)?.role;
 
@@ -233,6 +249,20 @@ export function GenerateDialog({
             {/* What the run will do, in the shape the delete dialogs use for what a delete
                 costs. The steps were only ever named in one line of prose at the top, and
                 the one that cannot be undone read the same as the three that can. */}
+            {/* Beside the ledger rather than instead of it, and it does not stop the run.
+                The pipeline's first step is validation, and this is exactly what it exists to
+                judge: the run is queued, fails there, and leaves a record saying why. A
+                refusal here would be quieter — no run, no history, nothing for anyone waiting
+                on a publish to find. */}
+            {versionRefusal && (
+              <div className="space-y-1.5 rounded-2xl border border-destructive/40 bg-destructive/5 p-3.5 text-sm">
+                <p className="text-xs font-medium tracking-wider text-destructive uppercase">
+                  This run cannot start
+                </p>
+                <p className="text-muted-foreground">{versionRefusal}</p>
+              </div>
+            )}
+
             {target && (
               <div className="space-y-3 rounded-2xl border bg-muted/40 p-3.5 text-sm">
                 <div className="space-y-1.5">

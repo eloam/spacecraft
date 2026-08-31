@@ -357,16 +357,7 @@ export function RunPage() {
                     </TableRow>
                   </TableBody>
                 </Table>
-
               </CardContent>
-
-              {run.data.failureReason && (
-                <CardContent>
-                  <pre className="overflow-x-auto rounded-lg bg-destructive/5 p-3 text-xs whitespace-pre-wrap text-destructive">
-                    {run.data.failureReason}
-                  </pre>
-                </CardContent>
-              )}
             </Card>
 
             <Card>
@@ -414,12 +405,17 @@ export function RunPage() {
                         </Item>
 
                         {step.failureReason && step.status === StepStatus.Failed && (
+                          // The presentation the run banner used to carry, now that the
+                          // reason is said once. Monospaced on a red ground because a failure
+                          // reason quotes what was written — 'info.version', a path, a digest
+                          // — and proportional text re-spaces the thing it is quoting.
+                          //
                           // wrap-anywhere, because Card clips what overflows it: a digest or
                           // a long path in the reason was cut off silently, with no
                           // scrollbar to say the sentence went on.
-                          <p className="mt-2 pl-7 text-xs whitespace-pre-wrap wrap-anywhere text-destructive">
+                          <pre className="mt-2 ml-7 overflow-x-auto rounded-lg bg-destructive/5 p-3 text-xs whitespace-pre-wrap wrap-anywhere text-destructive">
                             {step.failureReason}
-                          </p>
+                          </pre>
                         )}
 
                         {isOpen && <StepLog orgId={orgId} runId={runId} step={name} />}
