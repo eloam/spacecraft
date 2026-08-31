@@ -40,6 +40,12 @@ jobs:
       - name: Unit tests
         run: dotnet run --project tests/SpaceCraft.UnitTests --configuration Release --no-build
 
+      # Separate step so a failure says which kind of test broke without reading the log.
+      # These stand up Postgres in a container through Testcontainers, which the hosted
+      # runners already provide a Docker daemon for.
+      - name: Integration tests
+        run: dotnet run --project tests/SpaceCraft.IntegrationTests --configuration Release --no-build
+
   web:
     name: Web
     runs-on: ubuntu-latest

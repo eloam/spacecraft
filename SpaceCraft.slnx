@@ -26,6 +26,7 @@
     <File Path="infra/verdaccio/config.yaml" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/SpaceCraft.IntegrationTests/SpaceCraft.IntegrationTests.csproj" />
     <Project Path="tests/SpaceCraft.UnitTests/SpaceCraft.UnitTests.csproj" />
   </Folder>
 </Solution>
