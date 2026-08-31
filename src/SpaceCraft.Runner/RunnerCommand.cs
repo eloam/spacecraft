@@ -20,6 +20,14 @@ public enum RunnerMode
     /// changes, not part of any schedule.
     /// </summary>
     RelocateStorage,
+
+    /// <summary>
+    /// Re-encrypt every registry credential under a freshly wrapped key, then drop the
+    /// unwrapped keys that used to hold them. A one-off after key protection is switched on:
+    /// wrapping applies to keys minted from then on, and does nothing for what is already
+    /// stored until this has run.
+    /// </summary>
+    RewrapCredentials,
 }
 
 /// <summary>
@@ -47,6 +55,10 @@ public sealed record RunnerCommand(
           --relocate-storage   move stored objects to the current key layout, then exit
                                add --dry-run to print the moves without making them
 
+          --rewrap-credentials re-encrypt every registry credential under a freshly wrapped
+                               key and drop the unwrapped keys behind them, then exit
+                               add --dry-run to print what would change without changing it
+
         The run id may also be supplied as SPACECRAFT_RUN_ID, which is how most schedulers
         pass per-invocation input.
         """;
@@ -71,6 +83,9 @@ public sealed record RunnerCommand(
                 // Position-independent: --dry-run guards a destructive command, and having it
                 // silently ignored because it came in the wrong order is not a failure mode
                 // worth having.
+                DryRun: args.Contains("--dry-run", StringComparer.Ordinal)),
+            "--rewrap-credentials" => new RunnerCommand(
+                RunnerMode.RewrapCredentials,
                 DryRun: args.Contains("--dry-run", StringComparer.Ordinal)),
             "--migrate" => new RunnerCommand(RunnerMode.Migrate),
             "--drain" => new RunnerCommand(RunnerMode.Drain),

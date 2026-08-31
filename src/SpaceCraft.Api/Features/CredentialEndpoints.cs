@@ -14,6 +14,12 @@ public sealed record CreateCredentialRequest(
     RegistryKind Registry,
     string Label,
     string Token,
+    /// <summary>
+    /// Half of the credential wherever a registry wants one — Maven, Nexus, Artifactory, and
+    /// PyPI where it is the literal "__token__". Absent for npm and NuGet, which authenticate
+    /// with the token alone.
+    /// </summary>
+    string? Username,
     DateTimeOffset? ExpiresAt,
     /// <summary>Where this token publishes. Empty means the public registry for its kind.</summary>
     string? RegistryUrl = null);
@@ -200,13 +206,19 @@ public static class CredentialEndpoints
                 + "check that the whole value was pasted.");
         }
 
-        // Encrypted here and never again held in plaintext outside the publish step.
+        // Encrypted here and never again held in plaintext outside the publish step. Stored
+        // as a document rather than a bare token: a registry that wants a user with its
+        // secret must not require a column, and so a migration over encrypted rows.
+        var secret = new RegistrySecret(token, string.IsNullOrWhiteSpace(request.Username)
+            ? null
+            : request.Username.Trim());
+
         var credential = new RegistryCredential(
             organizationId,
             request.Registry,
             request.Label.Trim(),
-            protector.Protect(token),
-            token[^4..],
+            protector.Protect(secret.ToJson()),
+            secret.LastFour(),
             request.RegistryUrl);
 
         credential.SetExpiry(request.ExpiresAt);

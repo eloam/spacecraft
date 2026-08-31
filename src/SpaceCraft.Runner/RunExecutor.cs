@@ -1,4 +1,8 @@
+using System.Security.Cryptography;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Infrastructure.Security;
+using SpaceCraft.Domain.Registries;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using SpaceCraft.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Pipeline.Execution;
@@ -54,6 +58,7 @@ public sealed class RunExecutor(
             RunnerMode.Reap => await ReapAsync(ct),
             RunnerMode.Migrate => await MigrateAsync(ct),
             RunnerMode.RelocateStorage => await RelocateStorageAsync(command.DryRun, ct),
+            RunnerMode.RewrapCredentials => await RewrapCredentialsAsync(command.DryRun, ct),
             _ => RunnerOutcome.Faulted,
         };
     }
@@ -215,6 +220,142 @@ public sealed class RunExecutor(
     /// A source that is not there is reported and stepped over rather than failing the run.
     /// That is the ordinary case for a database pointing at a bucket it no longer uses.
     /// </summary>
+    /// <summary>
+    /// Re-encrypts every registry credential under a freshly wrapped key, then removes the
+    /// unwrapped keys that used to hold them.
+    /// </summary>
+    /// <remarks>
+    /// Switching key protection on wraps keys minted from that moment; it does nothing for
+    /// the key already in the ring, which stays in clear until it expires — ninety days
+    /// during which every credential written is encrypted under a key sitting in the same
+    /// database. This is the pass that closes that, and it is the reason the operation exists
+    /// as a command rather than a setting: it rewrites secrets and deletes a key, which is
+    /// not something to discover happening at startup.
+    /// <para>
+    /// The order matters. Everything is re-encrypted and read back before a single old key is
+    /// deleted, so a failure halfway leaves the ring able to open both shapes rather than
+    /// neither.
+    /// </para>
+    /// </remarks>
+    private async Task<RunnerOutcome> RewrapCredentialsAsync(bool dryRun, CancellationToken ct)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
+        var protector = scope.ServiceProvider.GetRequiredService<ISecretProtector>();
+        var keyManager = scope.ServiceProvider.GetRequiredService<IKeyManager>();
+        var protection = scope.ServiceProvider.GetRequiredService<IOptions<KeyProtectionOptions>>().Value;
+
+        if (protection.Provider is KeyProtectionProvider.None)
+        {
+            // Rewriting now would encrypt every credential under another key stored in clear
+            // beside it — the same hole, freshly dug.
+            logger.LogError(
+                "Key protection is not configured, so this would re-encrypt every credential "
+                + "under another unwrapped key. Set KeyProtection:Provider first");
+            return RunnerOutcome.Faulted;
+        }
+
+        var unwrapped = await db.DataProtectionKeys
+            .AsNoTracking()
+            .Where(key => !key.Xml!.Contains("encryptedKey"))
+            .Select(key => key.Id)
+            .ToListAsync(ct);
+
+        var credentials = await db.RegistryCredentials.ToListAsync(ct);
+
+        // Decrypted before anything is written, and before a key is minted. A credential can
+        // be beyond recovery — encrypted under a key ring that no longer exists, from before
+        // the ring was persisted at all — and finding that out after minting a key would
+        // leave an unused key behind on every attempt.
+        var readable = new List<(RegistryCredential Credential, RegistrySecret Secret)>();
+        var lost = new List<RegistryCredential>();
+
+        foreach (var credential in credentials)
+        {
+            try
+            {
+                readable.Add((credential, RegistrySecret.Parse(protector.Unprotect(credential.CipherText))));
+            }
+            catch (CryptographicException)
+            {
+                lost.Add(credential);
+            }
+        }
+
+        foreach (var credential in lost)
+        {
+            // Named rather than counted, and at warning rather than in a total: each of these
+            // is a credential that can never publish again, and someone has to replace it.
+            logger.LogWarning(
+                "Credential {CredentialId} ({Label}, {Registry}) cannot be decrypted by any key "
+                + "in the ring and is beyond recovery; it is left as it is and must be replaced",
+                credential.Id, credential.Label, credential.Registry);
+        }
+
+        logger.LogInformation(
+            "{Readable} credential(s) to re-encrypt, {Lost} beyond recovery; "
+            + "{Unwrapped} unwrapped key(s) to remove afterwards",
+            readable.Count, lost.Count, unwrapped.Count);
+
+        if (dryRun)
+        {
+            logger.LogInformation("Dry run: nothing was re-encrypted and no key was removed");
+            return RunnerOutcome.Completed;
+        }
+
+        if (readable.Count == 0 && unwrapped.Count == 0)
+        {
+            logger.LogInformation("Nothing to do: the ring holds no unwrapped key");
+            return RunnerOutcome.NothingToDo;
+        }
+
+        // Minted only now that every credential is known to be readable, so a pass that
+        // cannot finish leaves no key behind.
+        var now = DateTimeOffset.UtcNow;
+        var replacement = keyManager.CreateNewKey(now, now.AddDays(90));
+        logger.LogInformation("Minted wrapped key {KeyId}", replacement.KeyId);
+
+        foreach (var (credential, secret) in readable)
+        {
+            // Re-serialised rather than copied: a credential written before the document
+            // shape holds a bare token, and this is where it becomes a document.
+            credential.Rewrap(protector.Protect(secret.ToJson()));
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        // Read back before deleting anything. An old key removed while a credential still
+        // needed it would be unrecoverable, and the failure would surface at the next publish.
+        foreach (var (credential, _) in readable)
+        {
+            try
+            {
+                RegistrySecret.Parse(protector.Unprotect(credential.CipherText));
+            }
+            catch (CryptographicException ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Credential {CredentialId} did not read back after re-encryption; no key removed",
+                    credential.Id);
+                return RunnerOutcome.Faulted;
+            }
+        }
+
+        if (unwrapped.Count > 0)
+        {
+            await db.DataProtectionKeys
+                .Where(key => unwrapped.Contains(key.Id))
+                .ExecuteDeleteAsync(ct);
+        }
+
+        logger.LogInformation(
+            "Re-encrypted {Readable} credential(s) under {KeyId} and removed {Unwrapped} unwrapped key(s)",
+            readable.Count, replacement.KeyId, unwrapped.Count);
+
+        return RunnerOutcome.Completed;
+    }
+
     private async Task<RunnerOutcome> RelocateStorageAsync(bool dryRun, CancellationToken ct)
     {
         await using var scope = scopeFactory.CreateAsyncScope();

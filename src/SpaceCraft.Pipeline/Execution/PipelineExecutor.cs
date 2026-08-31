@@ -411,6 +411,11 @@ public sealed class PipelineExecutor(
 
         var artifactFileName = Path.GetFileName(run.ArtifactStorageKey!);
 
+        // The decrypted secret exists only for the duration of this call. Parsed rather than
+        // used raw: a credential stored before the document shape holds the bare token, and
+        // both must keep working until the rewrite has run.
+        var secret = RegistrySecret.Parse(secretProtector.Unprotect(credential.CipherText));
+
         // The decrypted token exists only for the duration of this call.
         var outcome = await publisher.PublishAsync(new PublishRequest
         {
@@ -420,7 +425,8 @@ public sealed class PipelineExecutor(
             PackageName = target.PackageName,
             Version = version,
             RegistryUrl = credential.RegistryUrl,
-            Token = secretProtector.Unprotect(credential.CipherText),
+            Token = secret.Token,
+            Username = secret.Username,
         }, ct);
 
         var logKey = await StoreLogAsync(run, StepKind.Publish, outcome.Output, ct);

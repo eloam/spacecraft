@@ -29,6 +29,12 @@ public sealed record PublishRequest
     /// and always listed in the sandbox's redaction set.
     /// </summary>
     public required string Token { get; init; }
+
+    /// <summary>
+    /// The user the token belongs to, where the registry asks for one. Null for npm and
+    /// NuGet, which authenticate with the token alone.
+    /// </summary>
+    public string? Username { get; init; }
 }
 
 public enum PublishResultKind

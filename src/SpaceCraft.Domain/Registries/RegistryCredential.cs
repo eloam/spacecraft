@@ -99,6 +99,22 @@ public sealed class RegistryCredential : Entity
         Touch();
     }
 
+    /// <summary>
+    /// Replaces the stored ciphertext with the same secret, encrypted again.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <see cref="Rotate"/>. That one takes a token the operator has just
+    /// replaced at the registry, which is why it clears the revocation — a new token is a
+    /// working credential again. Here the secret is unchanged and only the key that wraps it
+    /// moved, so a credential revoked before the rewrite is still revoked after it, and the
+    /// tail shown in listings still describes the same token.
+    /// </remarks>
+    public void Rewrap(byte[] cipherText)
+    {
+        ArgumentNullException.ThrowIfNull(cipherText);
+        CipherText = cipherText;
+    }
+
     public void Rotate(byte[] cipherText, string lastFour)
     {
         ArgumentNullException.ThrowIfNull(cipherText);
