@@ -8,6 +8,7 @@ using SpaceCraft.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+using Microsoft.Extensions.Hosting;
 namespace SpaceCraft.Api.Features;
 
 public sealed record CreateCredentialRequest(
@@ -151,12 +152,15 @@ public static class CredentialEndpoints
         SpaceCraftDbContext db,
         IOrganizationAccess access,
         ISecretProtector protector,
+        IHostEnvironment environment,
         CancellationToken ct)
     {
         if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
         {
             return denied;
         }
+
+        var isDevelopment = environment.IsDevelopment();
 
         if (string.IsNullOrWhiteSpace(request.Label))
         {
@@ -174,13 +178,40 @@ public static class CredentialEndpoints
         // sends them looking at the form rather than at what they pasted.
         // Checked before the token, because which endpoint this will be presented to is what
         // decides what the token should look like.
-        if (!string.IsNullOrWhiteSpace(request.RegistryUrl)
-            && !RegistryEndpoints.IsValid(request.RegistryUrl.Trim()))
+        if (string.IsNullOrWhiteSpace(request.RegistryUrl))
+        {
+            // Two registries have no address worth guessing — Maven Central deploys through a
+            // staging service rather than the mirror it reads from, and Packagist takes a VCS
+            // URL instead of an upload. Asked for it here rather than letting a credential be
+            // created that could only fail at the last step of a run.
+            if (RegistryEndpoints.DefaultFor(request.Registry) is null)
+            {
+                return ApiResults.Invalid(
+                    nameof(request.RegistryUrl),
+                    $"{request.Registry} has no address that can be guessed. Give the address "
+                    + "that accepts a publish — for Maven, the staging or repository URL your "
+                    + "deployment uses.");
+            }
+        }
+        else if (!isDevelopment && RegistryEndpoints.IsInternal(request.RegistryUrl.Trim()))
+        {
+            // The runner will make this request on the caller's behalf, and its output is
+            // readable back through the step log. Development is exempt because that is where
+            // the registry genuinely is a container on a private network.
+            return ApiResults.Invalid(
+                nameof(request.RegistryUrl),
+                $"'{request.RegistryUrl}' is a private or loopback address. A registry has to "
+                + "be reachable from where the pipeline runs, and this platform does not "
+                + "publish to addresses inside its own network.");
+        }
+        else if (!RegistryEndpoints.IsValid(request.RegistryUrl.Trim()))
         {
             return ApiResults.Invalid(
                 nameof(request.RegistryUrl),
-                $"'{request.RegistryUrl}' is not an absolute http or https URL. Leave it empty "
-                + $"to publish to {RegistryEndpoints.DefaultFor(request.Registry)}.");
+                $"'{request.RegistryUrl}' is not an absolute http or https URL."
+                + (RegistryEndpoints.DefaultFor(request.Registry) is { } fallback
+                    ? $" Leave it empty to publish to {fallback}."
+                    : string.Empty));
         }
 
         // Only npmjs.org issues npm_ tokens. A registry an organization runs mints its own —

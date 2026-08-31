@@ -44,7 +44,30 @@ public class RegistryCredentialTests
         Should.Throw<ArgumentException>(() => Npm(url));
 
     [Fact]
-    public void Every_registry_kind_knows_where_it_lives() =>
-        Enum.GetValues<RegistryKind>()
-            .ShouldAllBe(kind => RegistryEndpoints.IsValid(RegistryEndpoints.DefaultFor(kind)));
+    public void A_registry_either_names_a_usable_address_or_names_none()
+    {
+        // Two of them have no address worth guessing. Maven Central deploys through a staging
+        // service rather than the mirror it reads from, and Packagist takes a VCS URL instead
+        // of an upload — a default for either was an address that could only fail at the last
+        // step of a run. What is asserted is the pairing: an answer is either usable or absent.
+        foreach (var kind in Enum.GetValues<RegistryKind>())
+        {
+            var endpoint = RegistryEndpoints.DefaultFor(kind);
+
+            if (endpoint is not null)
+            {
+                RegistryEndpoints.IsValid(endpoint).ShouldBeTrue($"{kind} names '{endpoint}'");
+            }
+        }
+
+        RegistryEndpoints.DefaultFor(RegistryKind.Maven).ShouldBeNull();
+        RegistryEndpoints.DefaultFor(RegistryKind.Packagist).ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_registry_with_no_default_refuses_a_credential_that_gives_no_address() =>
+        // Refused where the credential is built, so no path can create one that points
+        // nowhere and discovers it at publish time.
+        Should.Throw<ArgumentException>(() => new RegistryCredential(
+            Guid.NewGuid(), RegistryKind.Maven, "maven", [1, 2, 3], "abcd"));
 }

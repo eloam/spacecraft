@@ -29,6 +29,18 @@ public sealed record BuildOutcome
     /// <summary>Artifact file name inside the artifact directory, on success.</summary>
     public string? ArtifactFileName { get; init; }
 
+    /// <summary>
+    /// What the builder packed, so the bytes are stored and served as what they are.
+    /// </summary>
+    /// <remarks>
+    /// The builder is the only thing that knows: npm packs a gzipped tarball, while a .nupkg,
+    /// a .jar and a .whl are all zip containers. The type was hard-coded to application/gzip
+    /// where the artifact is stored and again where it is served, so every non-npm language
+    /// would have described its package as something it is not — and a client that trusts the
+    /// type over the file name would try to gunzip a zip.
+    /// </remarks>
+    public string ArtifactMediaType { get; init; } = "application/octet-stream";
+
     public static BuildOutcome Failed(string reason, string output) =>
         new() { Succeeded = false, FailureReason = reason, Output = output };
 }

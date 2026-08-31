@@ -113,10 +113,16 @@ public sealed partial class KiotaSdkGenerator(
     /// "@acme/billing-sdk" becomes "acme.billing_sdk". Hyphens map to underscores rather
     /// than being dropped: no target language accepts a hyphen in an identifier, but
     /// deleting it silently welds words together ("billingsdk").
+    /// <para>
+    /// A Maven coordinate separates its halves with a colon, and the strip below was doing to
+    /// it exactly what this method refuses to do to a hyphen: "com.acme:billing-sdk" came out
+    /// as "com.acmebilling_sdk". It maps to a dot, like the npm scope separator, because that
+    /// is what both halves already mean — a namespace and a name.
+    /// </para>
     /// </summary>
     internal static string NamespaceFor(string packageName)
     {
-        var name = packageName.TrimStart('@').Replace('/', '.').Replace('-', '_');
+        var name = packageName.TrimStart('@').Replace('/', '.').Replace(':', '.').Replace('-', '_');
         return NonNamespace().Replace(name, string.Empty).Trim('.') is { Length: > 0 } cleaned
             ? cleaned
             : "sdk";

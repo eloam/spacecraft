@@ -93,7 +93,7 @@ public static class RunEndpoints
             .WithSummary("Returns a step's captured log.");
 
         group.MapGet("/{runId:guid}/artifact", GetArtifactAsync)
-            .Produces(StatusCodes.Status200OK, contentType: "application/gzip")
+            .Produces(StatusCodes.Status200OK, contentType: "application/octet-stream")
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Returns the packaged SDK this run produced.");
 
@@ -380,7 +380,10 @@ public static class RunEndpoints
             // The key's last segment is the name the runner packed the tarball under, so the
             // saved file keeps it instead of being named after the run's id.
             var fileName = run.ArtifactStorageKey[(run.ArtifactStorageKey.LastIndexOf('/') + 1)..];
-            return TypedResults.File(content, "application/gzip", fileName);
+
+            // Read from the name rather than assumed. Hard-coding gzip was true of npm's
+            // tarball and false of every other package this platform will build.
+            return TypedResults.File(content, ArtifactMediaTypes.ForFileName(fileName), fileName);
         }
         catch (ObjectNotFoundException)
         {

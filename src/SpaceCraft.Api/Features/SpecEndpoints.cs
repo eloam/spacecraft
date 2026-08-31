@@ -483,12 +483,61 @@ public static class SpecEndpoints
             }
         }
 
-        await db.SaveChangesAsync(ct);
+        DbUpdateException? conflict = null;
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex)
+        {
+            // Kept rather than swallowed, and narrowed below: telling a race apart from any
+            // other write failure needs a query, and a catch filter cannot await one.
+            conflict = ex;
+        }
+
+        if (conflict is not null)
+        {
+            // Two uploads to one project at the same moment. The sequence is the count of
+            // what this project already holds, computed in memory, so both arrivals claimed
+            // the same number and the unique index refused the second — as a 500, after its
+            // document was already in the bucket, leaving an object nothing points at.
+            //
+            // Answered rather than retried: the caller knows to send it again, and a retry
+            // here would have to re-run validation and the auto-publish triggers against a
+            // project that has moved on in the meantime.
+            if (!await SequenceTakenAsync(db, projectId, specVersion.Sequence, ct))
+            {
+                // Not the race. Rethrown as it was, so whatever it really is reaches the
+                // handler that logs it rather than being renamed on the way.
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(conflict).Throw();
+            }
+
+            await storage.DeleteAsync(specVersion.StorageKey, ct);
+
+            return ApiResults.Conflict(
+                "Another document was uploaded to this project at the same moment. "
+                + "Send this one again.");
+        }
 
         return TypedResults.Created(
             $"/api/v1/organizations/{organizationId}/projects/{projectId}/specs",
             new SpecUploadResponse(
                 ToResponse(specVersion), validation.Diagnostics, triggered, project.StrictValidation));
+    }
+
+    /// <summary>
+    /// True when the number this upload claimed now belongs to a different document — which
+    /// is what tells a racing upload apart from any other write failure.
+    /// </summary>
+    private static async Task<bool> SequenceTakenAsync(
+        SpaceCraftDbContext db, Guid projectId, int sequence, CancellationToken ct)
+    {
+        // A fresh context: the failed SaveChanges left this one holding entries it could not
+        // write, and asking it anything about the database would replay them.
+        return await db.SpecVersions
+            .AsNoTracking()
+            .AnyAsync(s => s.ApiProjectId == projectId && s.Sequence == sequence, ct);
     }
 
     private static async Task<IResult> DeleteAsync(

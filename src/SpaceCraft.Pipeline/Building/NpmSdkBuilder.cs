@@ -121,6 +121,9 @@ public sealed partial class NpmSdkBuilder(
             Succeeded = true,
             Output = log.ToString(),
             ArtifactFileName = fileName,
+            // npm pack writes a gzipped tarball. Said here because the builder is the only
+            // thing that knows — a .nupkg or a .jar reaching the same field is a zip.
+            ArtifactMediaType = "application/gzip",
         };
     }
 

@@ -153,6 +153,40 @@ public static class MemberEndpoints
             return ApiResults.NotFound("The member");
         }
 
+        // Nobody grants a role they do not hold, and nobody grants one to themselves.
+        //
+        // Admin was enough to reach here, and Admin could therefore write Owner onto its own
+        // membership — then demote the real owner and delete the organization, the one action
+        // deletion deliberately reserves because "an admin was added by someone else". The
+        // same rule protects the other direction: an Admin must not demote an Owner, or the
+        // reservation is worked around from below instead of above.
+        var callerRole = await access.GetRoleAsync(organizationId, caller, ct);
+        var currentRole = organization.Members.Single(m => m.UserId == userId).Role;
+
+        if (userId == caller && request.Role != currentRole)
+        {
+            return ApiResults.Problem(
+                "Forbidden",
+                "You cannot change your own role. Ask another owner or admin.",
+                StatusCodes.Status403Forbidden);
+        }
+
+        if (callerRole is not { } held || request.Role > held)
+        {
+            return ApiResults.Problem(
+                "Forbidden",
+                $"Granting the {request.Role} role takes that role or higher.",
+                StatusCodes.Status403Forbidden);
+        }
+
+        if (currentRole > held)
+        {
+            return ApiResults.Problem(
+                "Forbidden",
+                $"Changing the role of an {currentRole} takes that role or higher.",
+                StatusCodes.Status403Forbidden);
+        }
+
         try
         {
             organization.ChangeMemberRole(userId, request.Role);

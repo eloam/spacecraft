@@ -54,13 +54,11 @@ public class RegistryEndpointsTests
     [Theory]
     [InlineData(RegistryKind.Npm)]
     [InlineData(RegistryKind.NuGet)]
-    [InlineData(RegistryKind.Maven)]
     [InlineData(RegistryKind.PyPI)]
-    [InlineData(RegistryKind.Packagist)]
-    public void Every_registry_has_a_public_endpoint_that_recognises_itself(RegistryKind registry)
+    public void A_registry_that_names_a_public_endpoint_recognises_it(RegistryKind registry)
     {
-        // Guards the pairing rather than the values: a registry added to the enum without a
-        // default endpoint throws here instead of at the first credential that uses it.
+        // Guards the pairing rather than the values. Maven and Packagist are absent because
+        // they name no address a publish can reach — see RegistryEndpoints.DefaultFor.
         RegistryEndpoints.IsPublicFor(registry, RegistryEndpoints.DefaultFor(registry)).ShouldBeTrue();
     }
 }

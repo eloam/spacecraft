@@ -32,7 +32,13 @@ public static class SdkLanguageInfo
         SdkLanguage.Java => RegistryKind.Maven,
         SdkLanguage.Python => RegistryKind.PyPI,
         SdkLanguage.Php => RegistryKind.Packagist,
-        SdkLanguage.Go => RegistryKind.Npm, // Go has no central registry; proxied from VCS tags.
+        // Deliberately unmapped. Go modules are fetched from their version-control tags, so
+        // there is no registry to publish to — and the previous mapping said npm, which would
+        // have routed a Go module to the npm publisher and uploaded it there. An unmapped
+        // language throws below, which is the honest answer until Go publishing means
+        // something.
+        SdkLanguage.Go => throw new ArgumentOutOfRangeException(
+            nameof(language), language, "Go modules are consumed from VCS tags, not published to a registry."),
         _ => throw new ArgumentOutOfRangeException(nameof(language), language, null),
     };
 

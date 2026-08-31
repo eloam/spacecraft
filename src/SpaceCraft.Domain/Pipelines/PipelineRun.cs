@@ -11,8 +11,27 @@ namespace SpaceCraft.Domain.Pipelines;
 /// </summary>
 public sealed class PipelineRun : Entity
 {
+    /// <summary>Matches the failure_reason column; longer values are cut rather than refused.</summary>
+    private const int ReasonLimit = 2000;
+
     /// <summary>How long a claim stays valid before another worker may steal the run.</summary>
-    public static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(15);
+    /// <summary>
+    /// How long a claim holds before the reaper may give the run to somebody else.
+    /// </summary>
+    /// <remarks>
+    /// Renewed before each step, so this only has to outlast the longest single one — and it
+    /// did not. The build step is allowed fifteen minutes and the lease was fifteen minutes,
+    /// leaving no margin at all: a build that used its budget was declared abandoned while
+    /// still running, and the reaper — which sweeps every minute — handed the same run to a
+    /// second worker. Two builds of one package, and whichever finished last wrote the result.
+    /// npm never came close, which is why it never happened; a cold Gradle or Maven resolve
+    /// would reach it routinely.
+    /// <para>
+    /// PipelineTimeoutTests pins the margin, so raising a step's timeout past this fails the
+    /// build rather than reintroducing the race.
+    /// </para>
+    /// </remarks>
+    public static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(25);
 
     public const int DefaultMaxAttempts = 3;
 
@@ -208,8 +227,22 @@ public sealed class PipelineRun : Entity
         Touch();
     }
 
+    /// <summary>
+    /// Marks the run finished, unless it has already finished.
+    /// </summary>
+    /// <remarks>
+    /// The guard is the point. A run cancelled while a worker was mid-flight used to be
+    /// overwritten with Succeeded when that worker reached the end, so the cancellation left
+    /// no trace at all — and the package had been published in the meantime. A terminal
+    /// status is a decision somebody made; nothing later gets to unmake it silently.
+    /// </remarks>
     public void Succeed()
     {
+        if (IsTerminal)
+        {
+            throw new InvalidOperationException($"Cannot succeed a run in status {Status}.");
+        }
+
         Status = RunStatus.Succeeded;
         CompletedAt = DateTimeOffset.UtcNow;
         ClaimedBy = null;
@@ -220,14 +253,24 @@ public sealed class PipelineRun : Entity
     public void Fail(string reason)
     {
         Status = RunStatus.Failed;
-        FailureReason = reason;
+        FailureReason = Text.Clamp(reason, ReasonLimit);
         CompletedAt = DateTimeOffset.UtcNow;
         ClaimedBy = null;
         LeaseExpiresAt = null;
 
+        // A step that never started is skipped; one that was under way when the run died is
+        // failed with the run's own reason. Only the first was settled before, so a run that
+        // faulted mid-step — an exception, an exhausted attempt — left that step at Running
+        // for good. Polling stops at a terminal run, so the interface showed a spinner that
+        // could never resolve, on a run everything else called finished.
         foreach (var step in _steps.Where(s => s.Status is StepStatus.Pending))
         {
             step.Skip("Run failed before this step.");
+        }
+
+        foreach (var step in _steps.Where(s => s.Status is StepStatus.Running))
+        {
+            step.Fail(reason);
         }
 
         Touch();
@@ -266,7 +309,7 @@ public sealed class PipelineRun : Entity
         }
 
         Status = RunStatus.Cancelled;
-        FailureReason = reason;
+        FailureReason = Text.Clamp(reason, ReasonLimit);
         CompletedAt = DateTimeOffset.UtcNow;
         ClaimedBy = null;
         LeaseExpiresAt = null;

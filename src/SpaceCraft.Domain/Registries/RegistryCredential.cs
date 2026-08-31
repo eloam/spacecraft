@@ -28,6 +28,9 @@ public sealed class RegistryCredential : Entity
 
         var endpoint = string.IsNullOrWhiteSpace(registryUrl)
             ? RegistryEndpoints.DefaultFor(registry)
+                ?? throw new ArgumentException(
+                    $"{registry} has no address that can be guessed; give the credential one.",
+                    nameof(registryUrl))
             : registryUrl.Trim().TrimEnd('/');
 
         if (!RegistryEndpoints.IsValid(endpoint))

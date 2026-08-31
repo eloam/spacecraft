@@ -8,6 +8,9 @@ namespace SpaceCraft.Domain.Pipelines;
 /// </summary>
 public sealed class PipelineStep : Entity
 {
+    /// <summary>Matches the failure_reason column; longer values are cut rather than refused.</summary>
+    private const int ReasonLimit = 2000;
+
     private PipelineStep() { }
 
     internal PipelineStep(Guid pipelineRunId, StepKind kind, int ordinal)
@@ -68,7 +71,7 @@ public sealed class PipelineStep : Entity
     {
         Status = StepStatus.Failed;
         CompletedAt = DateTimeOffset.UtcNow;
-        FailureReason = reason;
+        FailureReason = Text.Clamp(reason, ReasonLimit);
         LogStorageKey = logStorageKey ?? LogStorageKey;
         Touch();
     }
@@ -77,7 +80,7 @@ public sealed class PipelineStep : Entity
     {
         Status = StepStatus.Skipped;
         CompletedAt = DateTimeOffset.UtcNow;
-        FailureReason = reason;
+        FailureReason = Text.Clamp(reason, ReasonLimit);
         Touch();
     }
 }

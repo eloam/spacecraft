@@ -69,9 +69,15 @@ public static partial class SemanticVersion
     /// Numeric, not textual: "1.10.0" follows "1.9.0" even though it sorts before it as a
     /// string, and that is precisely the comparison a release makes.
     ///
-    /// Prerelease and build suffixes are ignored. Ordering them properly is a specification of
-    /// its own, and nothing here needs to tell 1.0.0-rc.1 from 1.0.0-rc.2 — only whether the
-    /// release moved forward.
+    /// A release comes after the prereleases that carry its number: 1.0.0 follows 1.0.0-rc.1,
+    /// which is semver's own rule and the reason it matters here. Ignoring suffixes made the
+    /// two compare equal, so a strict project that published an rc could never upload the
+    /// release — its own document was refused as a repeat of itself.
+    ///
+    /// Two different prereleases are ordered by their text, which is not semver's rule (it
+    /// compares dot-separated identifiers, numerically where both are numeric). It is enough
+    /// for what this is asked: whether the release moved, not by how much. rc.10 sorting
+    /// before rc.2 costs nothing until someone needs to know which came first.
     /// </summary>
     public static int? Compare(string? left, string? right)
     {
@@ -87,8 +93,31 @@ public static partial class SemanticVersion
             if (x != y) return x.CompareTo(y);
         }
 
-        return 0;
+        return ComparePrerelease(Prerelease(left), Prerelease(right));
     }
+
+    /// <summary>The prerelease tag, or null for a release. Build metadata is not one.</summary>
+    private static string? Prerelease(string? version)
+    {
+        if (version is null) return null;
+
+        var hyphen = version.IndexOf('-', StringComparison.Ordinal);
+        if (hyphen < 0) return null;
+
+        var tag = version[(hyphen + 1)..];
+        var plus = tag.IndexOf('+', StringComparison.Ordinal);
+
+        return plus < 0 ? tag : tag[..plus];
+    }
+
+    private static int ComparePrerelease(string? left, string? right) => (left, right) switch
+    {
+        (null, null) => 0,
+        // A release outranks any prerelease of the same number.
+        (null, _) => 1,
+        (_, null) => -1,
+        _ => string.CompareOrdinal(left, right),
+    };
 
     /// <summary>Every numeric component, however many a registry allows.</summary>
     /// <remarks>
@@ -112,9 +141,23 @@ public static partial class SemanticVersion
         var match = AnyNumeric().Match(trimmed);
         if (!match.Success) return null;
 
-        return [.. match.Groups["numbers"].Value
-            .Split('.')
-            .Select(part => int.Parse(part, System.Globalization.CultureInfo.InvariantCulture))];
+        // TryParse, not Parse: info.version is whatever somebody wrote, and a run of twenty
+        // digits overflows. This is reached from the validator, whose contract says it reports
+        // a malformed document rather than throwing out of it.
+        var numbers = new List<int>();
+
+        foreach (var part in match.Groups["numbers"].Value.Split('.'))
+        {
+            if (!int.TryParse(part, System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out var number))
+            {
+                return null;
+            }
+
+            numbers.Add(number);
+        }
+
+        return [.. numbers];
     }
 
     [GeneratedRegex(@"^v?(?<numbers>\d+(?:\.\d+)*)(?:[-+.].*)?$")]

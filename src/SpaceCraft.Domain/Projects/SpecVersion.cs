@@ -20,6 +20,9 @@ public enum SpecValidationStatus
 /// </summary>
 public sealed class SpecVersion : Entity
 {
+    /// <summary>Matches the api_title column; longer values are cut rather than refused.</summary>
+    private const int TitleLimit = 200;
+
     private SpecVersion() { }
 
     /// <summary>
@@ -124,7 +127,7 @@ public sealed class SpecVersion : Entity
         string? diagnosticsJson)
     {
         ValidationStatus = status;
-        ApiTitle = apiTitle;
+        ApiTitle = Text.Clamp(apiTitle, TitleLimit);
         ApiVersion = apiVersion;
         OpenApiVersion = openApiVersion;
         InformationCount = informationCount;

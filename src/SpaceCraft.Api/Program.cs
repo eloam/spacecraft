@@ -11,6 +11,9 @@ using Scalar.AspNetCore;
 using Serilog;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using SpaceCraft.Infrastructure.Security;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -100,6 +103,36 @@ app.UseStaticFiles();
 // straight after: without it the framework inserts routing at the top of the pipeline, the
 // endpoint is already chosen by the time this runs, and the rewrite changes nothing.
 app.UseMiddleware<SpaceCraft.Api.Common.SlugRouteMiddleware>();
+// Behind a gateway, Connection.RemoteIpAddress is the gateway — one address for every caller
+// in the world, which is what the credential endpoints partition their rate limit on. Reading
+// the forwarded address restores that partition.
+//
+// Only from proxies named in configuration, and off by default. Trusting the header from
+// anyone is worse than not reading it: X-Forwarded-For is caller-supplied, so an attacker
+// would mint a fresh login budget per request by varying it. KnownProxies or KnownNetworks
+// must name the gateway; see docs/deployment.md.
+var forwardedFrom = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [];
+if (forwardedFrom.Length > 0)
+{
+    var forwarded = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    };
+
+    forwarded.KnownIPNetworks.Clear();
+    forwarded.KnownProxies.Clear();
+
+    foreach (var network in forwardedFrom)
+    {
+        var parts = network.Split('/', 2);
+        forwarded.KnownIPNetworks.Add(new System.Net.IPNetwork(
+            IPAddress.Parse(parts[0]),
+            parts.Length == 2 ? int.Parse(parts[1], CultureInfo.InvariantCulture) : 32));
+    }
+
+    app.UseForwardedHeaders(forwarded);
+}
+
 app.UseRouting();
 
 app.UseCors(ApiServiceExtensions.SpaCorsPolicy);

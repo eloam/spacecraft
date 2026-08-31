@@ -575,7 +575,6 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_sdk_targets_api_project_id_language");
 
                     b.HasIndex("Registry", "PackageName")
-                        .IsUnique()
                         .HasDatabaseName("ix_sdk_targets_registry_package_name");
 
                     b.ToTable("sdk_targets", "spacecraft");

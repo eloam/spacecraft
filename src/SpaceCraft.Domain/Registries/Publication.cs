@@ -19,6 +19,9 @@ public enum PublicationStatus
 /// <summary>An attempt to push one built SDK version to one registry.</summary>
 public sealed class Publication : Entity
 {
+    /// <summary>Matches the failure_reason column; longer values are cut rather than refused.</summary>
+    private const int ReasonLimit = 2000;
+
     private Publication() { }
 
     public Publication(
@@ -93,7 +96,7 @@ public sealed class Publication : Entity
     public void Fail(string reason)
     {
         Status = PublicationStatus.Failed;
-        FailureReason = reason;
+        FailureReason = Text.Clamp(reason, ReasonLimit);
         CompletedAt = DateTimeOffset.UtcNow;
         Touch();
     }

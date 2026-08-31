@@ -106,7 +106,10 @@ public static class ProjectEndpoints
         group.MapPatch("/{projectId:guid}", RenameAsync)
             .Produces<ProjectResponse>()
             .ProducesValidationProblem()
-            .WithSummary("Renames a project. The slug is left unchanged.");
+            // The slug moves with the name — ApiProject.Rename recomputes it. The summary
+            // promised the opposite, which was the same false invariant the slug cache rested
+            // on until it was fixed.
+            .WithSummary("Renames a project, and its slug with it. Links to the old address stop resolving.");
 
         group.MapDelete("/{projectId:guid}", DeleteAsync)
             .Produces(StatusCodes.Status204NoContent)
@@ -274,9 +277,17 @@ public static class ProjectEndpoints
             return denied;
         }
 
+        // The project has to belong to the organization this call authorised against, not
+        // merely to exist. Without the second predicate the guard checked one organization
+        // and the delete acted on another: anyone could create an organization of their own,
+        // become its Admin by doing so, and pass another tenant's project and target ids —
+        // which a Viewer of that tenant can simply read. The refusal even echoed the package
+        // name back, handing over the confirmation it was asking for.
         var target = await db.SdkTargets
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == targetId && t.ApiProjectId == projectId, ct);
+            .Where(t => t.Id == targetId && t.ApiProjectId == projectId)
+            .Where(t => db.ApiProjects.Any(p => p.Id == projectId && p.OrganizationId == organizationId))
+            .FirstOrDefaultAsync(ct);
 
         if (target is null)
         {
@@ -454,6 +465,36 @@ public static class ProjectEndpoints
         }
 
         var registry = request.Registry ?? request.Language.DefaultRegistry();
+
+        // A caller may name the registry, and nothing checked it belonged to the language.
+        // A Java target with Registry=Npm resolved both seams successfully — the Java
+        // generator built a .jar and the npm publisher was handed it — so the pairing is
+        // refused here rather than discovered at the last step of a run.
+        if (registry != request.Language.DefaultRegistry())
+        {
+            return ApiResults.Invalid(
+                nameof(request.Registry),
+                $"{request.Language} publishes to {request.Language.DefaultRegistry()}, not to "
+                + $"{registry}. Point the credential at your own {request.Language.DefaultRegistry()} "
+                + "server if it is not the public one.");
+        }
+
+        // The uniqueness the database used to enforce across every tenant, narrowed to the
+        // organization it actually belongs in. A registry decides who owns a name and says so
+        // at publish time; what is worth catching here is one organization pointing two
+        // targets at the same package, which is a mistake rather than a conflict.
+        var taken = await db.SdkTargets
+            .AsNoTracking()
+            .Where(t => t.Registry == registry && t.PackageName == request.PackageName.Trim())
+            .Where(t => db.ApiProjects.Any(p => p.Id == t.ApiProjectId && p.OrganizationId == organizationId))
+            .AnyAsync(ct);
+
+        if (taken)
+        {
+            return ApiResults.Conflict(
+                $"Another project in this organization already publishes {request.PackageName.Trim()} "
+                + $"to {registry}.");
+        }
 
         if (await RejectUnusableCredentialAsync(
                 organizationId, registry, request.RegistryCredentialId, db, ct) is { } refusal)

@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 
+using Microsoft.EntityFrameworkCore;
+using SpaceCraft.Infrastructure.Persistence;
+using System.Security.Claims;
+using Microsoft.Extensions.DependencyInjection;
 namespace SpaceCraft.Api.Extensions;
 
 public static class ApiServiceExtensions
@@ -43,6 +47,62 @@ public static class ApiServiceExtensions
                     // Tokens are short-lived; the default five-minute grace would double
                     // their effective lifetime.
                     ClockSkew = TimeSpan.FromSeconds(30),
+                };
+
+                // The two claims that made revocation mean something were issued and never
+                // read. The token service writes `stamp` with the comment "invalidates
+                // outstanding tokens when the user's security stamp is rotated" and `sid` so
+                // "a request can tell which of the sessions it belongs to" — and nothing
+                // asked. Signing out everywhere, revoking one session, and changing a
+                // password all revoked refresh tokens while leaving every access token
+                // already issued working until it expired on its own.
+                //
+                // A database read per request, which is the posture this application already
+                // takes for organization membership: revocation that takes effect at the next
+                // request is worth more than a claim believed for fifteen minutes.
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var principal = context.Principal;
+                        if (principal is null)
+                        {
+                            context.Fail("No principal.");
+                            return;
+                        }
+
+                        var db = context.HttpContext.RequestServices.GetRequiredService<SpaceCraftDbContext>();
+                        var userId = principal.Id();
+
+                        var stamp = await db.Users
+                            .AsNoTracking()
+                            .Where(u => u.Id == userId)
+                            .Select(u => u.SecurityStamp)
+                            .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+
+                        if (stamp is null
+                            || !string.Equals(stamp, principal.FindFirstValue("stamp"), StringComparison.Ordinal))
+                        {
+                            context.Fail("The security stamp has changed.");
+                            return;
+                        }
+
+                        // A session is revoked by revoking its refresh tokens, so a family
+                        // with none left alive is a session somebody ended.
+                        if (principal.SessionId() is { } sessionId)
+                        {
+                            var alive = await db.RefreshTokens
+                                .AsNoTracking()
+                                .AnyAsync(
+                                    t => t.FamilyId == sessionId && t.RevokedAt == null,
+                                    context.HttpContext.RequestAborted);
+
+                            if (!alive)
+                            {
+                                context.Fail("This session was revoked.");
+                            }
+                        }
+                    },
                 };
             });
 
@@ -104,9 +164,15 @@ public static class ApiServiceExtensions
             // failed sign-ins followed by a password reset would exhaust it, and an office
             // behind one NAT address exhausts it faster still. Each endpoint gets its own
             // window; spraying one of them still hits the wall just as hard.
+            //
+            // The path is lowercased into the key because routing matches it without regard
+            // to case: /api/v1/AUTH/login reaches the same endpoint and, keyed raw, was a
+            // fresh budget. An attacker had as many budgets as there are ways to spell a
+            // route.
             options.AddPolicy(StrictLimiter, context =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    $"{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}|{context.Request.Path}",
+                    $"{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}"
+                        + $"|{context.Request.Path.Value?.ToLowerInvariant()}",
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = strictPermits,

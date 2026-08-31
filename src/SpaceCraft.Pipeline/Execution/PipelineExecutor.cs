@@ -69,12 +69,27 @@ public sealed class PipelineExecutor(
 
             var clientName = KiotaSdkGenerator.DeriveClientName(spec.ApiTitle, target.PackageName);
 
+            if (await CancelledAsync(run, ct))
+            {
+                return;
+            }
+
             if (!await RunGenerateStepAsync(run, spec, target, workspace, specFileName, clientName, version, ct))
             {
                 return;
             }
 
+            if (await CancelledAsync(run, ct))
+            {
+                return;
+            }
+
             if (!await RunBuildStepAsync(run, target, workspace, version, ct))
+            {
+                return;
+            }
+
+            if (await CancelledAsync(run, ct))
             {
                 return;
             }
@@ -116,6 +131,37 @@ public sealed class PipelineExecutor(
         await source.CopyToAsync(destination, ct);
 
         return fileName;
+    }
+
+    /// <summary>
+    /// True when someone cancelled this run while the worker was between steps.
+    /// </summary>
+    /// <remarks>
+    /// Read from the database, not from the entity in hand: cancellation is written by the API
+    /// in another process, so the copy loaded when this run was claimed can never learn of it.
+    /// Nothing in the pipeline used to ask, which made Cancel a button that changed a row and
+    /// stopped nothing — the build carried on, the package was published, and Succeeded was
+    /// written over Cancelled at the end.
+    /// <para>
+    /// Between steps rather than inside them. A step already running is left to finish; what
+    /// matters is not starting the next one, and the next one is sometimes a publish.
+    /// </para>
+    /// </remarks>
+    private async Task<bool> CancelledAsync(PipelineRun run, CancellationToken ct)
+    {
+        var status = await db.PipelineRuns
+            .AsNoTracking()
+            .Where(r => r.Id == run.Id)
+            .Select(r => r.Status)
+            .FirstOrDefaultAsync(ct);
+
+        if (status != RunStatus.Cancelled)
+        {
+            return false;
+        }
+
+        logger.LogInformation("Run {RunId} was cancelled; stopping before the next step", run.Id);
+        return true;
     }
 
     private async Task<bool> RunValidateStepAsync(
@@ -330,7 +376,7 @@ public sealed class PipelineExecutor(
 
         await using (var artifact = File.OpenRead(artifactPath))
         {
-            await storage.PutAsync(artifactKey, artifact, "application/gzip", ct);
+            await storage.PutAsync(artifactKey, artifact, outcome.ArtifactMediaType, ct);
         }
 
         run.SetArtifact(artifactKey);
@@ -358,10 +404,15 @@ public sealed class PipelineExecutor(
         run.RenewLease(DateTimeOffset.UtcNow);
         await db.SaveChangesAsync(ct);
 
-        var publisher = publishers.FirstOrDefault(p => p.Registry == target.Registry);
+        // From the run's own snapshot, not from the target as it stands now. The snapshot was
+        // taken when the run was queued and exists for exactly this: a target repointed while
+        // a run waited in the queue must not move where that run publishes. Read live, a
+        // credential switched from a private mirror to public npm would have sent the package
+        // there while the run's history went on naming the mirror.
+        var publisher = publishers.FirstOrDefault(p => p.Registry == run.TargetRegistry);
         if (publisher is null)
         {
-            return await FailStepAsync(run, step, $"No publisher is registered for {target.Registry}.", null, ct);
+            return await FailStepAsync(run, step, $"No publisher is registered for {run.TargetRegistry}.", null, ct);
         }
 
         // Null is not "work it out": it is a target that publishes nowhere, which the SDK
@@ -398,6 +449,20 @@ public sealed class PipelineExecutor(
                 null, ct);
         }
 
+        // Drift between what the run recorded and where the credential now points. Publishing
+        // to either would be defensible and both are wrong: the run says one destination and
+        // the target says another, and a registry does not take a package back. Refused, so
+        // somebody decides rather than a race deciding.
+        if (run.TargetRegistryUrl is { } recorded
+            && !string.Equals(recorded, credential.RegistryUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return await FailStepAsync(
+                run, step,
+                $"This run was queued to publish to {recorded}, and the credential now points "
+                + $"at {credential.RegistryUrl}. Start a new run to publish to the new address.",
+                null, ct);
+        }
+
         // One row per (target, version), because a registry holds one artifact per version.
         // A retry of the same version reuses it rather than inserting a second.
         var publication = await db.Publications
@@ -429,9 +494,12 @@ public sealed class PipelineExecutor(
             WorkspaceRoot = workspace.Root,
             ArtifactDirectory = RunWorkspace.ArtifactRelativePath,
             ArtifactFileName = artifactFileName,
-            PackageName = target.PackageName,
+            PackageName = run.TargetPackageName,
             Version = version,
-            RegistryUrl = credential.RegistryUrl,
+            // The address the run recorded. Where it differs from the credential's current one
+            // the run is refused above rather than sent to either, because a package landing
+            // somewhere its own history denies is the outcome worth refusing outright.
+            RegistryUrl = run.TargetRegistryUrl ?? credential.RegistryUrl,
             Token = secret.Token,
             Username = secret.Username,
         }, ct);

@@ -82,7 +82,19 @@ public sealed class SdkTargetConfiguration : IEntityTypeConfiguration<SdkTarget>
 
         builder.HasIndex(t => new { t.ApiProjectId, t.Language }).IsUnique();
 
-        // Two projects must not fight over the same package name on the same registry.
-        builder.HasIndex(t => new { t.Registry, t.PackageName }).IsUnique();
+        // Deliberately not unique across the instance any more.
+        //
+        // It read "two projects must not fight over the same package name on the same
+        // registry", which is true of two projects in one organization and false between
+        // tenants: the endpoint lives on the credential, so one organization publishing
+        // billing-sdk to its own Nexus was refused because an unrelated one had taken that
+        // name on npmjs. It was also byte-exact, which only npm's lowercase rule makes safe —
+        // NuGet ids are case-insensitive and PyPI names are normalised under PEP 503, so
+        // Acme.Sdk and acme.sdk inserted as two rows for one real package.
+        //
+        // The registry is the authority on who owns a name, and it says so at publish time.
+        // What this platform can usefully catch is an organization colliding with itself,
+        // which ProjectEndpoints checks within the organization before the row is written.
+        builder.HasIndex(t => new { t.Registry, t.PackageName });
     }
 }
