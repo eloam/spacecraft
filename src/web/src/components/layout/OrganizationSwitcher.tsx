@@ -40,7 +40,12 @@ export function OrganizationSwitcher() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const all = organizations.data ?? [];
-  const current = all.find((o) => o.slug === orgId);
+
+  // Slug or id. The route param normally carries the slug, but the id is a valid address
+  // too — the API accepts either, and a link minted from a stored record carries the id on
+  // purpose, so that renaming an organization cannot break it. Matching only one of the two
+  // printed a guid where the organization's name belongs.
+  const current = all.find((o) => o.slug === orgId || o.id === orgId);
 
   const needle = query.trim().toLowerCase();
   const matches = needle

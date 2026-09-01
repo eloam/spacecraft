@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
 import {
   ArrowLeftRight,
   CircleAlert,
@@ -86,7 +87,9 @@ const filters: {
 
 /** Uploaded OpenAPI documents and what validation made of them. */
 export function ProjectSpecsPage() {
-  const { orgId = "", projectId = "" } = useParams();
+  const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
+  const orgId = useOrganizationId(orgSlug);
+  const projectId = useProjectId(orgId, projectSlug);
   const specs = useSpecs(orgId, projectId);
   const publications = usePublications(orgId, projectId);
   const remove = useDeleteSpec(orgId, projectId);
@@ -435,7 +438,7 @@ export function ProjectSpecsPage() {
                             // native button unless told, and warns that it is dropping button
                             // semantics — semantics a link should not have had anyway.
                             nativeButton={false}
-                            render={<Link to={`/orgs/${orgId}/runs?project=${projectId}&spec=${spec.id}`} />}
+                            render={<Link to={`/orgs/${orgSlug}/runs?project=${projectSlug}&spec=${spec.id}`} />}
                           >
                             <History className="size-4" aria-hidden />
                           </Button>

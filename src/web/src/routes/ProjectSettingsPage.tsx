@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -28,7 +29,9 @@ const schema = z.object({
 });
 
 export function ProjectSettingsPage() {
-  const { orgId = "", projectId = "" } = useParams();
+  const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
+  const orgId = useOrganizationId(orgSlug);
+  const projectId = useProjectId(orgId, projectSlug);
   const navigate = useNavigate();
   const project = useProject(orgId, projectId);
   const rename = useRenameProject(orgId, projectId);
@@ -58,7 +61,7 @@ export function ProjectSettingsPage() {
       onSuccess: (updated) => {
         toast.success("Project renamed.");
         if (updated.slug !== projectId) {
-          navigate(`/orgs/${orgId}/projects/${updated.slug}/settings`, { replace: true });
+          navigate(`/orgs/${orgSlug}/projects/${updated.slug}/settings`, { replace: true });
         }
       },
       onError: (error) =>
@@ -208,7 +211,7 @@ export function ProjectSettingsPage() {
             remove.mutate({ projectId, name: project.data.name }, {
               onSuccess: () => {
                 toast.success("Project deleted.");
-                navigate(`/orgs/${orgId}`);
+                navigate(`/orgs/${orgSlug}`);
               },
               onError: (error) =>
                 setDeleteError(

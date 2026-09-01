@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, Outlet, useParams } from "react-router-dom";
+import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
 import { Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -16,13 +17,15 @@ import { SpecValidationStatus } from "@/api/types";
  * not any one tab's — and it is the reason most visits happen at all.
  */
 export function ProjectLayout() {
-  const { orgId = "", projectId = "" } = useParams();
+  const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
+  const orgId = useOrganizationId(orgSlug);
+  const projectId = useProjectId(orgId, projectSlug);
   const project = useProject(orgId, projectId);
   const specs = useSpecs(orgId, projectId);
 
   const [generateOpen, setGenerateOpen] = useState(false);
 
-  const base = `/orgs/${orgId}/projects/${projectId}`;
+  const base = `/orgs/${orgSlug}/projects/${projectSlug}`;
   const linkClass = "font-medium text-foreground underline underline-offset-4";
 
   const loading = project.isLoading || specs.isLoading;
@@ -100,7 +103,7 @@ export function ProjectLayout() {
       {/* No breadcrumb: its only useful link was the one back to the project list, and the
           two crumbs above it repeated an organization the top bar already names. */}
       <div>
-        <BackLink to={`/orgs/${orgId}`} className="mb-2">
+        <BackLink to={`/orgs/${orgSlug}`} className="mb-2">
           All projects
         </BackLink>
 
@@ -142,7 +145,8 @@ export function ProjectLayout() {
 
       <GenerateDialog
         orgId={orgId}
-        projectId={projectId}
+        orgSlug={orgSlug}
+        projectSlug={projectSlug}
         open={generateOpen}
         onOpenChange={setGenerateOpen}
       />

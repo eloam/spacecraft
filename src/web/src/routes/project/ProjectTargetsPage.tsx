@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
 import { ExternalLink, Hand, History, Layers, MoreHorizontal, Package, Pencil, Plus, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,9 @@ const filters: {
 
 /** One SDK per language and registry, and what each has published. */
 export function ProjectTargetsPage() {
-  const { orgId = "", projectId = "" } = useParams();
+  const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
+  const orgId = useOrganizationId(orgSlug);
+  const projectId = useProjectId(orgId, projectSlug);
   const project = useProject(orgId, projectId);
   const publications = usePublications(orgId, projectId);
   const credentials = useCredentials(orgId);
@@ -147,7 +150,7 @@ export function ProjectTargetsPage() {
               <Button
                 variant="outline"
                 nativeButton={false}
-                render={<Link to={`/orgs/${orgId}/runs?project=${projectId}`} />}
+                render={<Link to={`/orgs/${orgSlug}/runs?project=${projectSlug}`} />}
               >
                 <History className="size-4" aria-hidden />
                 Runs for this project

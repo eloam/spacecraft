@@ -23,7 +23,7 @@ public sealed class NotificationTests(SpaceCraftApi api)
     {
         var ownerEmail = Email();
         var owner = await api.SignedInAsync(ownerEmail);
-        var organizationId = await OrganizationAsync(owner);
+        var (organizationId, slug) = await OrganizationWithSlugAsync(owner);
 
         var joinerEmail = Email();
         var joiner = await api.SignedInAsync(joinerEmail);
@@ -34,7 +34,9 @@ public sealed class NotificationTests(SpaceCraftApi api)
         forOwner.UnreadCount.ShouldBe(1);
         forOwner.Items[0].Kind.ShouldBe("MemberJoined");
         forOwner.Items[0].Title.ShouldContain(NameOf(joinerEmail));
-        forOwner.Items[0].Link.ShouldBe($"/orgs/{organizationId}/members");
+        // The slug, not the id it is stored with: a notification is a record, but a link is
+        // an address, and every other address in the application reads as a name.
+        forOwner.Items[0].Link.ShouldBe($"/orgs/{slug}/members");
 
         // The joiner is looking at the result of their own click.
         (await FeedAsync(joiner)).Items.ShouldBeEmpty();
@@ -352,6 +354,22 @@ public sealed class NotificationTests(SpaceCraftApi api)
     /// </summary>
     private static string NameOf(string email) => email.Split('@')[0];
 
+    /// <summary>The organization, and the name its links are spelled with.</summary>
+    private static async Task<(Guid Id, string Slug)> OrganizationWithSlugAsync(HttpClient client)
+    {
+        var created = await client.PostAsJsonAsync(
+            "/api/v1/organizations",
+            new { name = $"Org{Guid.NewGuid():N}"[..14] },
+            TestContext.Current.CancellationToken);
+
+        created.EnsureSuccessStatusCode();
+
+        var payload = await created.Content.ReadFromJsonAsync<SlugPayload>(
+            TestContext.Current.CancellationToken);
+
+        return (payload!.Id, payload.Slug);
+    }
+
     private static async Task<Guid> OrganizationAsync(HttpClient client)
     {
         var created = await client.PostAsJsonAsync(
@@ -364,6 +382,8 @@ public sealed class NotificationTests(SpaceCraftApi api)
     }
 
     private sealed record IdPayload(Guid Id);
+
+    private sealed record SlugPayload(Guid Id, string Slug);
 
     private sealed record MemberPayload(Guid UserId);
 

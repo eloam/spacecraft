@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { Ban, Download, FileUp, Hand, MousePointerClick, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +30,8 @@ import { BackLink } from "@/components/BackLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function RunPage() {
-  const { orgId = "", runId = "" } = useParams();
+  const { orgId: orgSlug = "", runId = "" } = useParams();
+  const orgId = useOrganizationId(orgSlug);
   const run = useRun(orgId, runId);
   const cancel = useCancelRun(orgId);
   const [openStep, setOpenStep] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export function RunPage() {
           organizations page. */}
       <div>
         <BackLink
-          to={run.data ? `/orgs/${orgId}/runs?project=${run.data.apiProjectId}` : `/orgs/${orgId}/runs`}
+          to={run.data?.projectSlug ? `/orgs/${orgSlug}/runs?project=${run.data.projectSlug}` : `/orgs/${orgSlug}/runs`}
           className="mb-2"
         >
           All runs
@@ -122,7 +124,7 @@ export function RunPage() {
               {run.data && (
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                   <Link
-                    to={`/orgs/${orgId}/projects/${run.data.apiProjectId}`}
+                    to={`/orgs/${orgSlug}/projects/${run.data.projectSlug}`}
                     className="text-foreground underline-offset-4 hover:underline"
                   >
                     Spec #{run.data.specSequence}
@@ -259,7 +261,7 @@ export function RunPage() {
                     <TableRow className="hover:bg-transparent">
                       <TableCell>
                         <Link
-                          to={`/orgs/${orgId}/projects/${run.data.apiProjectId}/targets`}
+                          to={`/orgs/${orgSlug}/projects/${run.data.projectSlug}/targets`}
                           className="font-medium underline-offset-4 hover:underline"
                         >
                           {run.data.projectName ?? "—"}

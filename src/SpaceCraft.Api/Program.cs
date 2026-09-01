@@ -40,14 +40,6 @@ builder.Services.AddSpaceCraftAuth(builder.Configuration);
 builder.Services.AddSpaceCraftCors(builder.Configuration);
 builder.Services.AddSpaceCraftRateLimiting(builder.Configuration);
 
-// Bounded, because one of its users is fed by the URL. The slug cache keys on a path segment
-// the caller writes, so an unbounded cache is a memory leak anybody can drive; entries declare
-// a size and the oldest go when the limit is reached.
-builder.Services.AddMemoryCache(options => options.SizeLimit = 20_000);
-
-// Empties the slug cache the moment a save moves a slug, so a renamed or freshly created
-// name can never be resolved to the row that used to answer to it.
-builder.Services.AddScoped<ISaveChangesInterceptor, SpaceCraft.Api.Common.SlugCacheInvalidator>();
 builder.Services.AddScoped<SpaceCraft.Api.Features.Deletion.ResourceDeleter>();
 builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.IsDevelopment());
 
@@ -106,21 +98,10 @@ app.UseRequestTimeouts();
 // assets have to be anonymous and static — which is all wwwroot contains.
 app.UseStaticFiles();
 
-// Authentication first, then the slug rewrite, then routing.
-//
-// The rewrite has to precede routing — the endpoint would already be chosen otherwise, and
-// changing the path afterwards changes nothing. But it used to precede authentication too,
-// which made it the first thing an anonymous request reached: every call to
-// /api/v1/organizations/<anything> ran a database query and inserted an entry, keyed on a
-// string the caller chose, into a cache the rate limiter sits behind and therefore cannot
-// protect. It also answered differently for a slug that exists, which is a tenant directory
-// for anyone who can send a request.
-//
-// Authentication needs no routing of its own — the scheme is a bearer token in a header —
-// so it can move ahead of both, and the rewrite now runs only for a caller we know.
+// Ahead of routing, which the bearer scheme has no need of — it reads a header. What it must
+// be ahead of is the rate limiter, for the reason set out where that is added.
 app.UseAuthentication();
 
-app.UseMiddleware<SpaceCraft.Api.Common.SlugRouteMiddleware>();
 // Behind a gateway, Connection.RemoteIpAddress is the gateway — one address for every caller
 // in the world, which is what the credential endpoints partition their rate limit on. Reading
 // the forwarded address restores that partition.

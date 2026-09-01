@@ -3307,6 +3307,7 @@ export interface components {
             /** Format: uuid */
             apiProjectId: string;
             projectName: null | string;
+            projectSlug: null | string;
             /** Format: uuid */
             specVersionId: string;
             /** Format: int32 */

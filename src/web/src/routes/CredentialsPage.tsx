@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { ArrowRight, Ban, KeyRound, MoreHorizontal, Package, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -122,7 +123,8 @@ const REGISTRIES: RegistryProfile[] = [
 const DEFAULT_REGISTRY = REGISTRIES[0];
 
 export function CredentialsPage() {
-  const { orgId = "" } = useParams();
+  const { orgId: orgSlug = "" } = useParams();
+  const orgId = useOrganizationId(orgSlug);
   const { data, isLoading, error } = useCredentials(orgId);
   const revoke = useRevokeCredential(orgId);
   const restore = useRestoreCredential(orgId);
@@ -370,7 +372,7 @@ export function CredentialsPage() {
         details={
           deleting?.usedBy.length ? (
             <UsedByList
-              orgId={orgId}
+              orgSlug={orgSlug}
               usedBy={deleting.usedBy}
               label="Still publishing"
               note="Deletion is refused until each of these moves to another credential."
@@ -414,7 +416,7 @@ export function CredentialsPage() {
 
           {revoking && (
             <UsedByList
-              orgId={orgId}
+              orgSlug={orgSlug}
               usedBy={revoking.usedBy}
               label="Stops publishing"
               note="They start again if you restore the credential."
@@ -443,13 +445,14 @@ export function CredentialsPage() {
  * one because the server refuses until it empties, the other because it is what breaks.
  */
 function UsedByList({
-  orgId,
+  orgSlug,
   usedBy,
   label,
   note,
   onNavigate,
 }: {
-  orgId: string;
+  /** The slug, because this builds links. The id is what the queries above it use. */
+  orgSlug: string;
   usedBy: Credential["usedBy"];
   /**
    * The eyebrow, in the same voice as the "This removes" ledger above it. Short on purpose:
@@ -474,7 +477,7 @@ function UsedByList({
             size="xs"
             render={
               <Link
-                to={`/orgs/${orgId}/projects/${use.projectSlug}/targets`}
+                to={`/orgs/${orgSlug}/projects/${use.projectSlug}/targets`}
                 onClick={onNavigate}
               />
             }

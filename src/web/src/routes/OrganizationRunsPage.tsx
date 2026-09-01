@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
 import { Play, X } from "lucide-react";
 import { GenerateDialog } from "@/routes/project/GenerateDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -30,7 +31,8 @@ const ALL = "all";
  * carries the project's name, so a run has never needed a project page to be read.
  */
 export function OrganizationRunsPage() {
-  const { orgId = "" } = useParams();
+  const { orgId: orgSlug = "" } = useParams();
+  const orgId = useOrganizationId(orgSlug);
   const [search, setSearch] = useSearchParams();
   const [generateOpen, setGenerateOpen] = useState(false);
 
@@ -40,19 +42,23 @@ export function OrganizationRunsPage() {
   const rawProjectFilter = search.get("project");
   const projects = useProjects(orgId);
 
-  // The filter is a slug in links this page mints, and an id in the one the run page mints —
-  // a run knows its project's id, not its slug. Normalised to a slug so the Select can match
-  // an option; the API resolves either, so only the display needed the translation.
+  // A slug in the address, an id in the request. Links minted before runs carried their
+  // project's slug put an id here, so both forms are accepted and normalised to the slug the
+  // Select matches its options on.
   const projectFilter =
     rawProjectFilter && (projects.data ?? []).some((p) => p.slug === rawProjectFilter)
       ? rawProjectFilter
       : ((projects.data ?? []).find((p) => p.id === rawProjectFilter)?.slug ?? rawProjectFilter);
-  const runs = useRuns(orgId, projectFilter ?? undefined);
+
+  // What the API is asked with. It takes a Guid: sending it a slug filtered nothing, which
+  // is why choosing a project used to widen the list instead of narrowing it.
+  const projectFilterId = useProjectId(orgId, projectFilter ?? "");
+  const runs = useRuns(orgId, projectFilterId || undefined);
 
   // ?spec=<id> is how the specs table hands over: "the runs of this version". Filtered here,
   // since the API has no spec parameter and a project's runs are already in hand.
   const specFilter = search.get("spec");
-  const specs = useSpecs(orgId, projectFilter ?? "");
+  const specs = useSpecs(orgId, projectFilterId);
   const spec = specs.data?.items.find((s) => s.id === specFilter);
 
   const visible = useMemo(
@@ -161,7 +167,7 @@ export function OrganizationRunsPage() {
                       <TableRow key={run.id} className="relative">
                         <TableCell>
                           <Link
-                            to={`/orgs/${orgId}/runs/${run.id}`}
+                            to={`/orgs/${orgSlug}/runs/${run.id}`}
                             className="after:absolute after:inset-0 after:content-['']"
                             // Without this every row announced just "Succeeded", leaving
                             // three identical links with nothing to choose between them.
@@ -216,8 +222,9 @@ export function OrganizationRunsPage() {
 
       <GenerateDialog
         orgId={orgId}
+        orgSlug={orgSlug}
         // undefined, not "": the dialog reads undefined as "no project fixed, ask for one".
-        projectId={projectFilter ?? undefined}
+        projectSlug={projectFilter ?? undefined}
         open={generateOpen}
         onOpenChange={setGenerateOpen}
       />

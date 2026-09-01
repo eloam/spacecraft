@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useLogout } from "@/api/queries";
+import { useCanonicalRoute } from "@/hooks/useRouteIdentity";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { AccountAvatar } from "@/components/AccountAvatar";
@@ -21,6 +22,10 @@ export function AppShell() {
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
   const { orgId } = useParams();
+
+  // Here rather than on each page: every route that names an organization or a project passes
+  // through this frame, and an address reached by id should not stay spelled that way.
+  useCanonicalRoute();
 
   return (
     <div className="min-h-screen">

@@ -27,6 +27,12 @@ public sealed record RunResponse(
     Guid ApiProjectId,
     /// <summary>Carried so a caller can name the project without a second request.</summary>
     string? ProjectName,
+    /// <summary>
+    /// And its slug, so a caller can link to the project without one either. The id above is
+    /// how the API is addressed; the slug is how the client is, and a link built from the id
+    /// would put a guid in front of somebody.
+    /// </summary>
+    string? ProjectSlug,
     Guid SpecVersionId,
     /// <summary>Which version of the document, as the project numbers them.</summary>
     int SpecSequence,
@@ -126,12 +132,16 @@ public static class RunEndpoints
         // One lookup for the page rather than one per run, and rather than none at all:
         // ProjectName exists so a caller can name the project without a second request, and
         // this list never filled it — the column reading it showed a dash on every row.
-        var projectNames = await db.ApiProjects.AsNoTracking()
+        var projects = await db.ApiProjects.AsNoTracking()
             .Where(p => p.OrganizationId == organizationId)
-            .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+            .ToDictionaryAsync(p => p.Id, p => new { p.Name, p.Slug }, ct);
 
         return TypedResults.Ok(
-            runs.Select(r => ToResponse(r, projectNames.GetValueOrDefault(r.ApiProjectId))).ToList());
+            runs.Select(r =>
+            {
+                var project = projects.GetValueOrDefault(r.ApiProjectId);
+                return ToResponse(r, project?.Name, project?.Slug);
+            }).ToList());
     }
 
     private static async Task<IResult> CreateAsync(
@@ -250,12 +260,12 @@ public static class RunEndpoints
 
         // Looked up here rather than joined into the list query: only the detail view names
         // the project, and the list would pay for it on every row.
-        var projectName = await db.ApiProjects
+        var project = await db.ApiProjects
             .Where(p => p.Id == run.ApiProjectId)
-            .Select(p => p.Name)
+            .Select(p => new { p.Name, p.Slug })
             .FirstOrDefaultAsync(ct);
 
-        return TypedResults.Ok(ToResponse(run, projectName));
+        return TypedResults.Ok(ToResponse(run, project?.Name, project?.Slug));
     }
 
     private static async Task<IResult> CancelAsync(
@@ -393,10 +403,12 @@ public static class RunEndpoints
         }
     }
 
-    private static RunResponse ToResponse(PipelineRun run, string? projectName = null) =>
+    private static RunResponse ToResponse(
+        PipelineRun run, string? projectName = null, string? projectSlug = null) =>
         new(run.Id,
             run.ApiProjectId,
             projectName,
+            projectSlug,
             run.SpecVersionId,
             run.SpecSequence,
             run.SdkTargetId,

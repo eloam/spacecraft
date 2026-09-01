@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -58,7 +59,8 @@ const schema = z.object({
 });
 
 export function MembersPage() {
-  const { orgId = "" } = useParams();
+  const { orgId: orgSlug = "" } = useParams();
+  const orgId = useOrganizationId(orgSlug);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const members = useMembers(orgId);

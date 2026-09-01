@@ -1,6 +1,7 @@
 
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useProjectId } from "@/hooks/useRouteIdentity";
 import { Check, CircleAlert, Minus } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -29,17 +30,21 @@ function specLabel(spec?: { sequence: number; apiTitle: string | null; apiVersio
 
 export function GenerateDialog({
   orgId,
-  projectId,
+  orgSlug,
+  projectSlug,
   open,
   onOpenChange,
 }: {
+  /** The id, which is what the API is asked with. */
   orgId: string;
+  /** The slug, which is what the links out of this dialog are built from. */
+  orgSlug: string;
   /**
    * What the project field starts on. A project page always has one; the runs list has one
    * only when its filter names one. Either way the field is shown and can be changed — this
    * chooses its initial value, it does not hide it.
    */
-  projectId?: string;
+  projectSlug?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -55,7 +60,9 @@ export function GenerateDialog({
    */
   const [publish, setPublish] = useState<boolean | null>(null);
 
-  const activeProject = pickedProject || (projectId ?? "");
+  // The slug: it is what the picker matches its options on and what the links below
+  // are built from. The queries just underneath ask by id.
+  const activeProject = pickedProject || (projectSlug ?? "");
 
   // Cleared when the project this dialog was opened for changes.
   //
@@ -65,9 +72,9 @@ export function GenerateDialog({
   // spec and a target that belong to neither the page nor the picker. The API cannot catch
   // it either: the pairing it validates is internally consistent, just not the one on screen,
   // and for an auto-publishing target that is an irreversible push to a registry.
-  const openedFor = useRef(projectId);
-  if (openedFor.current !== projectId) {
-    openedFor.current = projectId;
+  const openedFor = useRef(projectSlug);
+  if (openedFor.current !== projectSlug) {
+    openedFor.current = projectSlug;
 
     if (pickedProject) setPickedProject("");
     if (specId) setSpecId("");
@@ -77,8 +84,9 @@ export function GenerateDialog({
   // Only fetched when the dialog has to ask; a project page already knows the answer.
   const projects = useProjects(orgId);
 
-  const project = useProject(orgId, activeProject);
-  const specs = useSpecs(orgId, activeProject);
+  const activeProjectId = useProjectId(orgId, activeProject);
+  const project = useProject(orgId, activeProjectId);
+  const specs = useSpecs(orgId, activeProjectId);
   // Already loaded for the switcher in the top bar, so the caller's role costs no request.
   const organizations = useOrganizations();
   const createRun = useCreateRun(orgId);
@@ -154,7 +162,7 @@ export function GenerateDialog({
           onOpenChange(false);
           // Queuing a run is the point of this dialog; leaving the user on the tab they
           // started from means the thing they asked for happens somewhere they cannot see.
-          navigate(`/orgs/${orgId}/runs/${run.id}`);
+          navigate(`/orgs/${orgSlug}/runs/${run.id}`);
         },
         onError: (err) =>
           toast.error(err instanceof ApiError ? err.detail : "Could not queue the run."),
@@ -349,7 +357,7 @@ export function GenerateDialog({
                       This target publishes nowhere. Choose a credential under Publish with on
                       the{" "}
                       <Link
-                        to={`/orgs/${orgId}/projects/${activeProject}/targets`}
+                        to={`/orgs/${orgSlug}/projects/${activeProject}/targets`}
                         onClick={() => onOpenChange(false)}
                       >
                         SDK targets tab

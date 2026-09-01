@@ -61,7 +61,7 @@ public sealed class RunNotificationTests(SpaceCraftApi api)
     public async Task A_finished_run_tells_whoever_started_it()
     {
         var owner = await api.SignedInAsync(Email());
-        var (organizationId, runId) = await QueuedRunAsync(owner);
+        var (_, slug, runId) = await QueuedRunAsync(owner);
 
         await ExecuteAsync(runId);
 
@@ -70,7 +70,10 @@ public sealed class RunNotificationTests(SpaceCraftApi api)
 
         notification.Kind.ShouldBe("RunCompleted");
         notification.Title.ShouldStartWith("Run failed");
-        notification.Link.ShouldBe($"/orgs/{organizationId}/runs/{runId}");
+
+        // Addressed by name, though it is stored by id: a rename must not break the record,
+        // and a guid must not turn up where the organization's name belongs.
+        notification.Link.ShouldBe($"/orgs/{slug}/runs/{runId}");
 
         // The result and the particulars, which is the whole reason to be told at all.
         notification.Detail.ShouldNotBeNull().ShouldContain("Validate step failed");
@@ -80,7 +83,7 @@ public sealed class RunNotificationTests(SpaceCraftApi api)
     public async Task A_run_nobody_started_tells_the_people_who_answer_for_the_organization()
     {
         var owner = await api.SignedInAsync(Email());
-        var (organizationId, runId) = await QueuedRunAsync(owner);
+        var (organizationId, _, runId) = await QueuedRunAsync(owner);
 
         var adminEmail = Email();
         var admin = await api.SignedInAsync(adminEmail);
@@ -131,9 +134,10 @@ public sealed class RunNotificationTests(SpaceCraftApi api)
         await executor.ExecuteAsync(runId, TestContext.Current.CancellationToken);
     }
 
-    private static async Task<(Guid OrganizationId, Guid RunId)> QueuedRunAsync(HttpClient client)
+    private static async Task<(Guid OrganizationId, string Slug, Guid RunId)> QueuedRunAsync(
+        HttpClient client)
     {
-        var (organizationId, projectId) = await ProjectAsync(client);
+        var (organizationId, slug, projectId) = await ProjectAsync(client);
 
         using var content = new MultipartFormDataContent();
         using var document = new StringContent(FourPartVersion);
@@ -165,7 +169,7 @@ public sealed class RunNotificationTests(SpaceCraftApi api)
         run.EnsureSuccessStatusCode();
         var queued = await run.Content.ReadFromJsonAsync<IdPayload>(TestContext.Current.CancellationToken);
 
-        return (organizationId, queued!.Id);
+        return (organizationId, slug, queued!.Id);
     }
 
     private async Task JoinAsync(Guid organizationId, string email, OrganizationRole role)
@@ -198,7 +202,8 @@ public sealed class RunNotificationTests(SpaceCraftApi api)
 
     private static string Email() => $"{Guid.NewGuid():N}@example.test";
 
-    private static async Task<(Guid OrganizationId, Guid ProjectId)> ProjectAsync(HttpClient client)
+    private static async Task<(Guid OrganizationId, string Slug, Guid ProjectId)> ProjectAsync(
+        HttpClient client)
     {
         var organization = await client.PostAsJsonAsync(
             "/api/v1/organizations",
@@ -206,7 +211,7 @@ public sealed class RunNotificationTests(SpaceCraftApi api)
             TestContext.Current.CancellationToken);
 
         organization.EnsureSuccessStatusCode();
-        var org = await organization.Content.ReadFromJsonAsync<IdPayload>(TestContext.Current.CancellationToken);
+        var org = await organization.Content.ReadFromJsonAsync<SlugPayload>(TestContext.Current.CancellationToken);
 
         var project = await client.PostAsJsonAsync(
             new Uri($"/api/v1/organizations/{org!.Id}/projects", UriKind.Relative),
@@ -216,10 +221,12 @@ public sealed class RunNotificationTests(SpaceCraftApi api)
         project.EnsureSuccessStatusCode();
         var created = await project.Content.ReadFromJsonAsync<IdPayload>(TestContext.Current.CancellationToken);
 
-        return (org.Id, created!.Id);
+        return (org!.Id, org.Slug, created!.Id);
     }
 
     private sealed record IdPayload(Guid Id);
+
+    private sealed record SlugPayload(Guid Id, string Slug);
 
     private sealed record SpecPayload(Guid Id);
 

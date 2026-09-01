@@ -9,8 +9,10 @@ import { ContextNav } from "@/components/layout/ContextNav";
  * repeating the name here said it twice on every page.
  */
 export function OrganizationNav() {
-  const { orgId = "" } = useParams();
-  const base = `/orgs/${orgId}`;
+  // The slug, which is what this builds links out of. The id is the API's name for the
+  // same organization and never appears in an address.
+  const { orgId: orgSlug = "" } = useParams();
+  const base = `/orgs/${orgSlug}`;
 
   return (
     <ContextNav

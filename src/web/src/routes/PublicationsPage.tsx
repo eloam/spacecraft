@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { ExternalLink, PackageCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,7 +10,8 @@ import { usePublications } from "@/api/queries";
 import { registryLabel } from "@/api/types";
 
 export function PublicationsPage() {
-  const { orgId = "" } = useParams();
+  const { orgId: orgSlug = "" } = useParams();
+  const orgId = useOrganizationId(orgSlug);
   const publications = usePublications(orgId);
 
   return (

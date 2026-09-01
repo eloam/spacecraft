@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { FolderGit2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Item, ItemContent, ItemDescription } from "@/components/ui/item";
@@ -32,7 +33,8 @@ import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
 export function ProjectsPage() {
-  const { orgId = "" } = useParams();
+  const { orgId: orgSlug = "" } = useParams();
+  const orgId = useOrganizationId(orgSlug);
   const { data, isLoading, error } = useProjects(orgId);
   const [open, setOpen] = useState(false);
 
@@ -68,7 +70,7 @@ export function ProjectsPage() {
                 // the tile sinking. So light keeps the fill and lifts with a shadow instead,
                 // the way a white card on grey is meant to. Both get the darker border.
                 className="h-full flex-col items-stretch bg-card transition-[background-color,border-color,box-shadow] [a]:hover:bg-card dark:[a]:hover:bg-muted/50 hover:border-foreground/20 hover:shadow-md dark:hover:shadow-none"
-                render={<Link to={`/orgs/${orgId}/projects/${project.slug}`} />}
+                render={<Link to={`/orgs/${orgSlug}/projects/${project.slug}`} />}
               >
                 <ItemContent className="gap-1">
                   <ItemDescription className="text-xs font-medium tracking-wider uppercase">

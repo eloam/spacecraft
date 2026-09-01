@@ -11,10 +11,10 @@ import { cn } from "@/lib/utils";
  * the others instead of being a lone link among tabs that behave differently.
  */
 export function ProjectNav() {
-  const { orgId = "", projectId = "" } = useParams();
+  const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
   const { pathname } = useLocation();
 
-  const base = `/orgs/${orgId}/projects/${projectId}`;
+  const base = `/orgs/${orgSlug}/projects/${projectSlug}`;
 
   const tabs = [
     { label: "Specs", to: base, icon: <FileCode2 className="size-4" aria-hidden />, exact: true },

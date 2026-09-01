@@ -105,25 +105,47 @@ public static class NotificationEndpoints
 
         var unread = await mine.CountAsync(n => n.ReadAt == null, ct);
 
-        var items = await (
+        var rows = await (
             from notification in unreadOnly ? mine.Where(n => n.ReadAt == null) : mine
             join organization in db.Organizations.AsNoTracking()
                 on notification.OrganizationId equals organization.Id
             orderby notification.CreatedAt descending
-            select new NotificationResponse(
+            select new
+            {
                 notification.Id,
-                notification.Kind.ToString(),
+                notification.Kind,
                 notification.OrganizationId,
                 organization.Name,
+                organization.Slug,
                 notification.Title,
                 notification.Summary,
                 notification.Detail,
                 notification.Link,
                 notification.ActionLabel,
                 notification.CreatedAt,
-                notification.ReadAt))
+                notification.ReadAt,
+            })
             .Take(take)
             .ToListAsync(ct);
+
+        var items = rows
+            .Select(row => new NotificationResponse(
+                row.Id,
+                row.Kind.ToString(),
+                row.OrganizationId,
+                row.Name,
+                row.Title,
+                row.Summary,
+                row.Detail,
+                // Kept with ids so that a rename cannot break a record written months ago,
+                // handed over with today's slug so the address bar reads like every other
+                // link in the application rather than showing a guid where a name belongs.
+                row.Link.Replace(
+                    $"/orgs/{row.OrganizationId}", $"/orgs/{row.Slug}", StringComparison.Ordinal),
+                row.ActionLabel,
+                row.CreatedAt,
+                row.ReadAt))
+            .ToList();
 
         return TypedResults.Ok(new NotificationFeedResponse(unread, items));
     }
