@@ -10,6 +10,9 @@ using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Amazon.S3;
+using Amazon.S3.Model;
+using Testcontainers.Minio;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -28,18 +31,47 @@ namespace SpaceCraft.IntegrationTests;
 /// Postgres comes from a container rather than the development database: a suite that leaves
 /// rows behind in the database someone is working in gets run less and less.
 /// </para>
+/// <para>
+/// Object storage does too, and for a second reason. Uploading a specification is part of
+/// most of what these tests exercise, and it was reaching the MinIO from docker-compose on
+/// the developer's own machine — so the suite passed here and had nothing to write to on a
+/// build agent, where no such thing is running. A dependency only one machine satisfies is
+/// not a dependency the tests declare.
+/// </para>
 /// </remarks>
 public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    /// <summary>
+    /// Named as the deployment names it. The application never creates a bucket — doing so in
+    /// production would need a permission it has no other use for — so the test that stands in
+    /// for the deployment has to.
+    /// </summary>
+    private const string BucketName = "openapi-bucket";
+
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("spacecraft")
         .WithUsername("spacecraft")
         .WithPassword("spacecraft")
         .Build();
 
+    // The same image compose runs, so the tests and the development stack agree about what
+    // they are talking to.
+    private readonly MinioContainer _storage = new MinioBuilder("minio/minio:latest")
+        .WithUsername("spacecraft")
+        .WithPassword("spacecraft-test-secret")
+        .Build();
+
+    private string StorageUrl =>
+        new UriBuilder(Uri.UriSchemeHttp, _storage.Hostname, _storage.GetMappedPublicPort(9000))
+            .Uri.ToString();
+
     public async ValueTask InitializeAsync()
     {
-        await _postgres.StartAsync();
+        // Together: neither waits on the other, and starting two containers one after the
+        // other is most of what a run of this suite spends its time on.
+        await Task.WhenAll(_postgres.StartAsync(), _storage.StartAsync());
+
+        await CreateBucketAsync();
 
         // Migrated through a context of its own, built before this factory's host exists.
         //
@@ -60,6 +92,24 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
     {
         await base.DisposeAsync();
         await _postgres.DisposeAsync();
+        await _storage.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Makes the bucket the application expects to find already there.
+    /// </summary>
+    private async Task CreateBucketAsync()
+    {
+        using var client = new AmazonS3Client(
+            new Amazon.Runtime.BasicAWSCredentials(_storage.GetAccessKey(), _storage.GetSecretKey()),
+            new AmazonS3Config
+            {
+                ServiceURL = StorageUrl,
+                ForcePathStyle = true,
+                AuthenticationRegion = "us-east-1",
+            });
+
+        await client.PutBucketAsync(new PutBucketRequest { BucketName = BucketName });
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -74,6 +124,14 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
         builder.UseSetting("ConnectionStrings:Postgres", _postgres.GetConnectionString());
         builder.UseSetting("KeyProtection:Provider", "None");
         builder.UseSetting("Database:MigrateOnStartup", "false");
+
+        // Path style, like MinIO everywhere else: the bucket is a path segment rather than a
+        // subdomain, which is the one thing that differs from Scaleway and AWS.
+        builder.UseSetting("ObjectStorage:ServiceUrl", StorageUrl);
+        builder.UseSetting("ObjectStorage:BucketName", BucketName);
+        builder.UseSetting("ObjectStorage:AccessKey", _storage.GetAccessKey());
+        builder.UseSetting("ObjectStorage:SecretKey", _storage.GetSecretKey());
+        builder.UseSetting("ObjectStorage:ForcePathStyle", "true");
 
         // Every test registers its own account, and the credential endpoints are deliberately
         // throttled per address — which in a test host is one address for the whole suite, so
