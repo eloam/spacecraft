@@ -1,4 +1,5 @@
 using SpaceCraft.Domain.Waitlist;
+using SpaceCraft.Domain.Notifications;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Domain.Projects;
@@ -44,6 +45,9 @@ public sealed class SpaceCraftDbContext(DbContextOptions<SpaceCraftDbContext> op
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<OrganizationInvitation> OrganizationInvitations => Set<OrganizationInvitation>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

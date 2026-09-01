@@ -93,6 +93,10 @@ public static class EmailServiceExtensions
         services.AddHostedService<InvitationDispatcher>();
         services.AddHostedService<WaitlistDispatcher>();
 
+        // Not fed by a queue like the others: its producer is the runner, in another
+        // process, so it sweeps the table both of them write to.
+        services.AddHostedService<NotificationDispatcher>();
+
         return services;
     }
 

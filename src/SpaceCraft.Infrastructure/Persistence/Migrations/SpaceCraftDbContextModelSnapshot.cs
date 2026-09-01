@@ -176,6 +176,166 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                     b.ToTable("user_tokens", "spacecraft");
                 });
 
+            modelBuilder.Entity("SpaceCraft.Domain.Notifications.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActionLabel")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("action_label");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("detail");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Link")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("link");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<bool>("ShowInApp")
+                        .HasColumnType("boolean")
+                        .HasColumnName("show_in_app");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("summary");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notifications");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_notifications_unread")
+                        .HasFilter("read_at IS NULL AND show_in_app");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_notifications_user_id_created_at");
+
+                    b.ToTable("notifications", "spacecraft");
+                });
+
+            modelBuilder.Entity("SpaceCraft.Domain.Notifications.NotificationDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("integer")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("NotificationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("notification_id");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification_deliveries");
+
+                    b.HasIndex("Channel", "CreatedAt")
+                        .HasDatabaseName("ix_notification_deliveries_pending")
+                        .HasFilter("sent_at IS NULL");
+
+                    b.HasIndex("NotificationId", "Channel")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notification_deliveries_notification_id_channel");
+
+                    b.ToTable("notification_deliveries", "spacecraft");
+                });
+
+            modelBuilder.Entity("SpaceCraft.Domain.Notifications.NotificationPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("integer")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification_preferences");
+
+                    b.HasIndex("UserId", "Kind", "Channel")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notification_preferences_user_id_kind_channel");
+
+                    b.ToTable("notification_preferences", "spacecraft");
+                });
+
             modelBuilder.Entity("SpaceCraft.Domain.Organizations.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1232,6 +1392,16 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_user_tokens_users_user_id");
                 });
 
+            modelBuilder.Entity("SpaceCraft.Domain.Notifications.NotificationDelivery", b =>
+                {
+                    b.HasOne("SpaceCraft.Domain.Notifications.Notification", null)
+                        .WithMany("Deliveries")
+                        .HasForeignKey("NotificationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notification_deliveries_notifications_notification_id");
+                });
+
             modelBuilder.Entity("SpaceCraft.Domain.Organizations.OrganizationMember", b =>
                 {
                     b.HasOne("SpaceCraft.Domain.Organizations.Organization", null)
@@ -1280,6 +1450,11 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_spec_versions_api_projects_api_project_id");
+                });
+
+            modelBuilder.Entity("SpaceCraft.Domain.Notifications.Notification", b =>
+                {
+                    b.Navigation("Deliveries");
                 });
 
             modelBuilder.Entity("SpaceCraft.Domain.Organizations.Organization", b =>

@@ -2,6 +2,7 @@ using Amazon.Runtime;
 using Amazon.S3;
 using SpaceCraft.Infrastructure.Configuration;
 using SpaceCraft.Infrastructure.Identity;
+using SpaceCraft.Infrastructure.Notifications;
 using SpaceCraft.Infrastructure.OpenApi;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Security;
@@ -50,6 +51,10 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IPipelineRunQueue, PipelineRunQueue>();
+
+        // Registered here, not in the API: the runner raises notifications too, and a run
+        // finishing is the one event neither process can see on its own.
+        services.AddScoped<INotificationPublisher, NotificationPublisher>();
 
         // Validated at startup rather than on the first upload: a missing bucket name or a
         // blank region used to surface as whatever the S3 SDK threw, halfway through someone

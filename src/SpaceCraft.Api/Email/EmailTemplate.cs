@@ -101,6 +101,13 @@ public static class EmailTemplate
     public static string Paragraph(string text) =>
         $"""<p style="margin:0 0 16px;font-family:{FontStack};font-size:15px;line-height:24px;color:{Foreground};">{Escape(text)}</p>""";
 
+    /// <summary>
+    /// A link in the small print, for the one thing a footnote is worth acting on: where to
+    /// change what arrives. Muted like the text around it — it is an offer, not a call.
+    /// </summary>
+    public static string SmallPrintLink(string label, string url) =>
+        $"""<p style="margin:4px 0 0;font-family:{FontStack};font-size:13px;line-height:21px;"><a href="{Escape(url)}" style="color:{Muted};">{Escape(label)}</a></p>""";
+
     public static string SmallPrint(string text) =>
         $"""<p style="margin:16px 0 0;font-family:{FontStack};font-size:13px;line-height:21px;color:{Muted};">{Escape(text)}</p>""";
 
@@ -142,7 +149,7 @@ public static class EmailTemplate
     /// <summary>Builds both bodies at once, so they cannot drift apart.</summary>
     public static (string Text, string Html) Compose(
         string heading, string preheader, string[] paragraphs, (string Label, string Url)? action = null,
-        string? footnote = null, string? assetBaseUrl = null)
+        string? footnote = null, string? assetBaseUrl = null, (string Label, string Url)? footnoteLink = null)
     {
         var html = new StringBuilder();
         var text = new StringBuilder();
@@ -163,6 +170,14 @@ public static class EmailTemplate
         {
             html.Append(Divider()).Append(SmallPrint(footnote));
             text.AppendLine(footnote);
+
+            if (footnoteLink is { } link)
+            {
+                html.Append(SmallPrintLink(link.Label, link.Url));
+                // The bare address, because the text part has no anchors and "click here" in
+                // a plain-text body is a dead end.
+                text.AppendLine(link.Url);
+            }
         }
 
         return (text.ToString().TrimEnd(), Render(heading, preheader, html.ToString(), assetBaseUrl));

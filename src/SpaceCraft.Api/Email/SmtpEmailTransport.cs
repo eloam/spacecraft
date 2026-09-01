@@ -58,6 +58,15 @@ public sealed class SmtpEmailTransport(
             HtmlBody = message.HtmlBody,
         }.ToMessageBody();
 
+        if (message.UnsubscribeUrl is { Length: > 0 } unsubscribe)
+        {
+            // The address only. Deliberately no List-Unsubscribe-Post: one-click unsubscribe
+            // obliges us to honour an unauthenticated POST, and a header that promises one we
+            // do not serve is worse than no header at all. Clients fall back to opening the
+            // link, which is a page that asks who is asking.
+            mail.Headers.Add("List-Unsubscribe", $"<{unsubscribe}>");
+        }
+
         try
         {
             // Retries, backoff with jitter and the per-attempt timeout live in the pipeline,

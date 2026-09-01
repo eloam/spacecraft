@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
+using SpaceCraft.Domain.Notifications;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Identity;
+using SpaceCraft.Infrastructure.Notifications;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -215,6 +217,7 @@ public static class MemberEndpoints
         [FromBody] AcceptInvitationRequest request,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
+        INotificationPublisher notifications,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Token))
@@ -273,6 +276,22 @@ public static class MemberEndpoints
 
         invitation.Accept(userId, now);
         await db.SaveChangesAsync(ct);
+
+        // After the save, so nothing is announced that did not happen. The joiner is the
+        // actor and hears nothing: they are looking at the result of their own click.
+        var joined = await DescribeAsync(db, userId, ct);
+
+        await notifications.PublishToGovernanceAsync(
+            organization.Id,
+            actor: userId,
+            new NotificationContent(
+                NotificationKind.MemberJoined,
+                $"{joined} joined {organization.Name}",
+                $"They accepted an invitation and hold the {invitation.Role} role.",
+                Detail: null,
+                $"/orgs/{organization.Id}/members",
+                "View members"),
+            ct);
 
         var members = await LoadAsync(db, invitation.OrganizationId, userId, ct);
         return TypedResults.Ok(members.First(m => m.UserId == userId));
@@ -419,6 +438,7 @@ public static class MemberEndpoints
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         IOrganizationAccess access,
+        INotificationPublisher notifications,
         CancellationToken ct)
     {
         var caller = principal.Id();
@@ -457,6 +477,10 @@ public static class MemberEndpoints
             }
         }
 
+        // Read before the removal takes it away: a notification that cannot say what someone
+        // held says nothing an admin can act on.
+        var heldRole = organization.Members.FirstOrDefault(m => m.UserId == userId)?.Role;
+
         try
         {
             organization.RemoveMember(userId);
@@ -467,8 +491,40 @@ public static class MemberEndpoints
         }
 
         await db.SaveChangesAsync(ct);
+
+        var left = await DescribeAsync(db, userId, ct);
+        var themselves = caller == userId;
+
+        await notifications.PublishToGovernanceAsync(
+            organizationId,
+            actor: caller,
+            new NotificationContent(
+                NotificationKind.MemberLeft,
+                themselves
+                    ? $"{left} left {organization.Name}"
+                    : $"{left} was removed from {organization.Name}",
+                themselves
+                    ? "They removed themselves from the organization."
+                    : $"{await DescribeAsync(db, caller, ct)} removed them from the organization.",
+                heldRole is { } role ? $"They held the {role} role." : null,
+                $"/orgs/{organizationId}/members",
+                "View members"),
+            ct);
+
         return TypedResults.NoContent();
     }
+
+    /// <summary>
+    /// How somebody is named in a notification: the name they gave, or the address they
+    /// signed up with.
+    /// </summary>
+    private static async Task<string> DescribeAsync(
+        SpaceCraftDbContext db, Guid userId, CancellationToken ct) =>
+        await db.Users
+            .AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => u.DisplayName ?? u.Email)
+            .FirstOrDefaultAsync(ct) ?? "Someone";
 
     /// <summary>
     /// Members joined to their accounts. Identity lives in its own tables, so the name and

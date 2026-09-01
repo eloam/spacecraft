@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useLogout } from "@/api/queries";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { OrganizationNav } from "@/components/layout/OrganizationNav";
 import { OrganizationSwitcher } from "@/components/layout/OrganizationSwitcher";
@@ -54,6 +55,7 @@ export function AppShell() {
           )}
 
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+            <NotificationBell />
             <ThemeToggle />
 
             <DropdownMenu>

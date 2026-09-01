@@ -38,6 +38,10 @@ export const keys = {
   stepLog: (orgId: string, runId: string, step: string) =>
     ["organizations", orgId, "runs", runId, "log", step] as const,
   credentials: (orgId: string) => ["organizations", orgId, "credentials"] as const,
+  notifications: ["notifications"] as const,
+  // Not nested under `notifications`: React Query invalidates by prefix, and marking one
+  // notification read would otherwise refetch the settings page too.
+  notificationPreferences: ["notification-preferences"] as const,
 };
 
 // --- auth -----------------------------------------------------------------------------
@@ -473,6 +477,86 @@ export function useLogout() {
       useAuthStore.getState().clear();
       queryClient.clear();
     },
+  });
+}
+
+// --- notifications --------------------------------------------------------------------
+
+/** Mirrors SpaceCraft.Domain.Notifications.NotificationKind. */
+export type NotificationKind = "MemberJoined" | "MemberLeft" | "RunCompleted";
+
+/** Mirrors SpaceCraft.Domain.Notifications.NotificationChannel. */
+export type NotificationChannel = "InApp" | "Email";
+
+export type NotificationItem = {
+  id: string;
+  kind: NotificationKind;
+  organizationId: string;
+  organizationName: string;
+  title: string;
+  summary: string;
+  detail: string | null;
+  /** A path inside the application, built from ids so a rename cannot break it. */
+  link: string;
+  actionLabel: string;
+  createdAt: string;
+  readAt: string | null;
+};
+
+export type NotificationFeed = { unreadCount: number; items: NotificationItem[] };
+
+/** One switch on the settings page: this kind, on this channel. */
+export type NotificationPreference = {
+  kind: NotificationKind;
+  channel: NotificationChannel;
+  enabled: boolean;
+};
+
+/**
+ * The bell's contents.
+ *
+ * Polled rather than pushed. A run finishing is the one event nothing on this page can
+ * observe — it happens in another process — and a minute is close enough for something whose
+ * whole purpose is to be noticed later.
+ */
+export function useNotifications() {
+  return useQuery({
+    queryKey: keys.notifications,
+    queryFn: () => api.get<NotificationFeed>("/notifications"),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<void>(`/notifications/${id}/read`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.notifications }),
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<void>("/notifications/read-all"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.notifications }),
+  });
+}
+
+/** Every switch the settings page shows, defaults already filled in by the API. */
+export function useNotificationPreferences() {
+  return useQuery({
+    queryKey: keys.notificationPreferences,
+    queryFn: () => api.get<NotificationPreference[]>("/notifications/preferences"),
+  });
+}
+
+export function useSaveNotificationPreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (preferences: NotificationPreference[]) =>
+      api.put<NotificationPreference[]>("/notifications/preferences", { preferences }),
+    onSuccess: (saved) => queryClient.setQueryData(keys.notificationPreferences, saved),
   });
 }
 

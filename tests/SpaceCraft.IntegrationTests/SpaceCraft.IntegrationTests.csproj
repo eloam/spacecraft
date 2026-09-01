@@ -8,6 +8,9 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/SpaceCraft.Api/SpaceCraft.Api.csproj" />
+    <!-- The API does not reference the pipeline: they are separate processes. These tests
+         cover both, so that the runner's side of a notification is not left to a manual check. -->
+    <ProjectReference Include="../../src/SpaceCraft.Pipeline/SpaceCraft.Pipeline.csproj" />
   </ItemGroup>
 
   <ItemGroup>

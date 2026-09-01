@@ -51,6 +51,10 @@ builder.Services.AddScoped<ISaveChangesInterceptor, SpaceCraft.Api.Common.SlugCa
 builder.Services.AddScoped<SpaceCraft.Api.Features.Deletion.ResourceDeleter>();
 builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.IsDevelopment());
 
+// Bounds the notification history. The count beside the bell is the most frequent query
+// in the application, and it stays cheap only while there is a limit on what it counts.
+builder.Services.AddHostedService<SpaceCraft.Api.Common.NotificationRetention>();
+
 // Data Protection encrypts registry tokens at rest. The default key ring is per-machine and
 // ephemeral in a container, which would make every stored token unreadable after a restart —
 // so it must be persisted (and KMS-wrapped) outside Development.
@@ -175,7 +179,8 @@ api.MapAuthEndpoints()
    .MapCredentialEndpoints()
    .MapAccountEndpoints()
    .MapPublicationEndpoints()
-   .MapMemberEndpoints();
+   .MapMemberEndpoints()
+   .MapNotificationEndpoints();
 
 // Applying migrations at startup is convenient for a single-instance dev setup. In
 // production this belongs in a deployment step: concurrent instances racing on the same

@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { KeyRound, ShieldAlert, UserRound } from "lucide-react";
+import { Bell, KeyRound, ShieldAlert, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -15,6 +15,7 @@ export function AccountNav() {
   const tabs = [
     { label: "Profile", to: "/account", icon: <UserRound className="size-4" aria-hidden />, exact: true },
     { label: "Security", to: "/account/security", icon: <KeyRound className="size-4" aria-hidden /> },
+    { label: "Notifications", to: "/account/notifications", icon: <Bell className="size-4" aria-hidden /> },
     { label: "Danger zone", to: "/account/danger", icon: <ShieldAlert className="size-4" aria-hidden /> },
   ];
 

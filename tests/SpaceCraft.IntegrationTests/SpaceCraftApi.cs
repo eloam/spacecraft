@@ -82,6 +82,10 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
         builder.UseSetting("RateLimits:CredentialPermitsPerWindow", "10000");
         builder.UseSetting("RateLimits:GlobalPermitsPerMinute", "100000");
 
+        // The notification sweep is a poll, and a test that waits for a message to arrive
+        // waits for it. One second rather than fifteen.
+        builder.UseSetting("Notifications:SweepSeconds", "1");
+
         builder.ConfigureTestServices(services =>
         {
             // Replaces the development transport that writes to the log, so a test can read

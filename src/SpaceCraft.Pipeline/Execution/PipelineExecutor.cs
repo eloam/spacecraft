@@ -1,6 +1,8 @@
+using SpaceCraft.Domain.Notifications;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Domain.Projects;
 using SpaceCraft.Domain.Registries;
+using SpaceCraft.Infrastructure.Notifications;
 using SpaceCraft.Infrastructure.OpenApi;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Security;
@@ -37,6 +39,7 @@ public sealed class PipelineExecutor(
     IEnumerable<ISdkBuilder> builders,
     IEnumerable<ISdkPublisher> publishers,
     ISecretProtector secretProtector,
+    INotificationPublisher notifications,
     IOptions<PipelineOptions> options,
     ILogger<PipelineExecutor> logger) : IPipelineExecutor
 {
@@ -53,6 +56,27 @@ public sealed class PipelineExecutor(
         var target = await db.SdkTargets.FirstAsync(t => t.Id == run.SdkTargetId, ct);
         var project = await db.ApiProjects.FirstAsync(p => p.Id == run.ApiProjectId, ct);
 
+        await DriveAsync(run, spec, target, project, ct);
+
+        // Outside the drive, because every step that fails returns straight out of it — and a
+        // notification raised from inside would have to be raised at each of those exits.
+        //
+        // Succeeded and Failed only. A cancelled run finished too, but somebody just pressed
+        // the button that cancelled it; telling them what they did is the kind of message
+        // that teaches people to ignore the rest.
+        if (run.Status is RunStatus.Succeeded or RunStatus.Failed)
+        {
+            await NotifyAsync(run, project, ct);
+        }
+    }
+
+    private async Task DriveAsync(
+        PipelineRun run,
+        SpecVersion spec,
+        SdkTarget target,
+        ApiProject project,
+        CancellationToken ct)
+    {
         using var workspace = RunWorkspace.Create(_options.WorkspaceRoot, run.Id, _options.RetainWorkspaces);
 
         try
@@ -119,6 +143,70 @@ public sealed class PipelineExecutor(
             run.Fail($"Unexpected error: {ex.Message}");
             await db.SaveChangesAsync(ct);
         }
+    }
+
+    /// <summary>
+    /// Tells whoever started the run how it went.
+    /// </summary>
+    /// <remarks>
+    /// Best effort, deliberately. The run is already saved by the time this runs, and an
+    /// exception escaping here would reach the worker as a run that crashed — which is
+    /// requeued, and requeueing a run that has already published means publishing again.
+    /// A notification is never worth that.
+    /// </remarks>
+    private async Task NotifyAsync(PipelineRun run, ApiProject project, CancellationToken ct)
+    {
+        try
+        {
+            var succeeded = run.Status is RunStatus.Succeeded;
+            var package = run.TargetPackageName;
+
+            var detail = succeeded
+                ? run.PublishRequested
+                    ? $"{package} {run.ResolvedVersion} was published to {run.TargetRegistry}."
+                    : $"{package} {run.ResolvedVersion} was built. Publishing was not requested."
+                : Failure(run);
+
+            var content = new NotificationContent(
+                NotificationKind.RunCompleted,
+                succeeded ? $"Run succeeded — {package}" : $"Run failed — {package}",
+                $"{project.Name}, spec #{run.SpecSequence}, {run.TargetLanguage}.",
+                detail,
+                $"/orgs/{run.OrganizationId}/runs/{run.Id}",
+                "View the run");
+
+            if (run.TriggeredByUserId is { } author)
+            {
+                await notifications.PublishToMemberAsync(run.OrganizationId, author, content, ct);
+            }
+            else
+            {
+                // Nobody pressed anything — an automatic run. Staying silent would make the
+                // runs nobody is watching the ones nobody hears about.
+                await notifications.PublishToGovernanceAsync(run.OrganizationId, actor: null, content, ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation(
+                "Run {RunId} finished during shutdown; its notification was not raised", run.Id);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Run {RunId} finished but its notification could not be raised", run.Id);
+        }
+    }
+
+    /// <summary>
+    /// What went wrong, and where. The reason alone answers "why"; the step answers "how far
+    /// did it get", which is the first thing anybody asks of a failed run.
+    /// </summary>
+    private static string Failure(PipelineRun run)
+    {
+        var reason = run.FailureReason ?? "No reason was recorded.";
+        var step = run.Steps.FirstOrDefault(s => s.Status is StepStatus.Failed);
+
+        return step is null ? reason : $"The {step.Kind} step failed. {reason}";
     }
 
     private async Task<string> DownloadSpecAsync(SpecVersion spec, RunWorkspace workspace, CancellationToken ct)

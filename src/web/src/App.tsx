@@ -11,6 +11,7 @@ import { AccountLayout } from "@/routes/account/AccountLayout";
 import { AccountProfilePage } from "@/routes/account/AccountProfilePage";
 import { AccountSecurityPage } from "@/routes/account/AccountSecurityPage";
 import { AccountDangerPage } from "@/routes/account/AccountDangerPage";
+import { AccountNotificationsPage } from "@/routes/account/AccountNotificationsPage";
 import { PublicationsPage } from "@/routes/PublicationsPage";
 import { MembersPage } from "@/routes/MembersPage";
 import { OrganizationSettingsPage } from "@/routes/OrganizationSettingsPage";
@@ -73,6 +74,7 @@ export default function App() {
         <Route path="/account" element={<AccountLayout />}>
           <Route index element={<AccountProfilePage />} />
           <Route path="security" element={<AccountSecurityPage />} />
+          <Route path="notifications" element={<AccountNotificationsPage />} />
           <Route path="danger" element={<AccountDangerPage />} />
         </Route>
         <Route path="/orgs/:orgId" element={<ProjectsPage />} />
