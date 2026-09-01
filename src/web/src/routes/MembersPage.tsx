@@ -126,6 +126,13 @@ export function MembersPage() {
                         : undefined;
                     const shownRole = savingRole ?? member.role;
 
+                    // A select here would only ever be refused. Nobody changes their own role
+                    // — ask another owner or admin — and nobody changes the role of somebody
+                    // who outranks them, or Admin would demote the Owner and delete the
+                    // organization. Offering the control anyway promises something the server
+                    // will not do, and the answer arrives as a toast after the fact.
+                    const changeable = !member.isYou && (yours?.role ?? 0) >= member.role;
+
                     return (
                       <TableRow key={member.userId}>
                         <TableCell>
@@ -154,9 +161,12 @@ export function MembersPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {/* The app's Select, not a native one: a closed native select
-                              commits on every arrow key, so passing Viewer → Owner wrote
-                              three separate permission changes on the way through. */}
+                          {!changeable ? (
+                            <Badge variant="secondary">{roleLabel[shownRole]}</Badge>
+                          ) : (
+                          /* The app's Select, not a native one: a closed native select
+                             commits on every arrow key, so passing Viewer → Owner wrote
+                             three separate permission changes on the way through. */
                           <Select
                             value={shownRole}
                             disabled={savingRole !== undefined}
@@ -191,13 +201,18 @@ export function MembersPage() {
                               {roleLabel[shownRole]}
                             </SelectTrigger>
                             <SelectContent>
-                              {Object.entries(roleLabel).map(([value, label]) => (
-                                <SelectItem key={value} value={Number(value)}>
-                                  {label}
-                                </SelectItem>
-                              ))}
+                              {/* Up to your own and no further: granting a role you do not
+                                  hold is the same refusal, one step later. */}
+                              {Object.entries(roleLabel)
+                                .filter(([value]) => Number(value) <= (yours?.role ?? 0))
+                                .map(([value, label]) => (
+                                  <SelectItem key={value} value={Number(value)}>
+                                    {label}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
+                          )}
                         </TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
                           {/* Absolute, unlike the columns scanned for recency: a join date

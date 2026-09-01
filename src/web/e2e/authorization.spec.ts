@@ -38,3 +38,18 @@ test("a member is refused the credentials page, and told why", async ({
 
   await context.close();
 });
+
+test("a role you cannot change is shown rather than offered", async ({ owner, api, account }) => {
+  const organization = await createOrganization(api, account);
+  const member = await joinByInvitation(api, account, organization.id);
+
+  await owner.goto(`/orgs/${organization.slug}/members`);
+
+  // Nobody changes their own role — the server says to ask another owner or admin — so the
+  // control is not there to be refused. It used to be, and the refusal arrived as a toast
+  // after the fact.
+  await expect(owner.getByLabel(`Role for ${account.email}`)).toHaveCount(0);
+
+  // Somebody you outrank still gets one.
+  await expect(owner.getByLabel(`Role for ${member.email}`)).toBeVisible();
+});

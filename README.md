@@ -234,7 +234,7 @@ docker compose -f compose.e2e.yaml down
 starts the ones it built before your last change to them. The front end has no such trap — the
 test run builds and serves it itself.
 
-Three of the twenty build a real SDK — one downloads it, one publishes it to the Verdaccio
+Three of the twenty-one build a real SDK — one downloads it, one publishes it to the Verdaccio
 in the stack and asks the registry whether it arrived, and one revokes the credential first and
 checks that nothing did — so the first campaign
 against an empty Verdaccio spends minutes resolving packages from npmjs and the ones after it
