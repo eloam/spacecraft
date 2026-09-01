@@ -14,14 +14,18 @@ namespace SpaceCraft.Api.Email;
 /// </summary>
 public static class EmailTemplate
 {
-    // src/web/src/index.css, converted from oklch to hex for mail clients.
-    private const string Background = "#ffffff";
-    private const string Surface = "#fafafa";
-    private const string Foreground = "#0a0a0a";
-    private const string Primary = "#171717";
-    private const string PrimaryForeground = "#fafafa";
-    private const string Muted = "#737373";
-    private const string Border = "#e5e5e5";
+    // The application's own light theme, from src/web/src/index.css, converted from oklch —
+    // which no mail client understands — to hex. The token each one carries is named beside
+    // it, because these are copies: retuning the palette there leaves these behind, and the
+    // last time it was retuned it did. The greys here were neutral while the application's had
+    // gone mauve, so an email sat next to the product looked like somebody else's.
+    private const string Background = "#ffffff";   // --card
+    private const string Surface = "#f3f1f3";      // --page, the ground the whole app sits on
+    private const string Foreground = "#0c090c";   // --foreground
+    private const string Primary = "#1d161e";      // --primary
+    private const string PrimaryForeground = "#fafafa"; // --primary-foreground
+    private const string Muted = "#79697b";        // --muted-foreground
+    private const string Border = "#e7e4e7";       // --border
 
     private const string FontStack =
         "'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";

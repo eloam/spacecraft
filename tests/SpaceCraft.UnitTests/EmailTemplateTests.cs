@@ -52,10 +52,24 @@ public class EmailTemplateTests
     }
 
     [Fact]
-    public void The_palette_matches_the_applications_own_tokens() =>
-        // Converted from the oklch values in src/web/src/index.css; no mail client parses oklch.
-        Emails.Welcome("you@example.com", "https://app.spacecraft.sh", null).HtmlBody!
-            .ShouldContain("#171717");
+    public void The_palette_matches_the_applications_own_tokens()
+    {
+        // Copies of the light-theme tokens in src/web/src/index.css, converted from oklch —
+        // which no mail client parses.
+        //
+        // Copies, and nothing here can tell when the original moves: this pinned one grey and
+        // called it a match, and it went on passing after the application's palette was
+        // retuned toward mauve while these stayed neutral. An email beside the product looked
+        // like somebody else's. Changing a token there means changing it here.
+        var html = Emails.Welcome("you@example.com", "https://app.spacecraft.sh", null).HtmlBody!;
+
+        html.ShouldContain("#f3f1f3");  // --page, the ground the whole app sits on
+        html.ShouldContain("#ffffff");  // --card
+        html.ShouldContain("#1d161e");  // --primary
+        html.ShouldContain("#0c090c");  // --foreground
+        html.ShouldContain("#79697b");  // --muted-foreground
+        html.ShouldContain("#e7e4e7");  // --border
+    }
 
     [Fact]
     public void A_missing_display_name_still_produces_a_sensible_greeting()
