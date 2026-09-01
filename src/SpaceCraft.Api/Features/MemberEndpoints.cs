@@ -33,6 +33,27 @@ public sealed record InvitationResponse(
 
 public sealed record AcceptInvitationRequest(string Token);
 
+/// <summary>
+/// What somebody holding an invitation is shown before deciding.
+/// </summary>
+/// <remarks>
+/// Everything here is already implied by the invitation itself: the email names the
+/// organization and who sent it, and accepting would show the rest a moment later. What the
+/// projects add is the answer to "is this the right Acme?", which is the question somebody
+/// looking at a link from a stranger actually has.
+/// </remarks>
+public sealed record InvitationPreviewResponse(
+    string OrganizationName,
+    string OrganizationSlug,
+    OrganizationRole Role,
+    /// <summary>The name the inviter goes by, or the address they signed up with.</summary>
+    string InvitedBy,
+    DateTimeOffset ExpiresAt,
+    int MemberCount,
+    List<string> Projects,
+    /// <summary>Whether the signed-in account is already in this organization.</summary>
+    bool AlreadyMember);
+
 public sealed record ChangeRoleRequest(OrganizationRole Role);
 
 public static class MemberEndpoints
@@ -61,6 +82,24 @@ public static class MemberEndpoints
         // Outside the organization group on purpose: whoever holds the invitation knows a
         // token and nothing else — not which organization it is for, which is precisely what
         // the token is there to establish.
+        //
+        // A POST for a read, because the token travels in the body. In a path it would be
+        // written to every access log and proxy trace between here and the browser, and the
+        // token is the whole grant.
+        api.MapPost("/invitations/preview", PreviewAsync)
+            .WithTags("Members")
+            .RequireAuthorization()
+            .Produces<InvitationPreviewResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Describes the organization an invitation is for, without spending it.");
+
+        api.MapPost("/invitations/decline", DeclineAsync)
+            .WithTags("Members")
+            .RequireAuthorization()
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Turns an invitation down, which puts its link out.");
+
         api.MapPost("/invitations/accept", AcceptAsync)
             .WithTags("Members")
             .RequireAuthorization()
@@ -203,6 +242,148 @@ public static class MemberEndpoints
     }
 
     /// <summary>
+    /// Says what the invitation is for, and spends nothing.
+    /// </summary>
+    /// <remarks>
+    /// The page this feeds used to accept on arrival: opening the link joined the
+    /// organization, and the first thing anybody learned about it was that they were in it.
+    /// An invitation is an offer, and an offer that cannot be read before it is taken is not
+    /// much of one.
+    /// <para>
+    /// The refusal is the same single answer accepting gives — a token that never existed, one
+    /// already spent, one withdrawn and one that lapsed are not told apart, because doing so
+    /// would describe an organization to somebody with no standing in it.
+    /// </para>
+    /// </remarks>
+    private static async Task<IResult> PreviewAsync(
+        [FromBody] AcceptInvitationRequest request,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.Token))
+        {
+            return ApiResults.Invalid(nameof(request.Token), "An invitation token is required.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var invitation = await db.OrganizationInvitations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.TokenHash == MailedTokens.Hash(request.Token), ct);
+
+        if (invitation is null || !invitation.IsRedeemable(now))
+        {
+            return ApiResults.NotFound("A usable invitation");
+        }
+
+        var organization = await db.Organizations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == invitation.OrganizationId, ct);
+
+        if (organization is null)
+        {
+            return ApiResults.NotFound("A usable invitation");
+        }
+
+        // Names only, and few. Enough to recognise which Acme this is, which is the question
+        // somebody looking at a link from a half-remembered colleague actually has.
+        var projects = await db.ApiProjects
+            .AsNoTracking()
+            .Where(p => p.OrganizationId == organization.Id)
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(5)
+            .Select(p => p.Name)
+            .ToListAsync(ct);
+
+        var memberCount = await db.OrganizationMembers
+            .CountAsync(m => m.OrganizationId == organization.Id, ct);
+
+        var invitedBy = await db.Users
+            .AsNoTracking()
+            .Where(u => u.Id == invitation.InvitedByUserId)
+            .Select(u => u.DisplayName ?? u.Email)
+            .FirstOrDefaultAsync(ct);
+
+        var userId = principal.Id();
+        var alreadyMember = await db.OrganizationMembers
+            .AnyAsync(m => m.OrganizationId == organization.Id && m.UserId == userId, ct);
+
+        return TypedResults.Ok(new InvitationPreviewResponse(
+            organization.Name,
+            organization.Slug,
+            invitation.Role,
+            invitedBy ?? "Someone",
+            invitation.ExpiresAt,
+            memberCount,
+            projects,
+            alreadyMember));
+    }
+
+    /// <summary>
+    /// Turns the invitation down.
+    /// </summary>
+    /// <remarks>
+    /// Recorded as a decline rather than as a revocation: the admin withdrawing an invitation
+    /// and the recipient refusing it are different events, and only the second is an answer.
+    /// Either way the link stops working, which is what the person clicking this wants.
+    /// </remarks>
+    private static async Task<IResult> DeclineAsync(
+        [FromBody] AcceptInvitationRequest request,
+        SpaceCraftDbContext db,
+        INotificationPublisher notifications,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.Token))
+        {
+            return ApiResults.Invalid(nameof(request.Token), "An invitation token is required.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var invitation = await db.OrganizationInvitations
+            .FirstOrDefaultAsync(i => i.TokenHash == MailedTokens.Hash(request.Token), ct);
+
+        if (invitation is null || !invitation.IsRedeemable(now))
+        {
+            return ApiResults.NotFound("A usable invitation");
+        }
+
+        invitation.Decline(now);
+        await db.SaveChangesAsync(ct);
+
+        var organization = await db.Organizations
+            .AsNoTracking()
+            .Where(o => o.Id == invitation.OrganizationId)
+            .Select(o => o.Name)
+            .FirstOrDefaultAsync(ct);
+
+        // To the people who answer for the organization rather than to the sender alone: an
+        // invitation is the organization's, and whoever picks up the thread next needs to know
+        // it was refused rather than still travelling. Nobody is excluded — the person who
+        // declined is not a member and hears nothing.
+        await notifications.PublishToGovernanceAsync(
+            invitation.OrganizationId,
+            actor: null,
+            new NotificationContent(
+                NotificationKind.InvitationDeclined,
+                $"{invitation.Email} declined the invitation to {organization ?? "your organization"}",
+                // Names them again rather than saying "they": the reader may be an admin who
+                // did not send this one, and the answer to "who?" should not depend on having
+                // read the line above.
+                $"{invitation.Email} was invited as {invitation.Role} and turned it down.",
+                "Nobody has been added to the organization. Send another invitation if they "
+                    + "should still have access.",
+                $"/orgs/{invitation.OrganizationId}/members",
+                "View members"),
+            ct);
+
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>
     /// Joins the organization the token was issued for.
     /// </summary>
     /// <remarks>
@@ -286,8 +467,8 @@ public static class MemberEndpoints
             actor: userId,
             new NotificationContent(
                 NotificationKind.MemberJoined,
-                $"{joined} joined {organization.Name}",
-                $"They accepted an invitation and hold the {invitation.Role} role.",
+                $"{joined.Shortly} joined {organization.Name}",
+                $"{joined} accepted an invitation and holds the {invitation.Role} role.",
                 Detail: null,
                 $"/orgs/{organization.Id}/members",
                 "View members"),
@@ -314,12 +495,13 @@ public static class MemberEndpoints
 
         var now = DateTimeOffset.UtcNow;
 
+        // The shared predicate, not a copy of it. This list once carried its own and was not
+        // told when declining was added, so an invitation somebody had already refused went on
+        // being offered as pending — with a link that no longer worked.
         var open = await db.OrganizationInvitations
             .AsNoTracking()
-            .Where(i => i.OrganizationId == organizationId
-                        && i.AcceptedAt == null
-                        && i.RevokedAt == null
-                        && i.ExpiresAt > now)
+            .Where(i => i.OrganizationId == organizationId)
+            .Where(OrganizationInvitation.Usable(now))
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(ct);
 
@@ -495,18 +677,38 @@ public static class MemberEndpoints
         var left = await DescribeAsync(db, userId, ct);
         var themselves = caller == userId;
 
+        // The person it happened to, first — and only when it happened to them rather than
+        // by them. Somebody who left does not need to be told they left.
+        if (!themselves)
+        {
+            await notifications.PublishToPersonAsync(
+                organizationId,
+                userId,
+                new NotificationContent(
+                    NotificationKind.RemovedFromOrganization,
+                    $"You were removed from {organization.Name}",
+                    $"{await DescribeAsync(db, caller, ct)} removed you from the organization. "
+                        + "Its projects, runs and packages are no longer yours to reach.",
+                    heldRole is { } held ? $"You held the {held} role." : null,
+                    // Not the organization: it is the one page this notification is about and
+                    // the one page its reader can no longer open.
+                    "/",
+                    "Go to your organizations"),
+                ct);
+        }
+
         await notifications.PublishToGovernanceAsync(
             organizationId,
             actor: caller,
             new NotificationContent(
                 NotificationKind.MemberLeft,
                 themselves
-                    ? $"{left} left {organization.Name}"
-                    : $"{left} was removed from {organization.Name}",
+                    ? $"{left.Shortly} left {organization.Name}"
+                    : $"{left.Shortly} was removed from {organization.Name}",
                 themselves
-                    ? "They removed themselves from the organization."
-                    : $"{await DescribeAsync(db, caller, ct)} removed them from the organization.",
-                heldRole is { } role ? $"They held the {role} role." : null,
+                    ? $"{left} removed themselves from the organization."
+                    : $"{await DescribeAsync(db, caller, ct)} removed {left} from the organization.",
+                heldRole is { } role ? $"{left.Shortly} held the {role} role." : null,
                 $"/orgs/{organizationId}/members",
                 "View members"),
             ct);
@@ -514,17 +716,31 @@ public static class MemberEndpoints
         return TypedResults.NoContent();
     }
 
-    /// <summary>
-    /// How somebody is named in a notification: the name they gave, or the address they
-    /// signed up with.
-    /// </summary>
-    private static async Task<string> DescribeAsync(
+    /// <summary>Who somebody is: the name they gave, if any, and the address behind it.</summary>
+    private sealed record Person(string? Name, string Email)
+    {
+        /// <summary>The name to put in a title, which is also an email's subject line.</summary>
+        public string Shortly => string.IsNullOrWhiteSpace(Name) ? Email : Name;
+
+        /// <summary>
+        /// Both, for the body.
+        /// </summary>
+        /// <remarks>
+        /// A display name alone answers "who" only for somebody who already knows them. The
+        /// address is the account, and the account is what an admin reading this acts on —
+        /// so every sentence that names a person in a notification carries it.
+        /// </remarks>
+        public override string ToString() =>
+            string.IsNullOrWhiteSpace(Name) ? Email : $"{Name} ({Email})";
+    }
+
+    private static async Task<Person> DescribeAsync(
         SpaceCraftDbContext db, Guid userId, CancellationToken ct) =>
         await db.Users
             .AsNoTracking()
             .Where(u => u.Id == userId)
-            .Select(u => u.DisplayName ?? u.Email)
-            .FirstOrDefaultAsync(ct) ?? "Someone";
+            .Select(u => new Person(u.DisplayName, u.Email ?? ""))
+            .FirstOrDefaultAsync(ct) ?? new Person(null, "an account that no longer exists");
 
     /// <summary>
     /// Members joined to their accounts. Identity lives in its own tables, so the name and

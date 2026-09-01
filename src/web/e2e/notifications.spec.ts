@@ -1,5 +1,5 @@
-import { test, expect } from "./fixtures";
-import { queuedRun, waitForRunToFinish } from "./workspace";
+import { test, expect, as, signIn } from "./fixtures";
+import { createOrganization, joinByInvitation, queuedRun, waitForRunToFinish } from "./workspace";
 
 /**
  * A run finishes in the runner and the person who started it is told in the browser. Two
@@ -45,4 +45,41 @@ test("clearing asks before it loses something unread", async ({ owner, api, acco
 
   await owner.getByRole("button", { name: /^Notifications/ }).click();
   await expect(owner.getByText("Nothing yet.")).toBeVisible();
+});
+
+test("being removed reaches the person it happened to, who is no longer a member", async ({
+  api,
+  account,
+  browser,
+}) => {
+  const organization = await createOrganization(api, account);
+  const member = await joinByInvitation(api, account, organization.id);
+
+  const context = await browser.newContext();
+  const theirs = await context.newPage();
+  await signIn(theirs, member);
+
+  const removed = await api.delete(
+    `/api/v1/organizations/${organization.id}/members/${member.user.id}`,
+    as(account),
+  );
+
+  expect(removed.ok(), `removing a member: ${removed.status()}`).toBeTruthy();
+
+  await theirs.goto("/");
+
+  // Gone from their organizations, which is the point of the removal...
+  await expect(theirs.getByRole("link", { name: organization.name })).toHaveCount(0);
+
+  // ...and told anyway, which is the point of the notification: every other item in this list
+  // is filtered to organizations they still belong to, and this one cannot be.
+  await theirs.getByRole("button", { name: /^Notifications/ }).click();
+  await expect(
+    theirs.getByText(`You were removed from ${organization.name}`),
+  ).toBeVisible();
+
+  // Naming the account that did it, not only the name it goes by.
+  await expect(theirs.getByText(account.email, { exact: false })).toBeVisible();
+
+  await context.close();
 });

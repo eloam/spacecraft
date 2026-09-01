@@ -231,6 +231,40 @@ export function useRevokeInvitation(orgId: string) {
   });
 }
 
+/** What an invitation is for, read without spending it. */
+export type InvitationPreview = {
+  organizationName: string;
+  organizationSlug: string;
+  role: number;
+  invitedBy: string;
+  expiresAt: string;
+  memberCount: number;
+  projects: string[];
+  alreadyMember: boolean;
+};
+
+/**
+ * A POST for a read: the token travels in the body rather than in a path, where it would be
+ * written to every access log between here and the API.
+ */
+export function useInvitationPreview(token: string) {
+  return useQuery({
+    queryKey: ["invitation", token],
+    queryFn: () => api.post<InvitationPreview>("/invitations/preview", { token }),
+    enabled: Boolean(token),
+    // A token is spent once and the answer changes underneath nobody: asking twice buys
+    // nothing, and a retry on a 404 would only repeat the refusal.
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+export function useDeclineInvitation() {
+  return useMutation({
+    mutationFn: (token: string) => api.post<void>("/invitations/decline", { token }),
+  });
+}
+
 /** Joins whichever organization the token was issued for; the caller does not name one. */
 export function useAcceptInvitation() {
   const queryClient = useQueryClient();
@@ -490,7 +524,12 @@ export function useLogout() {
 // --- notifications --------------------------------------------------------------------
 
 /** Mirrors SpaceCraft.Domain.Notifications.NotificationKind. */
-export type NotificationKind = "MemberJoined" | "MemberLeft" | "RunCompleted";
+export type NotificationKind =
+  | "MemberJoined"
+  | "MemberLeft"
+  | "RunCompleted"
+  | "RemovedFromOrganization"
+  | "InvitationDeclined";
 
 /** Mirrors SpaceCraft.Domain.Notifications.NotificationChannel. */
 export type NotificationChannel = "InApp" | "Email";

@@ -157,6 +157,104 @@ public sealed class InvitationTests(SpaceCraftApi api)
             TestContext.Current.CancellationToken);
 
     /// <summary>Reads the link out of the message, the way a recipient clicks it.</summary>
+    [Fact]
+    public async Task An_invitation_can_be_read_without_being_spent()
+    {
+        var owner = await api.SignedInAsync(Email());
+        var organizationId = await OrganizationAsync(owner);
+
+        await owner.PostAsJsonAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/projects", UriKind.Relative),
+            new { name = "Ledger API" },
+            TestContext.Current.CancellationToken);
+
+        var inviteeEmail = Email();
+        var invitee = await api.SignedInAsync(inviteeEmail);
+
+        await owner.PostAsJsonAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/members", UriKind.Relative),
+            new { email = inviteeEmail, role = (int)OrganizationRole.Member },
+            TestContext.Current.CancellationToken);
+
+        var token = TokenFrom(await api.Mailbox.WaitForAsync(inviteeEmail, "invited", TestContext.Current.CancellationToken));
+
+        var previewed = await invitee.PostAsJsonAsync(
+            "/api/v1/invitations/preview",
+            new { token },
+            TestContext.Current.CancellationToken);
+
+        previewed.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var preview = await previewed.Content.ReadFromJsonAsync<PreviewPayload>(
+            TestContext.Current.CancellationToken);
+
+        preview!.Role.ShouldBe((int)OrganizationRole.Member);
+        preview.MemberCount.ShouldBe(1);
+        preview.Projects.ShouldContain("Ledger API");
+        preview.AlreadyMember.ShouldBeFalse();
+
+        // Read, not spent: the same token still joins afterwards.
+        var accepted = await invitee.PostAsJsonAsync(
+            "/api/v1/invitations/accept",
+            new { token },
+            TestContext.Current.CancellationToken);
+
+        accepted.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Declining_puts_the_link_out()
+    {
+        var owner = await api.SignedInAsync(Email());
+        var organizationId = await OrganizationAsync(owner);
+
+        var inviteeEmail = Email();
+        var invitee = await api.SignedInAsync(inviteeEmail);
+
+        await owner.PostAsJsonAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/members", UriKind.Relative),
+            new { email = inviteeEmail, role = (int)OrganizationRole.Member },
+            TestContext.Current.CancellationToken);
+
+        var token = TokenFrom(await api.Mailbox.WaitForAsync(inviteeEmail, "invited", TestContext.Current.CancellationToken));
+
+        var declined = await invitee.PostAsJsonAsync(
+            "/api/v1/invitations/decline",
+            new { token },
+            TestContext.Current.CancellationToken);
+
+        declined.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        // Out for good, and indistinguishable from every other unusable token.
+        var accepted = await invitee.PostAsJsonAsync(
+            "/api/v1/invitations/accept",
+            new { token },
+            TestContext.Current.CancellationToken);
+
+        accepted.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        // Gone from the list an admin reads, too. It once stayed there — the list carried its
+        // own copy of "still usable" and nobody told it about declining — so an invitation
+        // already refused went on being offered, with a link that no longer worked.
+        var pending = await owner.GetAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/members/invitations", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        pending.EnsureSuccessStatusCode();
+        (await pending.Content.ReadFromJsonAsync<List<InvitationPayload>>(
+            TestContext.Current.CancellationToken))!.ShouldBeEmpty();
+
+        // And it is recorded as a refusal, not as a withdrawal: only one of the two is an
+        // answer, and conflating them would make that unanswerable later.
+        using var scope = api.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
+        var invitation = await db.OrganizationInvitations
+            .FirstAsync(i => i.OrganizationId == organizationId, TestContext.Current.CancellationToken);
+
+        invitation.DeclinedAt.ShouldNotBeNull();
+        invitation.RevokedAt.ShouldBeNull();
+    }
+
     private static string TokenFrom(SpaceCraft.Api.Common.EmailMessage message)
     {
         var match = Regex.Match(message.TextBody, @"token=([A-Za-z0-9%]+)");
@@ -179,4 +277,10 @@ public sealed class InvitationTests(SpaceCraftApi api)
     }
 
     private sealed record IdPayload(Guid Id);
+
+    private sealed record InvitationPayload(Guid Id, string Email);
+
+    private sealed record PreviewPayload(
+        string OrganizationName, string OrganizationSlug, int Role, string InvitedBy,
+        int MemberCount, List<string> Projects, bool AlreadyMember);
 }

@@ -1052,6 +1052,10 @@ namespace SpaceCraft.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTimeOffset?>("DeclinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("declined_at");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)

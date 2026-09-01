@@ -26,6 +26,8 @@ public static class NotificationDefaults
         NotificationKind.MemberJoined,
         NotificationKind.MemberLeft,
         NotificationKind.RunCompleted,
+        NotificationKind.RemovedFromOrganization,
+        NotificationKind.InvitationDeclined,
     ];
 
     /// <summary>Every channel that actually delivers today.</summary>

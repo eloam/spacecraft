@@ -44,6 +44,16 @@ public interface INotificationPublisher
     /// </summary>
     Task PublishToMemberAsync(
         Guid organizationId, Guid userId, NotificationContent content, CancellationToken ct);
+
+    /// <summary>
+    /// Tells one person whether or not they are a member.
+    /// </summary>
+    /// <remarks>
+    /// For the one message that exists because they are not: being removed from an
+    /// organization is news you cannot be told by anything that first checks you belong to it.
+    /// </remarks>
+    Task PublishToPersonAsync(
+        Guid organizationId, Guid userId, NotificationContent content, CancellationToken ct);
 }
 
 public sealed class NotificationPublisher(SpaceCraftDbContext db) : INotificationPublisher
@@ -71,6 +81,10 @@ public sealed class NotificationPublisher(SpaceCraftDbContext db) : INotificatio
 
         await PublishAsync(organizationId, isMember ? [userId] : [], content, ct);
     }
+
+    public Task PublishToPersonAsync(
+        Guid organizationId, Guid userId, NotificationContent content, CancellationToken ct) =>
+        PublishAsync(organizationId, [userId], content, ct);
 
     private async Task PublishAsync(
         Guid organizationId,

@@ -34,6 +34,10 @@ public sealed class NotificationTests(SpaceCraftApi api)
         forOwner.UnreadCount.ShouldBe(1);
         forOwner.Items[0].Kind.ShouldBe("MemberJoined");
         forOwner.Items[0].Title.ShouldContain(NameOf(joinerEmail));
+
+        // The display name answers "who" only for somebody who already knows them. The
+        // address is the account, and the account is what an admin acts on.
+        forOwner.Items[0].Summary.ShouldContain(joinerEmail);
         // The slug, not the id it is stored with: a notification is a record, but a link is
         // an address, and every other address in the application reads as a name.
         forOwner.Items[0].Link.ShouldBe($"/orgs/{slug}/members");
@@ -60,7 +64,9 @@ public sealed class NotificationTests(SpaceCraftApi api)
 
         var forOwner = await FeedAsync(owner);
         forOwner.Items.ShouldContain(n =>
-            n.Kind == "MemberLeft" && n.Title.Contains(NameOf(leaverEmail), StringComparison.Ordinal));
+            n.Kind == "MemberLeft"
+            && n.Title.Contains(NameOf(leaverEmail), StringComparison.Ordinal)
+            && n.Summary.Contains(leaverEmail, StringComparison.Ordinal));
 
         // And they hear nothing about the organization they have left, including about
         // leaving it.
@@ -91,8 +97,108 @@ public sealed class NotificationTests(SpaceCraftApi api)
 
         removed.EnsureSuccessStatusCode();
 
-        // Every one of those items pointed at a page they can no longer open.
-        (await FeedAsync(admin)).Items.ShouldBeEmpty();
+        // Every one of those items pointed at a page they can no longer open. What survives is
+        // the one notification that exists because they are no longer a member.
+        var forAdmin = await FeedAsync(admin);
+        forAdmin.Items.ShouldHaveSingleItem().Kind.ShouldBe("RemovedFromOrganization");
+    }
+
+    [Fact]
+    public async Task Declining_tells_the_organization_it_was_refused()
+    {
+        var ownerEmail = Email();
+        var owner = await api.SignedInAsync(ownerEmail);
+        var organizationId = await OrganizationAsync(owner);
+
+        var inviteeEmail = Email();
+        var invitee = await api.SignedInAsync(inviteeEmail);
+
+        await owner.PostAsJsonAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/members", UriKind.Relative),
+            new { email = inviteeEmail, role = (int)OrganizationRole.Member },
+            TestContext.Current.CancellationToken);
+
+        var invitation = await api.Mailbox.WaitForAsync(
+            inviteeEmail, "invited", TestContext.Current.CancellationToken);
+
+        var match = Regex.Match(invitation.TextBody, @"token=([A-Za-z0-9%]+)");
+
+        var declined = await invitee.PostAsJsonAsync(
+            "/api/v1/invitations/decline",
+            new { token = Uri.UnescapeDataString(match.Groups[1].Value) },
+            TestContext.Current.CancellationToken);
+
+        declined.EnsureSuccessStatusCode();
+
+        // An answer, not silence: whoever picks the thread up next needs to know it was
+        // refused rather than still travelling.
+        var forOwner = await FeedAsync(owner);
+        var told = forOwner.Items.ShouldHaveSingleItem();
+
+        told.Kind.ShouldBe("InvitationDeclined");
+        told.Title.ShouldContain(inviteeEmail);
+
+        // Standing on its own: an admin who did not send this invitation should not have to
+        // work out who "they" were from the line above.
+        told.Summary.ShouldContain(inviteeEmail);
+        told.Summary.ShouldContain("Member");
+        told.Detail.ShouldNotBeNull().ShouldContain("Nobody has been added");
+
+        // And the person who declined is not a member, so hears nothing about it.
+        (await FeedAsync(invitee)).Items.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Being_removed_tells_the_person_it_happened_to()
+    {
+        var ownerEmail = Email();
+        var owner = await api.SignedInAsync(ownerEmail);
+        var organizationId = await OrganizationAsync(owner);
+
+        var memberEmail = Email();
+        var member = await api.SignedInAsync(memberEmail);
+        var memberId = await JoinByInvitationAsync(owner, member, organizationId, memberEmail);
+
+        var removed = await owner.DeleteAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/members/{memberId}", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        removed.EnsureSuccessStatusCode();
+
+        // Read despite no longer being a member, which is the whole point: the membership
+        // filter the feed applies would otherwise throw away the news of leaving.
+        var theirs = await FeedAsync(member);
+        var notification = theirs.Items.ShouldHaveSingleItem();
+
+        notification.Kind.ShouldBe("RemovedFromOrganization");
+        notification.Title.ShouldStartWith("You were removed from");
+        notification.Link.ShouldBe("/");
+
+        // And it reaches the mailbox, which is the only channel that still finds them.
+        var message = await api.Mailbox.WaitForAsync(
+            memberEmail, "removed", TestContext.Current.CancellationToken);
+
+        message.TextBody.ShouldContain(ownerEmail);
+    }
+
+    [Fact]
+    public async Task Leaving_of_your_own_accord_tells_you_nothing()
+    {
+        var owner = await api.SignedInAsync(Email());
+        var organizationId = await OrganizationAsync(owner);
+
+        var leaverEmail = Email();
+        var leaver = await api.SignedInAsync(leaverEmail);
+        var leaverId = await JoinByInvitationAsync(owner, leaver, organizationId, leaverEmail);
+
+        var left = await leaver.DeleteAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/members/{leaverId}", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        left.EnsureSuccessStatusCode();
+
+        // Nobody needs telling what they have just done.
+        (await FeedAsync(leaver)).Items.ShouldBeEmpty();
     }
 
     [Fact]
@@ -129,7 +235,7 @@ public sealed class NotificationTests(SpaceCraftApi api)
 
         var defaults = await PreferencesAsync(user);
         defaults.ShouldAllBe(p => p.Enabled, "everything is on until somebody says otherwise");
-        defaults.Count.ShouldBe(6, "three kinds on two channels");
+        defaults.Count.ShouldBe(10, "five kinds on two channels");
 
         var changed = defaults
             .Select(p => p.Channel == "Email" ? p with { Enabled = false } : p)
@@ -236,7 +342,7 @@ public sealed class NotificationTests(SpaceCraftApi api)
 
         var reloaded = await PreferencesAsync(user);
         reloaded.Single(p => p.Kind == "RunCompleted" && p.Channel == "Email").Enabled.ShouldBeFalse();
-        reloaded.Count.ShouldBe(6, "the repetition wrote one row, not two");
+        reloaded.Count.ShouldBe(10, "the repetition wrote one row, not two");
     }
 
     [Fact]

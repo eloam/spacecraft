@@ -38,9 +38,15 @@ test("an invitation is sent, read from the mailbox and accepted", async ({
   const invitee = await context.newPage();
   await signIn(invitee, await register(api, inviteeEmail));
 
+  // Read before it is taken: the link opens an offer, not a membership.
   await invitee.goto(acceptPath);
-  await expect(invitee).toHaveURL("/");
-  await expect(invitee.getByText(organization.name)).toBeVisible();
+  await expect(invitee.getByRole("heading", { name: `Join ${organization.name}` })).toBeVisible();
+  // The name the inviter goes by, which is what the preview shows — putting their
+  // address in front of somebody who has not joined yet would be a different decision.
+  await expect(invitee.getByText(account.email.split("@")[0])).toBeVisible();
+
+  await invitee.getByRole("button", { name: `Join ${organization.name}` }).click();
+  await expect(invitee).toHaveURL(`/orgs/${organization.slug}`);
 
   await owner.reload();
   await expect(owner.getByText(inviteeEmail)).toBeVisible();
@@ -85,6 +91,47 @@ test("an invitation can be taken back before it is used", async ({
 
   await invitee.goto(acceptPath);
   await expect(invitee.getByText("This invitation cannot be used")).toBeVisible();
+
+  await context.close();
+});
+
+test("an invitation can be turned down, and the link stops working", async ({
+  owner,
+  api,
+  account,
+  browser,
+}) => {
+  const organization = await createOrganization(api, account);
+  const inviteeEmail = anEmail("declines");
+
+  await owner.goto(`/orgs/${organization.slug}/members`);
+  await owner.getByRole("button", { name: "Invite someone" }).click();
+  await owner.getByLabel("Email").fill(inviteeEmail);
+  await owner.getByRole("dialog").getByRole("button", { name: "Send invitation" }).click();
+
+  const acceptPath = linkIn(await waitForMessage(api, inviteeEmail, "invited"));
+
+  const context = await browser.newContext();
+  const invitee = await context.newPage();
+  await signIn(invitee, await register(api, inviteeEmail));
+
+  await invitee.goto(acceptPath);
+  await invitee.getByRole("button", { name: "Decline" }).click();
+
+  await expect(invitee.getByRole("heading", { name: "Invitation declined" })).toBeVisible();
+
+  // Out for good: opening the same link again offers nothing.
+  await invitee.goto(acceptPath);
+  await expect(invitee.getByText("This invitation cannot be used")).toBeVisible();
+
+  // And it stops being offered as pending. It used to stay in that list with a link that no
+  // longer worked, because the list carried its own copy of "still open".
+  await owner.reload();
+  await expect(owner.getByText("Pending invitations")).toBeHidden();
+
+  // The organization is told, rather than left waiting for an answer that already came.
+  await owner.getByRole("button", { name: /^Notifications/ }).click();
+  await expect(owner.getByText(`${inviteeEmail} declined`)).toBeVisible();
 
   await context.close();
 });

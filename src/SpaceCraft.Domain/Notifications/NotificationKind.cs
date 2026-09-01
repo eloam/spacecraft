@@ -16,4 +16,13 @@ public enum NotificationKind
 
     /// <summary>A run reached a result — published, or failed with a reason.</summary>
     RunCompleted = 3,
+
+    /// <summary>
+    /// You were removed from an organization. Addressed to the person it happened to, unlike
+    /// <see cref="MemberLeft"/>, which tells the people who answer for the organization.
+    /// </summary>
+    RemovedFromOrganization = 4,
+
+    /// <summary>Somebody turned an invitation down. The answer the sender was waiting for.</summary>
+    InvitationDeclined = 5,
 }

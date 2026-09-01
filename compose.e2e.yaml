@@ -5,7 +5,7 @@
 # stops being run. Its own project name, its own ports, and no named volumes — `down` leaves
 # nothing behind, so every campaign starts from an empty application.
 #
-#   docker compose -f compose.e2e.yaml up -d --wait
+#   docker compose -f compose.e2e.yaml up -d --build --wait
 #   npm --prefix src/web run test:e2e
 #   docker compose -f compose.e2e.yaml down -v
 #

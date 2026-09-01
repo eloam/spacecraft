@@ -100,8 +100,12 @@ public static class NotificationEndpoints
             .AsNoTracking()
             .Where(n => n.UserId == userId
                         && n.ShowInApp
-                        && db.OrganizationMembers.Any(
-                            m => m.OrganizationId == n.OrganizationId && m.UserId == userId));
+                        && (db.OrganizationMembers.Any(
+                                m => m.OrganizationId == n.OrganizationId && m.UserId == userId)
+                            // The one exception, and the reason for it is in its name: being
+                            // removed from an organization is precisely the news that the
+                            // membership test above would throw away.
+                            || n.Kind == NotificationKind.RemovedFromOrganization));
 
         var unread = await mine.CountAsync(n => n.ReadAt == null, ct);
 

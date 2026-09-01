@@ -92,7 +92,7 @@ jobs:
       # The API and the runner are built from this checkout, so the tests run against the
       # images the release would ship rather than against something assembled for testing.
       - name: Start the stack
-        run: docker compose -f compose.e2e.yaml up -d --wait
+        run: docker compose -f compose.e2e.yaml up -d --build --wait
 
       - name: End-to-end tests
         run: npm run test:e2e

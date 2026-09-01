@@ -225,12 +225,16 @@ runner, on ports the development stack does not use, so a campaign can never wri
 database you are working in:
 
 ```bash
-docker compose -f compose.e2e.yaml up -d --wait
+docker compose -f compose.e2e.yaml up -d --build --wait
 npm run test:e2e --prefix src/web
 docker compose -f compose.e2e.yaml down
 ```
 
-Three of the eighteen build a real SDK — one downloads it, one publishes it to the Verdaccio
+`--build`, every time: the stack runs the API and the runner as images, and `up` alone happily
+starts the ones it built before your last change to them. The front end has no such trap — the
+test run builds and serves it itself.
+
+Three of the twenty build a real SDK — one downloads it, one publishes it to the Verdaccio
 in the stack and asks the registry whether it arrived, and one revokes the credential first and
 checks that nothing did — so the first campaign
 against an empty Verdaccio spends minutes resolving packages from npmjs and the ones after it

@@ -38,6 +38,17 @@ const EVENTS: { kind: NotificationKind; label: string; description: string }[] =
     description:
       "The result of a run you started — the version published, or the step that failed and why.",
   },
+  {
+    kind: "InvitationDeclined",
+    label: "An invitation is declined",
+    description: "Somebody you invited turned it down. Sent to owners and admins.",
+  },
+  {
+    kind: "RemovedFromOrganization",
+    label: "You are removed from an organization",
+    description:
+      "Somebody took your access to an organization away. Sent to you, and only when it was not you who left.",
+  },
 ];
 
 function EventSwitch({

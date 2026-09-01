@@ -1,9 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Building2, FolderGit2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthCard } from "@/components/AuthCard";
+import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { useAcceptInvitation } from "@/api/queries";
+import {
+  useAcceptInvitation,
+  useDeclineInvitation,
+  useInvitationPreview,
+} from "@/api/queries";
+import { roleLabel } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
 import { withReturnTo } from "@/lib/returnTo";
 import { ApiError } from "@/api/client";
@@ -13,15 +20,25 @@ import { ApiError } from "@/api/client";
  *
  * The token in the URL is the whole grant — it is what proves the person opening it can read
  * the mailbox the invitation was sent to, which is the one thing nothing else in this
- * application establishes. The page therefore does one thing and says plainly how it went.
+ * application establishes.
+ *
+ * It used to spend that grant on arrival: opening the link joined the organization, and the
+ * first thing anybody learned about it was that they were already in it. An invitation is an
+ * offer. This page reads it out — who is asking, for what, alongside whom — and leaves the
+ * answer to the person holding it.
  */
 export function AcceptInvitationPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const accessToken = useAuthStore((state) => state.accessToken);
-  const accept = useAcceptInvitation();
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const preview = useInvitationPreview(accessToken ? token : "");
+  const accept = useAcceptInvitation();
+  const decline = useDeclineInvitation();
+
+  const [declined, setDeclined] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
   const backToOrganizations = (
@@ -29,27 +46,6 @@ export function AcceptInvitationPage() {
       Go to your organizations
     </Link>
   );
-
-  // Accepting is a write, and React runs effects twice in development. Without this the
-  // second run spends the invitation the first one already accepted, and the page reports
-  // the failure rather than the success that actually happened.
-  const attempted = useRef(false);
-
-  useEffect(() => {
-    if (!token || !accessToken || attempted.current) return;
-
-    attempted.current = true;
-
-    accept.mutate(token, {
-      onSuccess: () => navigate("/", { replace: true }),
-      onError: (error: unknown) =>
-        setFailure(
-          error instanceof ApiError
-            ? error.detail
-            : "The invitation could not be accepted. Ask for a new one.",
-        ),
-    });
-  }, [token, accessToken, accept, navigate]);
 
   if (!token) {
     return (
@@ -71,15 +67,12 @@ export function AcceptInvitationPage() {
   if (!accessToken) {
     return (
       <AuthCard
-        title="Sign in to accept"
+        title="Sign in to see this invitation"
         description="An organization has invited you to SpaceCraft."
         footer={null}
       >
         <div className="space-y-3">
-          <Button
-            className="w-full"
-            render={<Link to={withReturnTo("/login", location)} />}
-          >
+          <Button className="w-full" render={<Link to={withReturnTo("/login", location)} />}>
             Sign in
           </Button>
           <Button
@@ -94,11 +87,32 @@ export function AcceptInvitationPage() {
     );
   }
 
-  if (failure) {
+  if (declined) {
+    return (
+      <AuthCard
+        title="Invitation declined"
+        description="The link no longer works, and nobody has been added to anything."
+        footer={backToOrganizations}
+      >
+        <p className="text-sm text-muted-foreground">
+          If you change your mind, whoever invited you can send another.
+        </p>
+      </AuthCard>
+    );
+  }
+
+  // One answer for a token that never existed, one already used, one withdrawn and one that
+  // lapsed — the API does not tell them apart, and neither does this.
+  if (preview.isError || failure) {
     return (
       <AuthCard
         title="This invitation cannot be used"
-        description={failure}
+        description={
+          failure ??
+          (preview.error instanceof ApiError
+            ? preview.error.detail
+            : "It may have been used, withdrawn, or expired.")
+        }
         footer={backToOrganizations}
       >
         <p className="text-sm text-muted-foreground">
@@ -109,10 +123,121 @@ export function AcceptInvitationPage() {
     );
   }
 
+  if (!preview.data) {
+    return (
+      <AuthCard title="Reading the invitation…" description="One moment." footer={null}>
+        <div className="flex justify-center py-2">
+          <Spinner className="size-5" />
+        </div>
+      </AuthCard>
+    );
+  }
+
+  const invitation = preview.data;
+
+  if (invitation.alreadyMember) {
+    return (
+      <AuthCard
+        title={`You are already in ${invitation.organizationName}`}
+        description="Nothing to accept — this invitation is for an organization you have joined."
+        footer={backToOrganizations}
+      >
+        <Button
+          className="w-full"
+          render={<Link to={`/orgs/${invitation.organizationSlug}`} />}
+        >
+          Open {invitation.organizationName}
+        </Button>
+      </AuthCard>
+    );
+  }
+
+  const working = accept.isPending || decline.isPending;
+
   return (
-    <AuthCard title="Joining…" description="Adding you to the organization." footer={null}>
-      <div className="flex justify-center py-2">
-        <Spinner className="size-5" />
+    <AuthCard
+      title={`Join ${invitation.organizationName}`}
+      description={`${invitation.invitedBy} invited you.`}
+      footer={backToOrganizations}
+    >
+      <div className="space-y-4">
+        <dl className="space-y-2.5 rounded-lg border p-3.5 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="flex items-center gap-2 text-muted-foreground">
+              <Building2 className="size-4" aria-hidden />
+              Your role
+            </dt>
+            <dd>
+              <Badge variant="secondary">{roleLabel[invitation.role]}</Badge>
+            </dd>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <dt className="flex items-center gap-2 text-muted-foreground">
+              <Users className="size-4" aria-hidden />
+              Members
+            </dt>
+            <dd>{invitation.memberCount}</dd>
+          </div>
+
+          {invitation.projects.length > 0 && (
+            <div className="flex items-start justify-between gap-3">
+              <dt className="flex items-center gap-2 text-muted-foreground">
+                <FolderGit2 className="size-4" aria-hidden />
+                Projects
+              </dt>
+              {/* Names, so that "is this the right Acme?" has an answer before the decision
+                  rather than after it. */}
+              <dd className="min-w-0 text-right">{invitation.projects.join(", ")}</dd>
+            </div>
+          )}
+        </dl>
+
+        <p className="text-sm text-muted-foreground">
+          Accepting adds this account to the organization. The link works once, and expires on{" "}
+          {new Date(invitation.expiresAt).toLocaleDateString()}.
+        </p>
+
+        <div className="space-y-2">
+          <Button
+            className="w-full"
+            disabled={working}
+            onClick={() =>
+              accept.mutate(token, {
+                onSuccess: () => navigate(`/orgs/${invitation.organizationSlug}`, { replace: true }),
+                onError: (error: unknown) =>
+                  setFailure(
+                    error instanceof ApiError
+                      ? error.detail
+                      : "The invitation could not be accepted. Ask for a new one.",
+                  ),
+              })
+            }
+          >
+            {accept.isPending ? "Joining…" : `Join ${invitation.organizationName}`}
+          </Button>
+
+          {/* Declining is not a way out of a mistake — it puts the link out. Said plainly
+              under the button rather than behind a confirmation nobody reads. */}
+          <Button
+            variant="ghost"
+            className="w-full"
+            disabled={working}
+            onClick={() =>
+              decline.mutate(token, {
+                onSuccess: () => setDeclined(true),
+                onError: (error: unknown) =>
+                  setFailure(
+                    error instanceof ApiError
+                      ? error.detail
+                      : "The invitation could not be declined.",
+                  ),
+              })
+            }
+          >
+            {decline.isPending ? "Declining…" : "Decline"}
+          </Button>
+        </div>
       </div>
     </AuthCard>
   );

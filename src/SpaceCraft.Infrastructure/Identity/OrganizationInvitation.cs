@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using SpaceCraft.Domain.Common;
 using SpaceCraft.Domain.Organizations;
 
@@ -66,8 +67,34 @@ public sealed class OrganizationInvitation : Entity
 
     public DateTimeOffset? RevokedAt { get; private set; }
 
+    /// <summary>
+    /// Turned down by whoever received it.
+    /// </summary>
+    /// <remarks>
+    /// Kept apart from <see cref="RevokedAt"/> on purpose. An admin taking an invitation back
+    /// and somebody saying no are different events, and only one of them is an answer —
+    /// recording both as "revoked" would make that question unanswerable later.
+    /// </remarks>
+    public DateTimeOffset? DeclinedAt { get; private set; }
+
+    /// <summary>
+    /// Still usable: not accepted, not withdrawn, not declined, not lapsed.
+    /// </summary>
+    /// <remarks>
+    /// The same question as <see cref="IsRedeemable"/>, in the form a query can ask. Written
+    /// once because it was written twice: the list an admin reads grew its own copy of the
+    /// conditions, and when declining was added that copy was not told — so an invitation
+    /// somebody had already refused went on being offered as pending.
+    /// <para>
+    /// InvitationStateTests walks all four states through both, so the next state cannot
+    /// reach one and miss the other.
+    /// </para>
+    /// </remarks>
+    public static Expression<Func<OrganizationInvitation, bool>> Usable(DateTimeOffset now) =>
+        i => i.AcceptedAt == null && i.RevokedAt == null && i.DeclinedAt == null && i.ExpiresAt > now;
+
     public bool IsRedeemable(DateTimeOffset now) =>
-        AcceptedAt is null && RevokedAt is null && ExpiresAt > now;
+        AcceptedAt is null && RevokedAt is null && DeclinedAt is null && ExpiresAt > now;
 
     public void Accept(Guid userId, DateTimeOffset at)
     {
@@ -88,6 +115,16 @@ public sealed class OrganizationInvitation : Entity
     public void Revoke(DateTimeOffset at)
     {
         RevokedAt ??= at;
+        Touch();
+    }
+
+    /// <summary>
+    /// Declined by its recipient. Idempotent, like <see cref="Revoke"/>: a second click on a
+    /// link already turned down is not an error worth showing anybody.
+    /// </summary>
+    public void Decline(DateTimeOffset at)
+    {
+        DeclinedAt ??= at;
         Touch();
     }
 }
