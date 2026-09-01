@@ -42,6 +42,7 @@
     --color-secondary-foreground: var(--secondary-foreground);
     --color-secondary: var(--secondary);
     --color-primary-foreground: var(--primary-foreground);
+    --color-primary-hover: var(--primary-hover);
     --color-primary: var(--primary);
     --color-popover-foreground: var(--popover-foreground);
     --color-popover: var(--popover);
@@ -67,8 +68,20 @@
     --card-foreground: oklch(0.145 0.008 326);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0.008 326);
-    --primary: oklch(0.212 0.019 322.12);
+    /* Mauve, and meant to be seen as such. The palette is a mauve-tinted neutral ramp, which
+       reads in dark — where every surface sits above a near-black ground — and disappears in
+       light, where a primary at chroma 0.019 is simply black. The buttons that start things
+       are the one place the theme's colour should be legible in both. */
+    --primary: oklch(0.48 0.14 322);
     --primary-foreground: oklch(0.985 0 0);
+
+    /* A filled button darkens on hover here rather than fading toward the page.
+       `bg-primary/80` is the shadcn default and it works in dark — a light primary thinned
+       against a dark ground keeps its dark label readable — but in light it walks the button
+       toward the paper under it and takes the white label with it. It measured 3.9:1 against
+       that label before this, under the 4.5:1 normal text asks for, and a mid-tone primary
+       would have made it 3.3:1. Darkening moves the other way: 9.5:1. */
+    --primary-hover: oklch(0.4 0.14 322);
     --secondary: oklch(0.96 0.003 325.6);
     --secondary-foreground: oklch(0.212 0.019 322.12);
     --muted: oklch(0.96 0.003 325.6);
@@ -147,6 +160,10 @@
     --popover-foreground: oklch(0.985 0 0);
     --primary: oklch(0.922 0.005 325.62);
     --primary-foreground: oklch(0.212 0.015 322.12);
+    /* Matches what `bg-primary/80` produced over this theme's ground, to the eye and to the
+       contrast checker — 11.2:1 against the label where the mix gave 11.4:1. Named rather
+       than mixed so that both themes answer the same question the same way. */
+    --primary-hover: oklch(0.85 0.008 325.62);
     --secondary: oklch(0.314 0.024 320.12);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.314 0.024 320.12);
