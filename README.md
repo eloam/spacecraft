@@ -230,7 +230,7 @@ npm run test:e2e --prefix src/web
 docker compose -f compose.e2e.yaml down
 ```
 
-Two of the fourteen build a real SDK — one downloads it, the other publishes it to the
+Two of the sixteen build a real SDK — one downloads it, the other publishes it to the
 Verdaccio in the stack and asks the registry whether it arrived — so the first campaign
 against an empty Verdaccio spends minutes resolving packages from npmjs and the ones after it
 spend seconds.

@@ -58,10 +58,14 @@ export default defineConfig({
   // The built application, not the dev server: what ships is what should be tested, and Vite
   // serves them differently enough to matter.
   webServer: {
-    command: "npx vite preview --port 4173 --strictPort",
+    // Built here rather than by the script that calls this, and never reused. `vite preview`
+    // serves whatever is in dist: a server left running from an earlier campaign happily
+    // serves the bundle from before the change under test, and the run passes or fails on
+    // code nobody is looking at. Four seconds a run to make that impossible.
+    command: "npm run build && npx vite preview --port 4173 --strictPort",
     url: WEB_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    reuseExistingServer: false,
+    timeout: 120_000,
     env: { VITE_API_TARGET: API_URL },
   },
 });

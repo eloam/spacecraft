@@ -10,8 +10,8 @@
     "preview": "vite preview",
     "gen:api": "openapi-typescript http://localhost:8080/openapi/v1.json -o src/api/schema.d.ts",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "test:e2e": "npm run build && playwright test",
-    "test:e2e:ui": "npm run build && playwright test --ui"
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

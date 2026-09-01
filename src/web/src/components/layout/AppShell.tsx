@@ -6,6 +6,8 @@ import { useAuthStore } from "@/stores/auth";
 import { useLogout, useOrganizations } from "@/api/queries";
 import { useCanonicalRoute, useOrganizationId } from "@/hooks/useRouteIdentity";
 import { Spinner } from "@/components/ui/spinner";
+import { EmptyState } from "@/components/EmptyState";
+import { SearchX } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { AccountAvatar } from "@/components/AccountAvatar";
@@ -39,6 +41,15 @@ export function AppShell() {
   const organizationId = useOrganizationId(orgId ?? "");
   const resolvingOrganization =
     Boolean(orgId) && !organizationId && !organizations.isSuccess && !organizations.isError;
+
+  // The list arrived and this address is not in it. Before the pages asked by id, the slug
+  // went straight to the API, which answered 404 and the page said so; now their queries are
+  // simply never enabled, and what a stranger following a link got was a spinner that would
+  // have turned for ever.
+  //
+  // Worded like the API's own refusal, which does not distinguish "no such organization" from
+  // "not yours" — telling those apart would confirm which ids are real to anyone who asks.
+  const unknownOrganization = Boolean(orgId) && !organizationId && !resolvingOrganization;
 
   return (
     <div className="min-h-screen">
@@ -111,13 +122,19 @@ export function AppShell() {
 
       {/* Organization sections live under the organization's name rather than in the bar
           above, so which organization they act on is never in question. */}
-      {orgId && <OrganizationNav />}
+      {orgId && !unknownOrganization && <OrganizationNav />}
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         {resolvingOrganization ? (
           <div className="flex justify-center py-16">
             <Spinner className="size-5" />
           </div>
+        ) : unknownOrganization ? (
+          <EmptyState
+            icon={<SearchX />}
+            title="Organization not found"
+            description="It does not exist, or you are not a member of it."
+          />
         ) : (
           <Outlet />
         )}
