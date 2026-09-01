@@ -12,9 +12,17 @@ namespace SpaceCraft.Pipeline.Sandbox;
 public enum NetworkPolicy
 {
     /// <summary>
-    /// No egress at all. The default, and what generation and build run under: a generated
-    /// package's install scripts get no opportunity to phone home or exfiltrate anything.
+    /// What the step is meant to reach: nothing. The default, and what generation and build
+    /// are declared under.
     /// </summary>
+    /// <remarks>
+    /// It is a declaration, not a restriction — see the note on the enum. This used to read
+    /// "a generated package's install scripts get no opportunity to phone home", which reads
+    /// as a protection and is not one: steps share the job's network, so a build reaches
+    /// whatever the job reaches. What actually keeps install scripts from running is
+    /// <c>--ignore-scripts</c> on every npm invocation, and what keeps them from finding the
+    /// platform's secrets is that the child environment is now emptied before it is filled.
+    /// </remarks>
     None = 0,
 
     /// <summary>

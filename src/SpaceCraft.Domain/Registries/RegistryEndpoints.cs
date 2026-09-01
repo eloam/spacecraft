@@ -67,23 +67,45 @@ public static class RegistryEndpoints
             return false;
         }
 
-        // A single-label host is a name on an internal network — a container, a service
-        // discovered by short name. Nothing published to a public registry looks like that.
-        if (!uri.Host.Contains('.', StringComparison.Ordinal) && !uri.Host.Contains(':', StringComparison.Ordinal))
+        // Brackets are how a literal IPv6 host is written, not part of the address. Leaving
+        // them on made every IPv6 form fail to parse and fall through as "public", which is
+        // how [::ffff:169.254.169.254] — the cloud metadata address, spelled as IPv6 — walked
+        // straight past this.
+        var host = uri.Host.Trim('[', ']');
+
+        // A single-label host is a name on an internal network: a container, a service found
+        // by short name. Nothing published to a public registry looks like that.
+        if (!host.Contains('.', StringComparison.Ordinal) && !host.Contains(':', StringComparison.Ordinal))
         {
             return true;
         }
 
-        if (!System.Net.IPAddress.TryParse(uri.Host, out var address))
+        if (!System.Net.IPAddress.TryParse(host, out var address))
         {
             return false;
+        }
+
+        // An IPv4 address written as IPv6 is an IPv4 address, and has to be judged as one or
+        // the ranges below never see it.
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
         }
 
         return System.Net.IPAddress.IsLoopback(address)
             || address.IsIPv6LinkLocal
             || address.IsIPv6SiteLocal
+            || IsUniqueLocalV6(address)
             || IsPrivateV4(address);
     }
+
+    /// <summary>
+    /// fc00::/7 — the range that replaced site-local, which is what
+    /// <see cref="System.Net.IPAddress.IsIPv6SiteLocal"/> tests and which nothing deploys.
+    /// </summary>
+    private static bool IsUniqueLocalV6(System.Net.IPAddress address) =>
+        address.AddressFamily is System.Net.Sockets.AddressFamily.InterNetworkV6
+        && (address.GetAddressBytes()[0] & 0xFE) == 0xFC;
 
     private static bool IsPrivateV4(System.Net.IPAddress address)
     {
@@ -96,6 +118,8 @@ public static class RegistryEndpoints
 
         return octets[0] switch
         {
+            // 0.0.0.0/8 — "this host"; a connection to it lands on loopback.
+            0 => true,
             10 => true,
             127 => true,
             // 169.254.0.0/16 — link-local, and the cloud metadata address lives here.
@@ -111,7 +135,43 @@ public static class RegistryEndpoints
     /// malformed endpoint would surface as an npm error in the middle of a publish, long
     /// after the person who typed it has moved on.
     /// </summary>
-    public static bool IsValid(string? url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var uri)
-        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    public static bool IsValid(string? url)
+    {
+        if (url is null || ContainsControlCharacter(url))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        // The value must be what it parses to, give or take a trailing slash. Uri.TryCreate is
+        // tolerant in a way that matters here: it accepts a string carrying an embedded
+        // newline and reports a perfectly ordinary Host, while the newline stays in the string
+        // that gets written out.
+        return string.Equals(
+            url.Trim().TrimEnd('/'),
+            uri.AbsoluteUri.TrimEnd('/'),
+            StringComparison.Ordinal);
+    }
+
+    private static bool ContainsControlCharacter(string url)
+    {
+        foreach (var character in url)
+        {
+            if (char.IsControl(character) || char.IsWhiteSpace(character))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

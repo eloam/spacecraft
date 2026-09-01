@@ -32,4 +32,21 @@ public sealed class PipelineOptions
     /// <summary>Keep run workspaces on disk after completion. Debugging aid.</summary>
     public bool RetainWorkspaces { get; set; }
 
+    /// <summary>
+    /// Acknowledges that pipeline steps run unsandboxed, in the worker's own process.
+    /// </summary>
+    /// <remarks>
+    /// There is one <c>ICommandRunner</c> and it starts a child process on the host. The
+    /// isolation the design relies on is the job's — one execution per container, torn down
+    /// afterwards — which holds only while a job runs a single run. Draining a queue with
+    /// <c>MaxRunsPerInvocation</c> above one puts several tenants' work in one process,
+    /// sharing a filesystem and a network.
+    /// <para>
+    /// That may be an acceptable trade at this stage, but it should be a decision somebody
+    /// took rather than a default nobody read. Outside Development, startup refuses unless
+    /// this says yes.
+    /// </para>
+    /// </remarks>
+    public bool AllowUnsandboxedExecution { get; set; }
+
 }

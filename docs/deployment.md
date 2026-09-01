@@ -132,6 +132,12 @@ Email__Smtp__Password=…
 Email__Smtp__FromEmail=noreply@yourdomain
 Email__Smtp__FromName=SpaceCraft
 
+# Pipeline — steps run in the worker's own process, with no sandbox between a tenant's
+# build and the host. Startup refuses without this outside Development, so that it is a
+# decision written down rather than a default nobody read. Keep MaxRunsPerInvocation at 1:
+# the isolation being relied on is the job's, and it only holds for one run at a time.
+Pipeline__AllowUnsandboxedExecution=true
+
 # Pipeline — baked into the runner image, override only to change it
 Pipeline__Sandbox=PlatformIsolated
 # Where dependencies are resolved from. Publishing goes wherever each credential says.

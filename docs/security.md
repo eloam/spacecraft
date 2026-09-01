@@ -90,6 +90,26 @@ bucket URLs: a presigned URL is a bearer credential in a link, and it would requ
 bucket to be reachable from a browser. The bucket has no public surface and needs no CORS
 policy. All three reads require `Viewer`.
 
+### The pipeline is not sandboxed
+
+Steps run in the worker's own process, as child processes on the host. `NetworkPolicy` on a
+command records what a step is *meant* to reach and enforces nothing — the note on the enum
+says so. What actually holds:
+
+- `--ignore-scripts` on every npm invocation, so a generated package's dependencies do not
+  execute during install, build or publish.
+- The child environment is emptied and refilled with only what the step needs. It used to be
+  inherited whole, which put the Key Manager token — and therefore every organization's
+  registry credentials — in reach of anything npm ran.
+- Registry addresses must be identical to what they parse to. The address is written into the
+  `.npmrc` a publish reads, and npm expands `${VAR}` there, so a newline in an address was a
+  configuration line of the caller's choosing.
+
+The isolation being relied on is the job's: one execution per container, torn down afterwards.
+That holds only while a job runs a single run, which is why `Runner:MaxRunsPerInvocation` stays
+at 1 and why startup refuses to run unsandboxed outside Development without
+`Pipeline:AllowUnsandboxedExecution`.
+
 ## Auth
 
 - Access tokens are short-lived (15 min); refresh tokens rotate on every use.

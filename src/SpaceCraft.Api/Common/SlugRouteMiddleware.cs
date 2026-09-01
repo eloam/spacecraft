@@ -38,7 +38,14 @@ public sealed class SlugRouteMiddleware(RequestDelegate next, IMemoryCache cache
 
         var path = context.Request.Path.Value;
 
-        if (path is not null && path.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
+        // Only for a caller we know. Resolving a slug is a database read and a cache write
+        // keyed on what the caller wrote, and doing that for anonymous requests made this the
+        // cheapest denial of service in the application — reached before the rate limiter,
+        // which cannot protect what runs ahead of it. It also answered a stranger's question:
+        // whether a given organization exists.
+        if (path is not null
+            && path.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase)
+            && context.User.Identity?.IsAuthenticated == true)
         {
             var rewritten = await RewriteAsync(path, db, context.RequestAborted);
 
@@ -174,7 +181,14 @@ public sealed class SlugRouteMiddleware(RequestDelegate next, IMemoryCache cache
 
         // Negative results are cached too, briefly: a scan for likely slugs should not turn
         // into one database query per guess.
-        cache.Set(key, resolved, CacheLifetime);
+        //
+        // Sized, because the memory cache is bounded now: the key comes from the URL, so
+        // without a size an authenticated caller could still grow it without limit.
+        cache.Set(key, resolved, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = CacheLifetime,
+            Size = 1,
+        });
 
         return resolved;
     }

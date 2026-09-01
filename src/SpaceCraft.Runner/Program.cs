@@ -30,7 +30,9 @@ builder.Services.AddOptions<RunnerOptions>()
     .ValidateOnStart();
 
 builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
-builder.Services.AddSpaceCraftPipeline(builder.Configuration);
+builder.Services.AddSpaceCraftPipeline(
+    builder.Configuration,
+    builder.Environment.IsDevelopment());
 
 // The runner decrypts registry tokens, so it must resolve the same Data Protection key ring
 // as the API that encrypted them. Same application name, same persisted key store.

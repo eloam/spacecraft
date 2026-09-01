@@ -166,6 +166,12 @@ public static class AccountEndpoints
         // of the page they are standing on.
         await RevokeSessionsAsync(db, user.Id, except: principal.SessionId(), ct);
 
+        // And any reset link still outstanding, for the same reason and a sharper one. This is
+        // the action the product tells someone to take when they think their account is
+        // reachable by somebody else — and it left the one thing that grants a new password
+        // without knowing the old one still redeemable for up to an hour.
+        await InvalidateResetTokensAsync(db, user.Id, ct);
+
         return TypedResults.NoContent();
     }
 
@@ -317,6 +323,29 @@ public static class AccountEndpoints
             .Where(o => soleOwned.Contains(o.Id))
             .Select(o => new DeletionBlocker(o.Name, "You are its only owner."))
             .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Puts out every reset link this account still has outstanding.
+    /// </summary>
+    private static async Task InvalidateResetTokensAsync(
+        SpaceCraftDbContext db, Guid userId, CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        var outstanding = await db.PasswordResetTokens
+            .Where(t => t.UserId == userId && t.UsedAt == null && t.InvalidatedAt == null)
+            .ToListAsync(ct);
+
+        foreach (var token in outstanding)
+        {
+            token.Invalidate(now);
+        }
+
+        if (outstanding.Count > 0)
+        {
+            await db.SaveChangesAsync(ct);
+        }
     }
 
     private static async Task RevokeSessionsAsync(

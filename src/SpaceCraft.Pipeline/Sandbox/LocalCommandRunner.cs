@@ -38,6 +38,31 @@ public sealed class LocalCommandRunner(ILogger<LocalCommandRunner> logger) : ICo
             startInfo.ArgumentList.Add(argument);
         }
 
+        // Emptied first, then filled with what the step actually needs.
+        //
+        // A child inherited this process's entire environment, and in production that holds
+        // the platform's own secrets: the Key Manager token that unwraps the Data Protection
+        // ring — and therefore every organization's registry credentials — the object storage
+        // keys, and the database connection string. Every one of them was readable by npm, by
+        // the generator, and by anything either of them ran.
+        //
+        // --ignore-scripts was the whole of the defence. It is a good flag and it is one flag:
+        // a dependency whose install path executes anyway, a step that forgets it, or a tool
+        // that expands ${VAR} in a config file — which npm does, and which this code relies on
+        // for the publish token — reads the lot.
+        startInfo.Environment.Clear();
+
+        // What a process needs to be a process. PATH so the executable's own helpers resolve,
+        // HOME because npm and the generator both write there, and the locale so tools do not
+        // fall back to guessing an encoding.
+        foreach (var inherited in new[] { "PATH", "HOME", "LANG", "LC_ALL", "TMPDIR" })
+        {
+            if (Environment.GetEnvironmentVariable(inherited) is { Length: > 0 } value)
+            {
+                startInfo.Environment[inherited] = value;
+            }
+        }
+
         foreach (var (key, value) in request.Environment)
         {
             startInfo.Environment[key] = value;

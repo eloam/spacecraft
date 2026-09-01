@@ -37,10 +37,19 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
     {
         await _postgres.StartAsync();
 
-        // Touching Services forces the host to build, so the schema exists before the first
-        // request rather than on whichever test happens to run first.
-        using var scope = Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>().Database.MigrateAsync();
+        // Migrated through a context of its own, built before this factory's host exists.
+        //
+        // Reaching for Services here would build the host first, and the host does not sit
+        // still: Data Protection reads its key ring as soon as it is asked for one, from a
+        // table the migration has not created yet. Whether that read landed before or after
+        // this line was a race — it usually lost, and when it won a request failed with
+        // 42P01 on a table nothing in the test had mentioned.
+        var options = new DbContextOptionsBuilder<SpaceCraftDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString())
+            .Options;
+
+        await using var db = new SpaceCraftDbContext(options);
+        await db.Database.MigrateAsync();
     }
 
     public override async ValueTask DisposeAsync()
