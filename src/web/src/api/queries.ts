@@ -192,11 +192,18 @@ export function useMembers(orgId: string) {
 }
 
 /** Invitations that have been sent and not yet accepted, withdrawn or expired. */
-export function useInvitations(orgId: string) {
+/**
+ * The invitations still open.
+ *
+ * Listing them takes Admin — an outstanding invitation names an address, and who has been
+ * asked to join is not general knowledge inside an organization — so the caller says whether
+ * to ask at all rather than letting the page collect a 403 it would have to hide.
+ */
+export function useInvitations(orgId: string, enabled = true) {
   return useQuery({
     queryKey: ["invitations", orgId],
     queryFn: () => api.get<Invitation[]>(`/organizations/${orgId}/members/invitations`),
-    enabled: Boolean(orgId),
+    enabled: Boolean(orgId) && enabled,
   });
 }
 

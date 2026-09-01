@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, MoreHorizontal, Plus, UserMinus, Users } from "lucide-react";
+import { LogOut, MailX, MoreHorizontal, Plus, UserMinus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,11 +30,13 @@ import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { timeAgo } from "@/lib/format";
 import { ApiError } from "@/api/client";
 import {
-  keys, useChangeMemberRole, useInviteMember, useMembers, useRemoveMember,
+  keys, useChangeMemberRole, useInvitations, useInviteMember, useMembers, useRemoveMember,
+  useRevokeInvitation,
 } from "@/api/queries";
-import type { Member } from "@/api/queries";
+import type { Invitation, Member } from "@/api/queries";
 
 /** Mirrors SpaceCraft.Domain.Organizations.OrganizationRole. */
 const Role = { Viewer: 1, Member: 2, Admin: 3, Owner: 4 } as const;
@@ -66,6 +68,11 @@ export function MembersPage() {
   const members = useMembers(orgId);
   const changeRole = useChangeMemberRole(orgId);
   const remove = useRemoveMember(orgId);
+
+  // Only an admin may see who has been asked to join, so only an admin asks. Read from the
+  // list already on screen rather than fetched again: the row for you is in it.
+  const yours = members.data?.find((member) => member.isYou);
+  const invitations = useInvitations(orgId, (yours?.role ?? 0) >= Role.Admin);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [removing, setRemoving] = useState<Member | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -254,6 +261,13 @@ export function MembersPage() {
         )}
       </QueryBoundary>
 
+      {/* Below the members, and only when there are any: an organization with nothing
+          outstanding should not carry an empty box explaining what one would look like. They
+          are deliberately not rows in the table above — nobody here has joined anything. */}
+      {invitations.data && invitations.data.length > 0 && (
+        <PendingInvitations orgId={orgId} invitations={invitations.data} />
+      )}
+
       <InviteDialog orgId={orgId} open={inviteOpen} onOpenChange={setInviteOpen} />
 
       <ConfirmDeleteDialog
@@ -323,6 +337,91 @@ export function MembersPage() {
         }}
       />
     </div>
+  );
+}
+
+/**
+ * The invitations that have been sent and not yet used.
+ *
+ * They existed on the server from the day invitations did — listed and withdrawable through
+ * the API — and were shown nowhere, so an admin who mistyped an address could only wait the
+ * seven days out. What is on offer here is taking it back.
+ */
+function PendingInvitations({
+  orgId,
+  invitations,
+}: {
+  orgId: string;
+  invitations: Invitation[];
+}) {
+  const revoke = useRevokeInvitation(orgId);
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="font-heading text-lg font-medium tracking-tight">Pending invitations</h2>
+        <p className="text-sm text-muted-foreground">
+          Sent and not yet accepted. Withdrawing one puts its link out immediately.
+        </p>
+      </div>
+
+      <Card className="py-0">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Address</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead className="text-right">Expires</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invitations.map((invitation) => (
+                <TableRow key={invitation.id}>
+                  <TableCell>
+                    <span className="text-sm">{invitation.email}</span>
+                    <p className="text-xs text-muted-foreground">
+                      Sent {timeAgo(invitation.createdAt)}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{roleLabel[invitation.role]}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right text-sm text-muted-foreground">
+                    {new Date(invitation.expiresAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {/* No confirmation: nobody has joined anything, and re-inviting is the
+                        same two clicks that sent this one. */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Withdraw the invitation to ${invitation.email}`}
+                      disabled={revoke.isPending && revoke.variables === invitation.id}
+                      onClick={() =>
+                        revoke.mutate(invitation.id, {
+                          onSuccess: () => toast.success(`Invitation to ${invitation.email} withdrawn.`),
+                          onError: (error) =>
+                            toast.error(
+                              error instanceof ApiError
+                                ? error.detail
+                                : "Could not withdraw the invitation.",
+                            ),
+                        })
+                      }
+                    >
+                      <MailX className="size-4" aria-hidden />
+                      Withdraw
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
