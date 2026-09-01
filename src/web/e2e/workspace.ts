@@ -263,3 +263,18 @@ export async function createCredential(
   expect(response.ok(), `creating a credential: ${response.status()}`).toBeTruthy();
   return (await response.json()).id;
 }
+
+/** Puts a credential out of use without deleting it, the way the interface does. */
+export async function revokeCredential(
+  api: APIRequestContext,
+  account: Account,
+  organizationId: string,
+  credentialId: string,
+): Promise<void> {
+  const response = await api.delete(
+    `/api/v1/organizations/${organizationId}/credentials/${credentialId}`,
+    as(account),
+  );
+
+  expect(response.ok(), `revoking a credential: ${response.status()}`).toBeTruthy();
+}
