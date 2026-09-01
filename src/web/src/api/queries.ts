@@ -523,7 +523,35 @@ export function useNotifications() {
   return useQuery({
     queryKey: keys.notifications,
     queryFn: () => api.get<NotificationFeed>("/notifications"),
-    refetchInterval: 60_000,
+    // Half a minute. A minute was long enough that a run finishing while somebody watched
+    // the page looked like nothing had happened until they reloaded.
+    refetchInterval: 30_000,
+    // Both override the client-wide defaults, and this is the one query that earns it: its
+    // whole job is to be current. Coming back to the tab is exactly when somebody wants to
+    // know what they missed, and nothing here should ever be served as still-fresh.
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
+}
+
+export function useDeleteNotification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/notifications/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.notifications }),
+  });
+}
+
+/**
+ * Empties the list. Unread notifications survive unless `includeUnread` says otherwise —
+ * the API's default is the careful one, and the interface asks before overriding it.
+ */
+export function useClearNotifications() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (includeUnread: boolean) =>
+      api.delete<void>(`/notifications?includeUnread=${includeUnread}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.notifications }),
   });
 }
 

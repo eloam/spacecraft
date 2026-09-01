@@ -61,6 +61,15 @@ public static class NotificationEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Marks one notification as read.");
 
+        group.MapDelete("/{notificationId:guid}", DeleteAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Removes one notification from the caller's list.");
+
+        group.MapDelete("/", ClearAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .WithSummary("Removes the caller's read notifications, and the unread ones on request.");
+
         group.MapGet("/preferences", GetPreferencesAsync)
             .Produces<List<NotificationPreferenceState>>()
             .WithSummary("What the caller has chosen to receive, and on which channels.");
@@ -161,6 +170,59 @@ public static class NotificationEndpoints
                     .SetProperty(n => n.ReadAt, now)
                     .SetProperty(n => n.UpdatedAt, now),
                 ct);
+
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>
+    /// Throws one away.
+    /// </summary>
+    /// <remarks>
+    /// A real delete, and its deliveries go with it. If the email for this notification has
+    /// not been swept yet — at most a few seconds after it was raised — dismissing it stops
+    /// that too, which is the reading of "delete" somebody dismissing a notice expects. Once
+    /// the message has left, nothing here can call it back.
+    /// </remarks>
+    private static async Task<IResult> DeleteAsync(
+        Guid notificationId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        CancellationToken ct)
+    {
+        var userId = principal.Id();
+
+        // Scoped to the reader, not merely to the id: one person's list is not another's to
+        // tidy up.
+        var removed = await db.Notifications
+            .Where(n => n.Id == notificationId && n.UserId == userId)
+            .ExecuteDeleteAsync(ct);
+
+        return removed == 0 ? ApiResults.NotFound("The notification") : TypedResults.NoContent();
+    }
+
+    /// <summary>
+    /// Empties the list, sparing what has not been read unless told otherwise.
+    /// </summary>
+    /// <remarks>
+    /// The default is the careful one. Tidying up is the common intention and losing something
+    /// unread is the expensive mistake, so unread notifications survive a clear that does not
+    /// mention them — and the interface asks before it does.
+    /// <para>
+    /// Only what the list holds: rows that exist only to carry an outbound message were never
+    /// shown here and are left to the dispatcher.
+    /// </para>
+    /// </remarks>
+    private static async Task<IResult> ClearAsync(
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        CancellationToken ct,
+        [FromQuery] bool includeUnread = false)
+    {
+        var userId = principal.Id();
+
+        await db.Notifications
+            .Where(n => n.UserId == userId && n.ShowInApp && (includeUnread || n.ReadAt != null))
+            .ExecuteDeleteAsync(ct);
 
         return TypedResults.NoContent();
     }

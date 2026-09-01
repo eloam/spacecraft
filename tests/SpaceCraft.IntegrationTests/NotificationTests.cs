@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using SpaceCraft.Domain.Organizations;
@@ -142,6 +143,74 @@ public sealed class NotificationTests(SpaceCraftApi api)
         var reloaded = await PreferencesAsync(user);
         reloaded.Where(p => p.Channel == "Email").ShouldAllBe(p => !p.Enabled);
         reloaded.Where(p => p.Channel == "InApp").ShouldAllBe(p => p.Enabled);
+    }
+
+    [Fact]
+    public async Task One_can_be_thrown_away_and_only_by_the_person_it_was_for()
+    {
+        var owner = await api.SignedInAsync(Email());
+        var organizationId = await OrganizationAsync(owner);
+
+        var joinerEmail = Email();
+        var joiner = await api.SignedInAsync(joinerEmail);
+        await JoinByInvitationAsync(owner, joiner, organizationId, joinerEmail);
+
+        var notification = (await FeedAsync(owner)).Items.ShouldHaveSingleItem();
+        var uri = new Uri($"/api/v1/notifications/{notification.Id}", UriKind.Relative);
+
+        // Somebody else's list is not theirs to tidy up — and the refusal says nothing about
+        // whether that id exists.
+        var byAnother = await joiner.DeleteAsync(uri, TestContext.Current.CancellationToken);
+        byAnother.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        var deleted = await owner.DeleteAsync(uri, TestContext.Current.CancellationToken);
+        deleted.EnsureSuccessStatusCode();
+
+        var after = await FeedAsync(owner);
+        after.Items.ShouldBeEmpty();
+        after.UnreadCount.ShouldBe(0, "the count follows the list");
+    }
+
+    [Fact]
+    public async Task Clearing_spares_what_has_not_been_read_unless_it_is_asked_to()
+    {
+        var owner = await api.SignedInAsync(Email());
+        var organizationId = await OrganizationAsync(owner);
+
+        foreach (var _ in Enumerable.Range(0, 2))
+        {
+            var joinerEmail = Email();
+            var joiner = await api.SignedInAsync(joinerEmail);
+            await JoinByInvitationAsync(owner, joiner, organizationId, joinerEmail);
+        }
+
+        var before = await FeedAsync(owner);
+        before.Items.Count.ShouldBe(2);
+
+        var read = await owner.PostAsync(
+            new Uri($"/api/v1/notifications/{before.Items[0].Id}/read", UriKind.Relative),
+            content: null,
+            TestContext.Current.CancellationToken);
+
+        read.EnsureSuccessStatusCode();
+
+        // Tidying up is the common intention; losing something unread is the expensive
+        // mistake. Saying nothing about the unread ones keeps them.
+        var cleared = await owner.DeleteAsync(
+            new Uri("/api/v1/notifications", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        cleared.EnsureSuccessStatusCode();
+
+        var after = await FeedAsync(owner);
+        after.Items.ShouldHaveSingleItem().ReadAt.ShouldBeNull();
+        after.UnreadCount.ShouldBe(1);
+
+        var everything = await owner.DeleteAsync(
+            new Uri("/api/v1/notifications?includeUnread=true", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        everything.EnsureSuccessStatusCode();
+        (await FeedAsync(owner)).Items.ShouldBeEmpty();
     }
 
     [Fact]
