@@ -54,7 +54,7 @@ public static class WaitlistEndpoints
         signups.Enqueue(new WaitlistSignup(
             address,
             request.Source,
-            WaitlistTokens.HashIp(http.Connection.RemoteIpAddress?.ToString())));
+            MailedTokens.HashIp(http.Connection.RemoteIpAddress?.ToString())));
 
         return TypedResults.Ok(new WaitlistSignupResponse(
             "Check your inbox — we've sent you a confirmation link."));
@@ -70,7 +70,7 @@ public static class WaitlistEndpoints
             return ApiResults.Invalid(nameof(token), "A confirmation token is required.");
         }
 
-        var hash = WaitlistTokens.Hash(token);
+        var hash = MailedTokens.Hash(token);
         var entry = await db.WaitlistEntries.FirstOrDefaultAsync(w => w.ConfirmationTokenHash == hash, ct);
 
         if (entry is null)

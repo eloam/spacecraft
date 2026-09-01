@@ -90,6 +90,7 @@ public static class EmailServiceExtensions
         services.AddSingleton<IEmailSender, QueuedEmailSender>();
         services.AddHostedService<EmailDispatcher>();
         services.AddHostedService<PasswordResetDispatcher>();
+        services.AddHostedService<InvitationDispatcher>();
         services.AddHostedService<WaitlistDispatcher>();
 
         return services;

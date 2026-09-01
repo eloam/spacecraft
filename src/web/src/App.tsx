@@ -1,8 +1,9 @@
 // Route params named orgId/projectId carry the *slug*, not the id: /orgs/acme-corp
 // reads better than a GUID and is what people paste to each other. The API accepts
 // either form, so links minted before this change still resolve.
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth";
+import { useReturnPath, withReturnTo } from "@/lib/returnTo";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoginPage } from "@/routes/LoginPage";
 import { RegisterPage } from "@/routes/RegisterPage";
@@ -16,6 +17,7 @@ import { OrganizationSettingsPage } from "@/routes/OrganizationSettingsPage";
 import { ProjectSettingsPage } from "@/routes/ProjectSettingsPage";
 import { ForgotPasswordPage } from "@/routes/ForgotPasswordPage";
 import { ResetPasswordPage } from "@/routes/ResetPasswordPage";
+import { AcceptInvitationPage } from "@/routes/AcceptInvitationPage";
 import { OrganizationsPage } from "@/routes/OrganizationsPage";
 import { ProjectsPage } from "@/routes/ProjectsPage";
 import { ProjectLayout } from "@/routes/project/ProjectLayout";
@@ -28,7 +30,21 @@ import type { ReactNode } from "react";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const accessToken = useAuthStore((s) => s.accessToken);
-  return accessToken ? <>{children}</> : <Navigate to="/login" replace />;
+  const location = useLocation();
+  // Where they were going rides along to the sign-in page, so following a link into the
+  // application while signed out costs a sign-in, not the link.
+  return accessToken ? <>{children}</> : <Navigate to={withReturnTo("/login", location)} replace />;
+}
+
+/**
+ * Signed in — which for these two routes covers both arriving with a session and gaining one
+ * a moment ago, since signing in only changes the store and lets the router re-render.
+ *
+ * Sending everyone to the dashboard is what dropped an invitation on the floor: the link was
+ * opened, sign-in was offered, it worked, and the token in the URL was never seen again.
+ */
+function ContinueOn() {
+  return <Navigate to={useReturnPath()} replace />;
 }
 
 export default function App() {
@@ -36,12 +52,15 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={accessToken ? <Navigate to="/" replace /> : <LoginPage />} />
-      <Route path="/register" element={accessToken ? <Navigate to="/" replace /> : <RegisterPage />} />
+      <Route path="/login" element={accessToken ? <ContinueOn /> : <LoginPage />} />
+      <Route path="/register" element={accessToken ? <ContinueOn /> : <RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       {/* Reachable while signed in too: a reset link is often opened on a device that
           still has a session, and bouncing to the dashboard would strand the user. */}
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      {/* Outside the authenticated shell: the link arrives in a mailbox, and whoever opens it
+          may not be signed in — or may not have an account yet. The page handles both. */}
+      <Route path="/invitations/accept" element={<AcceptInvitationPage />} />
 
       <Route
         element={

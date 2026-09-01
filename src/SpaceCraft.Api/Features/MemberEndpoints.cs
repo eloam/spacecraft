@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+using SpaceCraft.Api.Email;
+using SpaceCraft.Api.Auth;
 namespace SpaceCraft.Api.Features;
 
 public sealed record MemberResponse(
@@ -18,6 +20,16 @@ public sealed record MemberResponse(
     DateTimeOffset JoinedAt);
 
 public sealed record AddMemberRequest(string Email, OrganizationRole Role);
+
+/// <summary>What an outstanding invitation looks like to the admin who sent it.</summary>
+public sealed record InvitationResponse(
+    Guid Id,
+    string Email,
+    OrganizationRole Role,
+    DateTimeOffset ExpiresAt,
+    DateTimeOffset CreatedAt);
+
+public sealed record AcceptInvitationRequest(string Token);
 
 public sealed record ChangeRoleRequest(OrganizationRole Role);
 
@@ -34,11 +46,31 @@ public static class MemberEndpoints
             .Produces<List<MemberResponse>>()
             .WithSummary("Lists the people in this organization.");
 
-        group.MapPost("/", AddAsync)
-            .Produces<MemberResponse>(StatusCodes.Status201Created)
+        group.MapPost("/", InviteAsync)
+            .Produces<InvitationResponse>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .WithSummary("Adds an existing SpaceCraft account to this organization.");
+            .WithSummary("Invites an address to this organization. Membership starts when the invitation is accepted.");
+
+        group.MapGet("/invitations", ListInvitationsAsync)
+            .Produces<List<InvitationResponse>>()
+            .WithSummary("Lists invitations that are still open.");
+
+        // Outside the organization group on purpose: whoever holds the invitation knows a
+        // token and nothing else — not which organization it is for, which is precisely what
+        // the token is there to establish.
+        api.MapPost("/invitations/accept", AcceptAsync)
+            .WithTags("Members")
+            .RequireAuthorization()
+            .Produces<MemberResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Joins the organization an invitation was sent for.");
+
+        group.MapDelete("/invitations/{invitationId:guid}", RevokeInvitationAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Withdraws an invitation that has not been accepted.");
 
         group.MapPatch("/{userId:guid}", ChangeRoleAsync)
             .Produces<MemberResponse>()
@@ -71,13 +103,29 @@ public static class MemberEndpoints
         return TypedResults.Ok(members);
     }
 
-    private static async Task<IResult> AddAsync(
+    /// <summary>
+    /// Sends an invitation to an address. Nobody joins until it is accepted.
+    /// </summary>
+    /// <remarks>
+    /// This used to resolve the address to whatever account already used it and add that
+    /// account on the spot. Nothing in this system proves an address belongs to the account
+    /// holding it — <c>EmailConfirmed</c> is written by a migration and read by nobody — so
+    /// registering a colleague's work address was enough to be handed their organization the
+    /// day an admin invited them. The proof now lives where it belongs: a token goes to the
+    /// mailbox, and only someone who can read that mailbox can accept.
+    /// <para>
+    /// The invitation is also written for an address with no account at all, which the old
+    /// endpoint refused. Being invited is a reason to sign up, and refusing was an account
+    /// oracle offered to every admin.
+    /// </para>
+    /// </remarks>
+    private static async Task<IResult> InviteAsync(
         Guid organizationId,
         [FromBody] AddMemberRequest request,
         ClaimsPrincipal principal,
-        UserManager<SpaceCraftUser> userManager,
         SpaceCraftDbContext db,
         IOrganizationAccess access,
+        BackgroundWorkQueue<InvitationRequest> invitations,
         CancellationToken ct)
     {
         var caller = principal.Id();
@@ -89,44 +137,207 @@ public static class MemberEndpoints
             return denied;
         }
 
+        var address = (request.Email ?? string.Empty).Trim().ToLowerInvariant();
+
+        if (address.Length == 0 || !address.Contains('@', StringComparison.Ordinal))
+        {
+            return ApiResults.Invalid(nameof(request.Email), "Enter a valid email address.");
+        }
+
+        if (!Enum.IsDefined(request.Role))
+        {
+            // An undefined value compares above every real role, so it would create a member
+            // nobody could demote.
+            return ApiResults.Invalid(nameof(request.Role), $"'{request.Role}' is not a role.");
+        }
+
+        // Nobody grants a role they do not hold — the same cap the role-change endpoint
+        // applies, checked here because the domain knows roles but not who is asking.
+        var callerRole = await access.GetRoleAsync(organizationId, caller, ct);
+
+        if (callerRole is not { } held || request.Role > held)
+        {
+            return ApiResults.Problem(
+                "Forbidden",
+                $"Granting the {request.Role} role takes that role or higher.",
+                StatusCodes.Status403Forbidden);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+
+        // Superseded rather than stacked: an older link in an old email stops working the
+        // moment a newer invitation is sent, the same rule password resets follow.
+        var outstanding = await db.OrganizationInvitations
+            .Where(i => i.OrganizationId == organizationId
+                        && i.Email == address
+                        && i.AcceptedAt == null
+                        && i.RevokedAt == null)
+            .ToListAsync(ct);
+
+        foreach (var previous in outstanding)
+        {
+            previous.Revoke(now);
+        }
+
+        var raw = MailedTokens.Generate();
+        var invitation = new OrganizationInvitation(
+            organizationId,
+            address,
+            request.Role,
+            caller,
+            MailedTokens.Hash(raw),
+            now.Add(InvitationDispatcher.Lifetime));
+
+        db.OrganizationInvitations.Add(invitation);
+        await db.SaveChangesAsync(ct);
+
+        // Written first, sent after: the admin must see the invitation in the listing whether
+        // or not a mail relay is having a bad afternoon, and a relay outage must not lose it.
+        invitations.Enqueue(new InvitationRequest(invitation.Id, raw));
+
+        return TypedResults.Accepted(
+            $"/api/v1/organizations/{organizationId}/members/invitations/{invitation.Id}",
+            ToResponse(invitation));
+    }
+
+    /// <summary>
+    /// Joins the organization the token was issued for.
+    /// </summary>
+    /// <remarks>
+    /// The token is the whole proof, and it proves the one thing that was missing: whoever
+    /// presents it could read the mailbox the invitation was sent to. Deliberately not checked
+    /// against the signed-in account's own address — that address has never been verified
+    /// either, so matching it would be checking one unproven claim against another. Forwarding
+    /// an invitation to a colleague is also a thing people do, and the organization's admin can
+    /// see who accepted.
+    /// </remarks>
+    private static async Task<IResult> AcceptAsync(
+        [FromBody] AcceptInvitationRequest request,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token))
+        {
+            return ApiResults.Invalid(nameof(request.Token), "An invitation token is required.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var hash = MailedTokens.Hash(request.Token);
+
+        // Looked up by hash, so the comparison is an index seek rather than a string compare
+        // whose timing could be measured.
+        var invitation = await db.OrganizationInvitations.FirstOrDefaultAsync(i => i.TokenHash == hash, ct);
+
+        // One answer for a token that never existed, one that was spent, one that was
+        // withdrawn and one that lapsed. Telling them apart would say something about an
+        // organization to somebody who has no standing in it.
+        if (invitation is null || !invitation.IsRedeemable(now))
+        {
+            return ApiResults.NotFound("A usable invitation");
+        }
+
         var organization = await db.Organizations
             .Include(o => o.Members)
-            .FirstOrDefaultAsync(o => o.Id == organizationId, ct);
+            .FirstOrDefaultAsync(o => o.Id == invitation.OrganizationId, ct);
 
         if (organization is null)
         {
-            return ApiResults.NotFoundOrForbidden();
+            // The organization went away while the invitation sat in a mailbox.
+            invitation.Revoke(now);
+            await db.SaveChangesAsync(ct);
+
+            return ApiResults.NotFound("A usable invitation");
         }
 
-        var invitee = await userManager.FindByEmailAsync((request.Email ?? string.Empty).Trim());
+        var userId = principal.Id();
 
-        if (invitee is null)
+        if (organization.Members.Any(m => m.UserId == userId))
         {
-            // Says plainly that the address has no account. This is not the account oracle
-            // the auth endpoints guard against: the caller is already an admin here, and
-            // "invite failed for a reason we won't name" is unusable.
-            return ApiResults.Invalid(
-                nameof(request.Email),
-                "No SpaceCraft account uses that address. They need to sign up first.");
+            // Spending the invitation anyway, so a second copy of the email cannot be held
+            // in reserve against a later change of role.
+            invitation.Accept(userId, now);
+            await db.SaveChangesAsync(ct);
+
+            return ApiResults.Conflict("You are already a member of this organization.");
         }
 
         try
         {
-            organization.AddMember(invitee.Id, request.Role);
+            organization.AddMember(userId, invitation.Role);
         }
         catch (InvalidOperationException ex)
         {
             return ApiResults.Conflict(ex.Message);
         }
 
+        invitation.Accept(userId, now);
         await db.SaveChangesAsync(ct);
 
-        var members = await LoadAsync(db, organizationId, caller, ct);
-        var added = members.First(m => m.UserId == invitee.Id);
-
-        return TypedResults.Created(
-            $"/api/v1/organizations/{organizationId}/members/{invitee.Id}", added);
+        var members = await LoadAsync(db, invitation.OrganizationId, userId, ct);
+        return TypedResults.Ok(members.First(m => m.UserId == userId));
     }
+
+
+    private static async Task<IResult> ListInvitationsAsync(
+        Guid organizationId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        CancellationToken ct)
+    {
+        // Admin, like sending one: an outstanding invitation names an address, and who has
+        // been asked to join is not general knowledge inside an organization.
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
+        {
+            return denied;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+
+        var open = await db.OrganizationInvitations
+            .AsNoTracking()
+            .Where(i => i.OrganizationId == organizationId
+                        && i.AcceptedAt == null
+                        && i.RevokedAt == null
+                        && i.ExpiresAt > now)
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync(ct);
+
+        return TypedResults.Ok(open.Select(ToResponse).ToList());
+    }
+
+    private static async Task<IResult> RevokeInvitationAsync(
+        Guid organizationId,
+        Guid invitationId,
+        ClaimsPrincipal principal,
+        SpaceCraftDbContext db,
+        IOrganizationAccess access,
+        CancellationToken ct)
+    {
+        if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)
+        {
+            return denied;
+        }
+
+        // Scoped to the organization that was authorised, not merely to the id: an invitation
+        // id is a guid somebody could have been told.
+        var invitation = await db.OrganizationInvitations
+            .FirstOrDefaultAsync(i => i.Id == invitationId && i.OrganizationId == organizationId, ct);
+
+        if (invitation is null)
+        {
+            return ApiResults.NotFound("The invitation");
+        }
+
+        invitation.Revoke(DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync(ct);
+
+        return TypedResults.NoContent();
+    }
+
+    private static InvitationResponse ToResponse(OrganizationInvitation invitation) =>
+        new(invitation.Id, invitation.Email, invitation.Role, invitation.ExpiresAt, invitation.CreatedAt);
 
     private static async Task<IResult> ChangeRoleAsync(
         Guid organizationId,
@@ -227,6 +438,23 @@ public static class MemberEndpoints
         if (organization is null)
         {
             return ApiResults.NotFoundOrForbidden();
+        }
+
+        // Nobody removes a member who outranks them. Without this an Admin evicted the Owner
+        // and became the senior member of an organization they were merely invited into —
+        // the same escalation as granting oneself Owner, reached by subtraction.
+        if (caller != userId)
+        {
+            var callerRole = await access.GetRoleAsync(organizationId, caller, ct);
+            var target = organization.Members.FirstOrDefault(m => m.UserId == userId);
+
+            if (target is not null && (callerRole is not { } held || target.Role > held))
+            {
+                return ApiResults.Problem(
+                    "Forbidden",
+                    $"Removing an {target.Role} takes that role or higher.",
+                    StatusCodes.Status403Forbidden);
+            }
         }
 
         try

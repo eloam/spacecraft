@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { AuthCard } from "@/components/AuthCard";
 import { useRegister } from "@/api/queries";
+import { useReturnQuery } from "@/lib/returnTo";
 import { ApiError } from "@/api/client";
 
 const schema = z.object({
@@ -20,6 +21,7 @@ type FormValues = z.infer<typeof schema>;
 
 export function RegisterPage() {
   const register = useRegister();
+  const returnQuery = useReturnQuery();
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { displayName: "", email: "", password: "" },
@@ -42,7 +44,10 @@ export function RegisterPage() {
       footer={
         <>
           Already registered?{" "}
-          <Link to="/login" className="font-medium text-foreground underline underline-offset-4">
+          <Link
+            to={`/login${returnQuery}`}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
             Sign in
           </Link>
         </>

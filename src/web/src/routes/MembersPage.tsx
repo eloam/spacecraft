@@ -31,7 +31,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { ApiError } from "@/api/client";
 import {
-  keys, useAddMember, useChangeMemberRole, useMembers, useRemoveMember,
+  keys, useChangeMemberRole, useInviteMember, useMembers, useRemoveMember,
 } from "@/api/queries";
 import type { Member } from "@/api/queries";
 
@@ -79,7 +79,7 @@ export function MembersPage() {
         </div>
         <Button onClick={() => setInviteOpen(true)}>
           <Plus className="size-4" aria-hidden />
-          Add member
+          Invite someone
         </Button>
       </div>
 
@@ -247,7 +247,7 @@ export function MembersPage() {
           <EmptyState
             icon={<Users aria-hidden />}
             title="No members yet"
-            description="Add someone with a SpaceCraft account to work on these projects together."
+            description="Invite an address. They join when they open the link, so the invitation reaches the person rather than whoever registered that address."
           />
         )}
       </QueryBoundary>
@@ -333,7 +333,7 @@ function InviteDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const add = useAddMember(orgId);
+  const invite = useInviteMember(orgId);
   const form = useForm<z.input<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", role: Role.Member },
@@ -342,20 +342,22 @@ function InviteDialog({
   const selectedRole = Number(form.watch("role"));
 
   const onSubmit = form.handleSubmit((values) =>
-    add.mutate(
+    invite.mutate(
       { email: values.email, role: Number(values.role) },
       {
         onSuccess: () => {
-          toast.success("Member added.");
+          // Sent, not added. Saying "member added" would describe something that has not
+          // happened: the invitation is an offer, and the address has to answer it.
+          toast.success(`Invitation sent to ${values.email}.`);
           form.reset();
           onOpenChange(false);
         },
-        onError: (error) => {
+        onError: (error: unknown) => {
           if (error instanceof ApiError && error.errors?.Email) {
             form.setError("email", { message: error.errors.Email.join(" ") });
             return;
           }
-          toast.error(error instanceof ApiError ? error.detail : "Could not add the member.");
+          toast.error(error instanceof ApiError ? error.detail : "Could not send the invitation.");
         },
       },
     ),
@@ -366,11 +368,14 @@ function InviteDialog({
       <DialogContent>
         <form onSubmit={onSubmit} noValidate>
           <DialogHeader>
-            <DialogTitle>Add a member</DialogTitle>
+            <DialogTitle>Invite someone</DialogTitle>
             <DialogDescription>
-              {/* There is no invitation flow yet: the person must already have an account,
-                  and saying so upfront avoids a dead end after the form is filled in. */}
-              They need a SpaceCraft account already — adding them takes effect immediately.
+              {/* The comment this replaces said there was no invitation flow yet, and that
+                  the person had to have an account already. Both are now false, and the
+                  second was the security problem: an address nobody had verified decided who
+                  got the membership. */}
+              A link goes to this address. They join when they open it, whether or not they
+              have an account yet — and nothing changes until they do.
             </DialogDescription>
           </DialogHeader>
 
@@ -417,8 +422,8 @@ function InviteDialog({
 
           <DialogFooter>
             <DialogClose render={<Button variant="outline" type="button">Cancel</Button>} />
-            <Button type="submit" disabled={add.isPending}>
-              {add.isPending ? "Adding…" : "Add member"}
+            <Button type="submit" disabled={invite.isPending}>
+              {invite.isPending ? "Sending…" : "Send invitation"}
             </Button>
           </DialogFooter>
         </form>

@@ -1,11 +1,15 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Common;
+using SpaceCraft.Api.Email;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -77,7 +81,80 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
         // asserts. Raised rather than removed, so a runaway loop still stops.
         builder.UseSetting("RateLimits:CredentialPermitsPerWindow", "10000");
         builder.UseSetting("RateLimits:GlobalPermitsPerMinute", "100000");
+
+        builder.ConfigureTestServices(services =>
+        {
+            // Replaces the development transport that writes to the log, so a test can read
+            // what was sent rather than grep for it.
+            services.RemoveAll<IEmailTransport>();
+            services.AddSingleton<IEmailTransport>(new CapturingTransport(Mailbox));
+        });
     }
+
+    /// <summary>
+    /// Every message the application tried to send, in order.
+    /// </summary>
+    /// <remarks>
+    /// The invitation flow puts its whole grant in an email and stores only a hash, which is
+    /// the point of it — so the only way to test acceptance the way a recipient experiences it
+    /// is to read the mailbox. This is that mailbox.
+    /// </remarks>
+    public sealed class Outbox
+    {
+        private readonly List<EmailMessage> _sent = [];
+
+        public IReadOnlyList<EmailMessage> Sent
+        {
+            get { lock (_sent) { return [.. _sent]; } }
+        }
+
+        public void Add(EmailMessage message)
+        {
+            lock (_sent) { _sent.Add(message); }
+        }
+
+        /// <summary>
+        /// Waits for the nth message of a kind to an address, since sending happens off the
+        /// request thread.
+        /// </summary>
+        /// <remarks>
+        /// Matched on the subject as well as the address, because registering already sends a
+        /// welcome to the same mailbox — waiting on the address alone hands back whichever
+        /// message happens to be there.
+        /// </remarks>
+        public async Task<EmailMessage> WaitForAsync(
+            string to, string subjectContains, CancellationToken ct, int ordinal = 1)
+        {
+            for (var attempt = 0; attempt < 200; attempt++)
+            {
+                var matching = Sent
+                    .Where(m => string.Equals(m.To, to, StringComparison.OrdinalIgnoreCase)
+                                && m.Subject.Contains(subjectContains, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (matching.Count >= ordinal)
+                {
+                    return matching[ordinal - 1];
+                }
+
+                await Task.Delay(50, ct);
+            }
+
+            throw new InvalidOperationException(
+                $"Message {ordinal} matching '{subjectContains}' was never sent to {to}.");
+        }
+    }
+
+    private sealed class CapturingTransport(Outbox outbox) : IEmailTransport
+    {
+        public Task SendAsync(EmailMessage message, CancellationToken ct = default)
+        {
+            outbox.Add(message);
+            return Task.CompletedTask;
+        }
+    }
+
+    public Outbox Mailbox { get; } = new();
 
     /// <summary>A client already signed in as a brand-new account.</summary>
     public async Task<HttpClient> SignedInAsync(string email)

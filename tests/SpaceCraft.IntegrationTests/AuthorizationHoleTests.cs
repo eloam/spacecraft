@@ -84,6 +84,67 @@ public sealed class AuthorizationHoleTests(SpaceCraftApi api)
         role.ShouldBe(OrganizationRole.Admin);
     }
 
+    [Fact]
+    public async Task An_admin_cannot_add_a_member_above_their_own_role()
+    {
+        // The same escalation as promoting oneself, reached through a different endpoint —
+        // which is exactly how the first fix was incomplete.
+        var owner = await api.SignedInAsync(Email());
+        var (organizationId, _) = await ProjectAsync(owner);
+
+        var adminEmail = Email();
+        var admin = await api.SignedInAsync(adminEmail);
+        await JoinAsync(organizationId, adminEmail, OrganizationRole.Admin);
+
+        var accompliceEmail = Email();
+        await api.SignedInAsync(accompliceEmail);
+
+        var added = await admin.PostAsJsonAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/members", UriKind.Relative),
+            new { email = accompliceEmail, role = (int)OrganizationRole.Owner },
+            TestContext.Current.CancellationToken);
+
+        added.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task An_admin_cannot_evict_the_owner()
+    {
+        // Escalation by subtraction: leave the roles alone and remove whoever outranks you.
+        var ownerEmail = Email();
+        var owner = await api.SignedInAsync(ownerEmail);
+        var (organizationId, _) = await ProjectAsync(owner);
+
+        var adminEmail = Email();
+        var admin = await api.SignedInAsync(adminEmail);
+        await JoinAsync(organizationId, adminEmail, OrganizationRole.Admin);
+
+        var removed = await admin.DeleteAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/members/{await UserIdAsync(ownerEmail)}", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        removed.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task A_role_outside_the_model_is_refused()
+    {
+        // An undefined value compares above every real role, so it would have created a
+        // member nobody could demote afterwards.
+        var owner = await api.SignedInAsync(Email());
+        var (organizationId, _) = await ProjectAsync(owner);
+
+        var strangerEmail = Email();
+        await api.SignedInAsync(strangerEmail);
+
+        var added = await owner.PostAsJsonAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/members", UriKind.Relative),
+            new { email = strangerEmail, role = 99 },
+            TestContext.Current.CancellationToken);
+
+        added.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
     private static string Email() => $"{Guid.NewGuid():N}@example.test";
 
     private async Task<Guid> UserIdAsync(string email)

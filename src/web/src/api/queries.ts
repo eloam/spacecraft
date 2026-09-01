@@ -84,6 +84,15 @@ export type Member = {
   joinedAt: string;
 };
 
+/** An invitation that has been sent and not yet accepted, withdrawn or expired. */
+export type Invitation = {
+  id: string;
+  email: string;
+  role: number;
+  expiresAt: string;
+  createdAt: string;
+};
+
 export function usePublications(orgId: string, projectId?: string) {
   return useQuery({
     queryKey: ["publications", orgId, projectId ?? "all"],
@@ -178,12 +187,45 @@ export function useMembers(orgId: string) {
   });
 }
 
-export function useAddMember(orgId: string) {
+/** Invitations that have been sent and not yet accepted, withdrawn or expired. */
+export function useInvitations(orgId: string) {
+  return useQuery({
+    queryKey: ["invitations", orgId],
+    queryFn: () => api.get<Invitation[]>(`/organizations/${orgId}/members/invitations`),
+    enabled: Boolean(orgId),
+  });
+}
+
+/**
+ * Invites an address. Nobody joins until the link in the email is opened.
+ *
+ * Named for what it does now: this used to add whatever account already used the address,
+ * which nothing had ever verified belonged to the person being invited.
+ */
+export function useInviteMember(orgId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { email: string; role: number }) =>
-      api.post<Member>(`/organizations/${orgId}/members`, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["members", orgId] }),
+      api.post<Invitation>(`/organizations/${orgId}/members`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invitations", orgId] }),
+  });
+}
+
+export function useRevokeInvitation(orgId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invitationId: string) =>
+      api.delete<void>(`/organizations/${orgId}/members/invitations/${invitationId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invitations", orgId] }),
+  });
+}
+
+/** Joins whichever organization the token was issued for; the caller does not name one. */
+export function useAcceptInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => api.post<Member>("/invitations/accept", { token }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.organizations }),
   });
 }
 
