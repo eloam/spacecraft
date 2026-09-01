@@ -10,3 +10,4 @@
 export const API_URL = process.env.E2E_API_URL ?? "http://127.0.0.1:58080";
 export const WEB_URL = process.env.E2E_WEB_URL ?? "http://localhost:4173";
 export const MAILPIT_URL = process.env.E2E_MAILPIT_URL ?? "http://127.0.0.1:58025";
+export const REGISTRY_URL = process.env.E2E_REGISTRY_URL ?? "http://127.0.0.1:54873";

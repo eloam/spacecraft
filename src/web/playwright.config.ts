@@ -45,6 +45,9 @@ export default defineConfig({
     baseURL: WEB_URL,
     // Kept only where it earns its size: a trace of the attempt that failed, and of nothing
     // that passed.
+    // Bounded, so a locator that names nothing fails saying so rather than quietly eating
+    // the test's whole budget and reporting whatever else was still pending.
+    actionTimeout: 20_000,
     trace: "on-first-retry",
     video: "retain-on-failure",
     screenshot: "only-on-failure",

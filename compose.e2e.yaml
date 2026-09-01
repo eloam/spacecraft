@@ -9,10 +9,8 @@
 #   npm --prefix src/web run test:e2e
 #   docker compose -f compose.e2e.yaml down -v
 #
-# What is missing is deliberate. No Verdaccio: the run these tests queue fails at validation,
-# which is the point — it exercises the whole path from the browser to the runner and back
-# without an npm install in the middle. No key manager: Development permits an unwrapped key
-# ring, and wrapping has tests of its own.
+# What is missing is deliberate. No key manager: Development permits an unwrapped key ring,
+# and wrapping has tests of its own.
 name: spacecraft-e2e
 
 services:
@@ -60,6 +58,27 @@ services:
       mc alias set local http://minio:9000 spacecraft spacecraft-e2e-secret &&
       mc mb --ignore-existing local/openapi-bucket
       "
+
+  # Where a generated SDK resolves its dependencies. It proxies npmjs and caches, so the first
+  # campaign on a cold volume reaches the network and the ones after it do not — which is what
+  # makes a real generate-and-build affordable in a test at all.
+  verdaccio:
+    image: verdaccio/verdaccio:6
+    ports:
+      - "54873:4873"
+    volumes:
+      # The one thing here worth keeping between campaigns. It is a package cache, not test
+      # data: a cold one costs minutes of npm resolving against the network, and `down -v`
+      # clears it like everything else.
+      - verdaccio-cache:/verdaccio/storage
+      - ./infra/verdaccio/config.yaml:/verdaccio/conf/config.yaml:ro
+    healthcheck:
+      # 127.0.0.1, not localhost: verdaccio binds IPv4 only, and the image resolves localhost
+      # to ::1 first, which makes the probe fail against a healthy server.
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:4873/-/ping || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   mailpit:
     image: axllent/mailpit:latest
@@ -139,6 +158,9 @@ services:
       # Many, unlike the development stack, where one per container is the isolation being
       # relied on. Here the runs are a test's, not a tenant's, and a process that stays alive
       # across them is a process that is not being started again every few seconds.
+      # Where a generated client's runtime packages come from. Not where anything is
+      # published: that travels with the credential.
+      Pipeline__DependencyRegistry: "http://verdaccio:4873"
       Runner__MaxRunsPerInvocation: "25"
       # One wait on an empty queue, then one more look, then exit — not a window it polls.
       # So this is both the worst case a test waits for a run to be claimed and how often the
@@ -153,3 +175,8 @@ services:
         condition: service_healthy
       api:
         condition: service_started
+      verdaccio:
+        condition: service_healthy
+
+volumes:
+  verdaccio-cache:

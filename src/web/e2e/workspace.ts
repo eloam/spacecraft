@@ -36,6 +36,47 @@ export async function createProject(
   return response.json();
 }
 
+/** A document nothing objects to, and that an SDK can be generated and built from. */
+export const PUBLISHABLE = `openapi: 3.0.3
+info:
+  title: Ledger API
+  version: 2.0.0
+  description: Ledgers and the entries in them.
+  license:
+    name: MIT
+servers:
+  - url: https://api.example.test
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Ledger:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+security:
+  - bearerAuth: []
+paths:
+  /ledgers:
+    get:
+      operationId: listLedgers
+      summary: List every ledger.
+      responses:
+        '200':
+          description: The ledgers.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ledger'
+`;
+
 /**
  * A document npm cannot express a version for.
  *
@@ -92,10 +133,14 @@ export async function createTarget(
   organizationId: string,
   projectId: string,
   packageName = "ledger-sdk",
+  registryCredentialId?: string,
 ): Promise<string> {
   const response = await api.post(
     `/api/v1/organizations/${organizationId}/projects/${projectId}/targets`,
-    { data: { language: 1, packageName, autoPublish: false }, ...as(account) },
+    {
+      data: { language: 1, packageName, autoPublish: false, registryCredentialId },
+      ...as(account),
+    },
   );
 
   expect(response.ok(), `creating a target: ${response.status()}`).toBeTruthy();
@@ -108,9 +153,10 @@ export async function queueRun(
   organizationId: string,
   specVersionId: string,
   sdkTargetId: string,
+  publish = false,
 ): Promise<string> {
   const response = await api.post(`/api/v1/organizations/${organizationId}/runs`, {
-    data: { specVersionId, sdkTargetId, publish: false },
+    data: { specVersionId, sdkTargetId, publish },
     ...as(account),
   });
 
@@ -135,8 +181,9 @@ export async function waitForRunToFinish(
   account: Account,
   organizationId: string,
   runId: string,
+  attempts = 120,
 ): Promise<string> {
-  for (let attempt = 0; attempt < 120; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     const response = await api.get(
       `/api/v1/organizations/${organizationId}/runs/${runId}`,
       as(account),
@@ -186,4 +233,33 @@ export async function joinByInvitation(
 
   expect(accepted.ok(), `accepting an invitation: ${accepted.status()}`).toBeTruthy();
   return account;
+}
+
+/**
+ * A token for the registry in the stack next door.
+ *
+ * Verdaccio publishes anonymously here, so the value is arbitrary — what matters is that a
+ * credential exists, that it is encrypted on the way in, and that the runner can read it back
+ * on the other side of the database.
+ */
+export async function createCredential(
+  api: APIRequestContext,
+  account: Account,
+  organizationId: string,
+  registryUrl = "http://verdaccio:4873",
+): Promise<string> {
+  const response = await api.post(`/api/v1/organizations/${organizationId}/credentials`, {
+    data: {
+      registry: 1,
+      label: "Verdaccio",
+      token: `e2e-${crypto.randomUUID()}`,
+      username: null,
+      expiresAt: null,
+      registryUrl,
+    },
+    ...as(account),
+  });
+
+  expect(response.ok(), `creating a credential: ${response.status()}`).toBeTruthy();
+  return (await response.json()).id;
 }

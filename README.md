@@ -227,7 +227,17 @@ database you are working in:
 ```bash
 docker compose -f compose.e2e.yaml up -d --wait
 npm run test:e2e --prefix src/web
-docker compose -f compose.e2e.yaml down -v
+docker compose -f compose.e2e.yaml down
+```
+
+Two of the fourteen build a real SDK — one downloads it, the other publishes it to the
+Verdaccio in the stack and asks the registry whether it arrived — so the first campaign
+against an empty Verdaccio spends minutes resolving packages from npmjs and the ones after it
+spend seconds.
+`down` keeps that cache; `down -v` clears it along with everything else. To skip that test:
+
+```bash
+npx playwright test --grep-invert @slow
 ```
 
 ## Before this goes to production
