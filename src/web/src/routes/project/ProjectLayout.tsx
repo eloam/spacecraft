@@ -28,7 +28,9 @@ export function ProjectLayout() {
   const base = `/orgs/${orgSlug}/projects/${projectSlug}`;
   const linkClass = "font-medium text-foreground underline underline-offset-4";
 
-  const loading = project.isLoading || specs.isLoading;
+  // Unresolved is not the same as absent: until the project list has arrived, projectId is
+  // empty, its queries are disabled, and an action fired now would name no project at all.
+  const loading = !projectId || project.isLoading || specs.isLoading;
   const hasTarget = (project.data?.targets.length ?? 0) > 0;
   const hasUsableSpec =
     specs.data?.items.some((s) => s.validationStatus !== SpecValidationStatus.Invalid) ?? false;

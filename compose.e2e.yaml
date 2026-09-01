@@ -1,0 +1,155 @@
+# The stack the end-to-end tests run against.
+#
+# Separate from compose.development.yaml on purpose, and not a profile of it: these tests create accounts,
+# organizations and runs, and doing that in the database somebody is working in is how a suite
+# stops being run. Its own project name, its own ports, and no named volumes — `down` leaves
+# nothing behind, so every campaign starts from an empty application.
+#
+#   docker compose -f compose.e2e.yaml up -d --wait
+#   npm --prefix src/web run test:e2e
+#   docker compose -f compose.e2e.yaml down -v
+#
+# What is missing is deliberate. No Verdaccio: the run these tests queue fails at validation,
+# which is the point — it exercises the whole path from the browser to the runner and back
+# without an npm install in the middle. No key manager: Development permits an unwrapped key
+# ring, and wrapping has tests of its own.
+name: spacecraft-e2e
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: spacecraft
+      POSTGRES_PASSWORD: spacecraft
+      POSTGRES_DB: spacecraft
+    # In memory: a campaign is short, and nothing here is worth keeping.
+    tmpfs:
+      - /var/lib/postgresql/data
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spacecraft -d spacecraft"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: spacecraft
+      MINIO_ROOT_PASSWORD: spacecraft-e2e-secret
+    tmpfs:
+      - /data
+    ports:
+      - "59000:9000"
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # The application never creates its bucket; something has to, here as in production.
+  minio-bucket:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 spacecraft spacecraft-e2e-secret &&
+      mc mb --ignore-existing local/openapi-bucket
+      "
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "58025:8025"
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8025/readyz || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: src/SpaceCraft.Api/Dockerfile
+    ports:
+      - "58080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"
+      # Nothing else runs the migrations here, and the schema has to exist before the first
+      # test registers an account.
+      Database__MigrateOnStartup: "true"
+      KeyProtection__Provider: "None"
+      ObjectStorage__ServiceUrl: "http://minio:9000"
+      ObjectStorage__BucketName: "openapi-bucket"
+      ObjectStorage__AccessKey: "spacecraft"
+      ObjectStorage__SecretKey: "spacecraft-e2e-secret"
+      ObjectStorage__ForcePathStyle: "true"
+      Email__Smtp__Host: "mailpit"
+      Email__Smtp__Port: "1025"
+      Email__Smtp__Security: "None"
+      Email__Smtp__Username: "spacecraft"
+      Email__Smtp__Password: "spacecraft-e2e"
+      # Where the links in those messages point: the preview server the tests drive.
+      PublicUrls__App: "http://localhost:4173"
+      # A test that waits for an email waits for this. Two seconds rather than fifteen.
+      Notifications__SweepSeconds: "2"
+      # Every test registers its own account from one address, which is exactly what the
+      # per-address throttles are there to stop. Raised, not removed.
+      RateLimits__CredentialPermitsPerWindow: "10000"
+      RateLimits__GlobalPermitsPerMinute: "100000"
+    # Migrations run at startup, and a database that answers its healthcheck can still be a
+    # second away from accepting a connection. Rather than tune a wait, let it fail and come
+    # back: the second attempt has always been enough.
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-bucket:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_healthy
+    # No healthcheck: the runtime image carries neither wget nor curl, and adding one just to
+    # be probed would put a package in the image that production has no use for. The test run
+    # waits for /health from outside instead — see e2e/global-setup.ts.
+
+  runner:
+    build:
+      context: .
+      dockerfile: src/SpaceCraft.Runner/Dockerfile
+    command: ["--drain"]
+    environment:
+      DOTNET_ENVIRONMENT: "Development"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"
+      Database__MigrateOnStartup: "false"
+      KeyProtection__Provider: "None"
+      ObjectStorage__ServiceUrl: "http://minio:9000"
+      ObjectStorage__BucketName: "openapi-bucket"
+      ObjectStorage__AccessKey: "spacecraft"
+      ObjectStorage__SecretKey: "spacecraft-e2e-secret"
+      ObjectStorage__ForcePathStyle: "true"
+      # Many, unlike the development stack, where one per container is the isolation being
+      # relied on. Here the runs are a test's, not a tenant's, and a process that stays alive
+      # across them is a process that is not being started again every few seconds.
+      Runner__MaxRunsPerInvocation: "25"
+      # One wait on an empty queue, then one more look, then exit — not a window it polls.
+      # So this is both the worst case a test waits for a run to be claimed and how often the
+      # container restarts while nothing is queued. Two minutes made every test wait two
+      # minutes; five seconds started a .NET process continuously.
+      Runner__EmptyQueueGrace: "00:00:15"
+    restart: always
+    depends_on:
+      # The database, which is what it actually needs, and the API, which brings the schema
+      # with it. Started rather than healthy, for the reason above.
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started

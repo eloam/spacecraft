@@ -69,6 +69,51 @@ jobs:
 
       - run: npm run build
 
+  e2e:
+    name: End to end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+
+      - run: npm ci
+        working-directory: src/web
+
+      # Only the browser these tests run in, and only its dependencies. The full install pulls
+      # three engines and most of a desktop.
+      - run: npx playwright install --with-deps chromium
+        working-directory: src/web
+
+      # The API and the runner are built from this checkout, so the tests run against the
+      # images the release would ship rather than against something assembled for testing.
+      - name: Start the stack
+        run: docker compose -f compose.e2e.yaml up -d --wait
+
+      - name: End-to-end tests
+        run: npm run test:e2e
+        working-directory: src/web
+
+      # What the API and the runner were doing while a test failed, which a trace cannot show.
+      - name: Stack logs
+        if: failure()
+        run: docker compose -f compose.e2e.yaml logs --no-color
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: src/web/playwright-report
+          retention-days: 7
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f compose.e2e.yaml down -v
+
   images:
     name: Images build
     runs-on: ubuntu-latest

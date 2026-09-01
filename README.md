@@ -206,12 +206,28 @@ Functions runtimes do not include .NET, and jobs allow far longer executions any
 
 ## Tests
 
+Three suites, in the order they cost. The unit tests answer in half a second, the integration
+tests stand up Postgres and object storage in containers, and the end-to-end tests open a
+browser against the whole application — so they cover the paths that cross a boundary and
+leave the rest to the two suites that can afford to be thorough.
+
 ```bash
 dotnet run --project tests/SpaceCraft.UnitTests
+dotnet run --project tests/SpaceCraft.IntegrationTests
 ```
 
 ```bash
 npm run typecheck --prefix src/web
+```
+
+End to end, against a stack of its own — its own database, object storage, mailbox, API and
+runner, on ports the development stack does not use, so a campaign can never write into the
+database you are working in:
+
+```bash
+docker compose -f compose.e2e.yaml up -d --wait
+npm run test:e2e --prefix src/web
+docker compose -f compose.e2e.yaml down -v
 ```
 
 ## Before this goes to production

@@ -4,7 +4,7 @@
 # steps in-process exactly as it will in production. The API stays on the host (`dotnet run`)
 # because that is what you are editing.
 
-name: spacecraft
+name: spacecraft-development
 
 services:
   postgres:

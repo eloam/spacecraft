@@ -3,8 +3,9 @@ import { LogOut, Orbit, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
-import { useLogout } from "@/api/queries";
-import { useCanonicalRoute } from "@/hooks/useRouteIdentity";
+import { useLogout, useOrganizations } from "@/api/queries";
+import { useCanonicalRoute, useOrganizationId } from "@/hooks/useRouteIdentity";
+import { Spinner } from "@/components/ui/spinner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { AccountAvatar } from "@/components/AccountAvatar";
@@ -26,6 +27,18 @@ export function AppShell() {
   // Here rather than on each page: every route that names an organization or a project passes
   // through this frame, and an address reached by id should not stay spelled that way.
   useCanonicalRoute();
+
+  // And nothing inside is rendered until the slug in the address has an id behind it.
+  //
+  // The pages ask the API by id, and the id comes from a list that takes a moment to arrive.
+  // Their queries wait for it on their own, but their buttons did not: pressing one early
+  // sent a request to /organizations//members, which the API answered 404 and the interface
+  // reported as nothing at all. Rare by hand and reliable under load, which is where the
+  // end-to-end tests found it.
+  const organizations = useOrganizations();
+  const organizationId = useOrganizationId(orgId ?? "");
+  const resolvingOrganization =
+    Boolean(orgId) && !organizationId && !organizations.isSuccess && !organizations.isError;
 
   return (
     <div className="min-h-screen">
@@ -101,7 +114,13 @@ export function AppShell() {
       {orgId && <OrganizationNav />}
 
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <Outlet />
+        {resolvingOrganization ? (
+          <div className="flex justify-center py-16">
+            <Spinner className="size-5" />
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </main>
     </div>
   );

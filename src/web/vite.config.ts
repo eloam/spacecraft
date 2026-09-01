@@ -21,4 +21,17 @@ export default defineConfig({
       },
     },
   },
+
+  // The built app, served the way `npm run preview` and the end-to-end tests use it. Without
+  // this it has no API at all: only the dev server was ever proxied, so previewing a build
+  // meant looking at a shell that could not sign anybody in.
+  preview: {
+    port: 4173,
+    proxy: {
+      "/api": {
+        target: process.env.VITE_API_TARGET ?? "http://localhost:8080",
+        changeOrigin: true,
+      },
+    },
+  },
 });

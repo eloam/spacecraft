@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright's leavings: a report and the traces, videos and screenshots kept from a failure.
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
