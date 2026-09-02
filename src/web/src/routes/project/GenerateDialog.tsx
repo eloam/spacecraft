@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Panel, PanelLine, PanelSection } from "@/components/Panel";
 import {
   Field, FieldContent, FieldDescription, FieldGroup, FieldLabel,
 } from "@/components/ui/field";
@@ -291,39 +292,24 @@ export function GenerateDialog({
             )}
 
             {target && (
-              <div className="space-y-3 rounded-2xl border bg-muted/40 p-3.5 text-sm">
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                    This run
-                  </p>
-                  <ul className="space-y-1.5">
-                    <li className="flex items-start gap-2.5">
-                      <Check className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                      <span>
-                        Validates the document, generates {target.packageName} and builds it
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                      {willPublish ? (
-                        <>
-                          <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden />
-                          <span>
-                            Publishes to {registryLabel[target.registry]} — a version accepted
-                            by a registry cannot be taken back
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Minus className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                          <span className="text-muted-foreground">
-                            Publishes nothing. The build stays here, downloadable from the run.
-                          </span>
-                        </>
-                      )}
-                    </li>
-                  </ul>
-                </div>
-              </div>
+              <Panel>
+                <PanelSection label="This run">
+                  <PanelLine icon={Check}>
+                    Validates the document, generates {target.packageName} and builds it
+                  </PanelLine>
+
+                  {willPublish ? (
+                    <PanelLine icon={CircleAlert} tone="destructive">
+                      Publishes to {registryLabel[target.registry]} — a version accepted by a
+                      registry cannot be taken back
+                    </PanelLine>
+                  ) : (
+                    <PanelLine icon={Minus} muted>
+                      Publishes nothing. The build stays here, downloadable from the run.
+                    </PanelLine>
+                  )}
+                </PanelSection>
+              </Panel>
             )}
 
             {/* A switch, like the auto-publish toggle on the SDK target it names: both answer

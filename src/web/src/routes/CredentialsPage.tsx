@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
+import { Panel, PanelLabel } from "@/components/Panel";
 import {
   useCreateCredential,
   useCredentials,
@@ -466,10 +467,10 @@ function UsedByList({
   onNavigate: () => void;
 }) {
   return (
-    <div className="space-y-2 rounded-2xl border bg-muted/40 p-3.5">
+    <Panel className="space-y-2">
       {/* Red like "This removes": both name why the action in front of you is blocked or
           costly, and a neutral label read as a heading rather than as a warning. */}
-      <p className="text-xs font-medium tracking-wider text-destructive uppercase">{label}</p>
+      <PanelLabel tone="destructive">{label}</PanelLabel>
       <ItemGroup className="gap-1">
         {usedBy.map((use) => (
           <Item
@@ -509,7 +510,7 @@ function UsedByList({
       {/* Under the list, not above it: it explains what the rows mean, and reading it first
           asked the reader to hold a consequence in mind before seeing what it applies to. */}
       <p className="text-sm text-muted-foreground">{note}</p>
-    </div>
+    </Panel>
   );
 }
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
+import { Panel, PanelLine, PanelSection } from "@/components/Panel";
 import {
   Dialog, DialogClose, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle,
@@ -110,48 +111,31 @@ export function ConfirmDeleteDialog({
             kind of thing and had no reason to look like a different component. */}
         {((shown.consequences && shown.consequences.length > 0) ||
           (shown.reassurances && shown.reassurances.length > 0)) && (
-          <div className="space-y-3 rounded-2xl border bg-muted/40 p-3.5 text-sm">
+          <Panel>
             {shown.consequences && shown.consequences.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium tracking-wider text-destructive uppercase">
-                  This removes
-                </p>
-                <ul className="space-y-1.5">
-                  {shown.consequences.map((line) => (
-                    <li key={line} className="flex items-start gap-2.5">
-                      {/* The icon carries the direction, so the line does not have to open
-                          with "no longer" or "loses" to be read as a loss. */}
-                      <Minus
-                        className="mt-0.5 size-3.5 shrink-0 text-destructive"
-                        aria-hidden
-                      />
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <PanelSection label="This removes" tone="destructive">
+                {shown.consequences.map((line) => (
+                  <PanelLine key={line} icon={Minus} tone="destructive">
+                    {line}
+                  </PanelLine>
+                ))}
+              </PanelSection>
             )}
 
             {shown.consequences?.length && shown.reassurances?.length ? <Separator /> : null}
 
             {shown.reassurances && shown.reassurances.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                  Not affected
-                </p>
-                <ul className="space-y-1.5">
-                  {shown.reassurances.map((line) => (
-                    <li key={line} className="flex items-start gap-2.5">
-                      {/* Muted, not green: these are reassurances, not achievements, and the only
-                          colour in this panel should be the one marking a loss. */}
-                      <Check className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                      <span className="text-muted-foreground">{line}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              // Muted, not green: these are reassurances, not achievements, and the only
+              // colour in this panel should be the one marking a loss.
+              <PanelSection label="Not affected">
+                {shown.reassurances.map((line) => (
+                  <PanelLine key={line} icon={Check} muted>
+                    {line}
+                  </PanelLine>
+                ))}
+              </PanelSection>
             )}
-          </div>
+          </Panel>
         )}
 
         {shown.details}

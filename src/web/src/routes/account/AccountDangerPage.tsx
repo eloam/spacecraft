@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DangerSection } from "@/components/SettingsSections";
+import { Panel, PanelLine, PanelSection } from "@/components/Panel";
 import {
   Dialog, DialogClose, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
@@ -54,29 +55,21 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
           // The same ledger the delete dialogs use: a red frame around a grey icon put the
           // warning colour on the panel rather than on the thing being warned about, and
           // this list is not a warning — it is the list of what stands in the way.
-          <div className="space-y-3 rounded-2xl border bg-muted/40 p-3.5 text-sm">
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium tracking-wider text-destructive uppercase">
-                Hand these over first
-              </p>
-              <ul className="space-y-1.5">
-                {blockers.data?.map((b) => (
-                  <li key={b.organizationName} className="flex items-start gap-2.5">
-                    {/* A blocker, not a removal: these organizations are not going anywhere,
-                        they are what has to move before you can. */}
-                    <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden />
-                    <span>
-                      {b.organizationName} — {b.reason.toLowerCase()}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <Panel>
+            <PanelSection label="Hand these over first" tone="destructive">
+              {blockers.data?.map((b) => (
+                // A blocker, not a removal: these organizations are not going anywhere, they
+                // are what has to move before you can.
+                <PanelLine key={b.organizationName} icon={CircleAlert} tone="destructive">
+                  {b.organizationName} — {b.reason.toLowerCase()}
+                </PanelLine>
+              ))}
+            </PanelSection>
 
             <p className="text-muted-foreground">
               Add another owner, or delete the organization, then come back.
             </p>
-          </div>
+          </Panel>
         )}
 
         <p className="text-sm text-muted-foreground">
