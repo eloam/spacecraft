@@ -7,10 +7,19 @@ namespace SpaceCraft.Pipeline.Sandbox;
 /// <summary>
 /// Runs commands directly on the host, with no isolation whatsoever.
 /// <para>
-/// <b>Development and tests only.</b> It ignores <see cref="CommandRequest.Network"/>,
-/// the memory and CPU limits, and offers no filesystem containment. Selecting it in
-/// production would mean executing untrusted generated code as the worker's own user;
-/// <c>PipelineOptions.Validate</c> refuses that combination at startup.
+/// <b>This is the runner everywhere, production included.</b> It is the only
+/// <c>ICommandRunner</c> and <c>DependencyInjection.AddSpaceCraftPipeline</c> registers it
+/// unconditionally, so there is nothing to select and no sandboxed alternative to select
+/// instead: a tenant's generated code runs as a child of the worker's own process, under the
+/// worker's own user. It ignores <see cref="CommandRequest.Network"/> — the policy is
+/// declared by callers and read by nobody — and offers no filesystem containment. The
+/// isolation the design relies on is the job's, not this class's.
+/// </para>
+/// <para>
+/// Which is why the registration itself is the gate. Outside Development,
+/// <c>AddSpaceCraftPipeline</c> throws unless <c>Pipeline:AllowUnsandboxedExecution</c> is
+/// true, so running this way in production is a decision someone wrote down rather than a
+/// default nobody read.
 /// </para>
 /// </summary>
 public sealed class LocalCommandRunner(ILogger<LocalCommandRunner> logger) : ICommandRunner

@@ -9,9 +9,10 @@ namespace SpaceCraft.Pipeline.Publishing;
 /// Publishes a tarball to npm.
 /// <para>
 /// This is the only step in the pipeline that holds a credential, and it holds it for one
-/// command. The token reaches the container through an env file (not the command line, which
-/// is world-readable via the process list) and is registered for redaction so it cannot
-/// survive into a stored build log.
+/// command. The token is put in the child process's environment and referenced from a
+/// generated <c>.npmrc</c> — never on the command line, which is world-readable through the
+/// process list — and the file is deleted in a <c>finally</c>. It is registered for redaction
+/// so it cannot survive into a stored build log.
 /// </para>
 /// </summary>
 public sealed class NpmSdkPublisher(

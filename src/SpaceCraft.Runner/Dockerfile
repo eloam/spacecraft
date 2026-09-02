@@ -59,7 +59,15 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
 ENV HOME=/tmp \
     Pipeline__WorkspaceRoot=/tmp/spacecraft-workspaces
 
-# Non-root, matching the posture the container sandbox uses for the steps themselves.
+# Non-root because the steps are children of this process, not of a sandbox. npm, tsc and a
+# tenant's own generated package all run under whatever user this container starts as, so as
+# root they could rewrite the image around themselves — the npm they are about to invoke
+# included. As uid 10001 they can write the workspace root and /app, chowned below, and /tmp,
+# which is HOME, and /home/runner, which useradd creates for them. Everything else laid down
+# above belongs to root and is read-only to them.
+#
+# It buys nothing between one run and the next. The same uid serves every run an invocation
+# drains, so two tenants' work is kept apart by directory, not by user.
 RUN useradd --uid 10001 --create-home --home-dir /home/runner runner \
  && mkdir -p /tmp/spacecraft-workspaces \
  && chown -R runner:runner /tmp/spacecraft-workspaces /app

@@ -15,22 +15,32 @@ A specification is hostile input, not configuration.
 | Pathological recursion | Same timeout; failure is a validation result, never an exception | `OpenApiSpecValidator` |
 | Enormous documents | 5,000 operation and 10,000 schema ceilings | `SpecLimits` |
 
-The upload endpoint enforces the size cap before buffering, so an oversized body is rejected
-without being read into memory.
+The 10 MB cap is checked on the bound upload rather than before it is read. ASP.NET Core
+buffers the multipart body first, bounded by the 12 MB `MultipartBodyLengthLimit` set in
+`Program.cs`; the endpoint then refuses anything over 10 MB before the document is parsed or
+stored, and the validator measures the stream again on its own way in, so a document reaching
+it by another route is bounded too.
 
 ## Untrusted code: the build
 
 `npm install` executes arbitrary lifecycle scripts written by whoever authored a package's
-dependencies. Every pipeline step therefore runs in a throwaway container:
+dependencies. Nothing contains that. There is one `ICommandRunner`, `LocalCommandRunner`, and
+it starts each step as a child of the worker's own process, on the host, under the worker's
+own user: no container per step, no dropped capabilities, no read-only root, no network
+namespace, no memory or PID ceiling. `NetworkPolicy` on a command records what a step is
+*meant* to reach and is read by nobody. What does hold is set out under "The pipeline is not
+sandboxed" below.
 
-- `--network none` for generation and compilation; egress only for dependency install and publish
-- `--cap-drop ALL` and `--security-opt no-new-privileges`
-- `--read-only` root filesystem, writable only on a `noexec` tmpfs and the mounted workspace
-- non-root user, bounded memory, CPU and PIDs
-- a wall-clock timeout on every command
+`npm install` runs with `--ignore-scripts`, and so do build, pack and publish. Kiota's runtime
+packages are pure TypeScript and need no lifecycle hooks, so refusing to run any is free — and
+for TypeScript it is the control that matters, because there is nothing else between a hostile
+dependency and the host.
 
-On top of that, `npm install` runs with `--ignore-scripts`. Kiota's runtime packages are pure
-TypeScript and need no lifecycle hooks, so refusing to run any is free.
+Generation runs nothing at all. Kiota is a package reference of `SpaceCraft.Pipeline` rather
+than a CLI, so it runs in the worker's own process against an `HttpClient` whose handler
+(`KiotaSdkGenerator.OfflineHandler`) throws on every request: a document that tries to fetch
+something gets an exception naming the URL, not a socket. That is the one place in the pipeline
+where "no egress" is enforced rather than declared.
 
 ## Credentials
 
@@ -40,8 +50,11 @@ the duration of one command.
 - Tokens are encrypted with ASP.NET Core Data Protection before they touch the database.
   There is no plaintext column in the schema, and no endpoint returns a stored token — the
   API exposes only a label and the last four characters.
-- The token reaches the container through a `0600` env file, never on the command line:
-  arguments are visible to every user on the host through the process list.
+- The token is set in the child process's environment block by `LocalCommandRunner`, never on
+  the command line: arguments are visible to every user on the host through the process list.
+  There is no env file and no container between the two processes; the `.npmrc` npm reads
+  names `${SPACECRAFT_NPM_TOKEN}` rather than the value, so a workspace that survives cleanup
+  holds no secret.
 - Captured output is scrubbed before it is stored, against both the known token and a set of
   patterns for tokens we were never told about. Redaction fails closed: if the scan times
   out, the output is withheld rather than persisted unscanned.
@@ -54,6 +67,12 @@ written. The wrapping is what makes the encryption mean anything: stored in clea
 sat in the same database as the credentials it protects, and a single dump carried both the
 ciphertext and the key that opens it. The only unwrapped secret now lives in the deployment —
 `KeyProtection:Kms:SecretKey` — where a database dump cannot reach it.
+
+With one caveat that matters on an existing deployment: an `IXmlEncryptor` applies when a key
+is minted, not retroactively. Keys already in the ring when Key Manager was switched on stay
+unwrapped, and every credential encrypted under one stays readable from a dump alone. That is
+what `SpaceCraft.Runner --rewrap-credentials` is for, and until it has run the paragraph above
+describes only the keys minted since.
 
 Development points the same client at `infra/SpaceCraft.FakeScalewayKms`, a stand-in that
 speaks Key Manager's documented routes, in the same spirit as MinIO for Object Storage and
@@ -106,17 +125,23 @@ says so. What actually holds:
   configuration line of the caller's choosing.
 
 The isolation being relied on is the job's: one execution per container, torn down afterwards.
-That holds only while a job runs a single run, which is why `Runner:MaxRunsPerInvocation` stays
-at 1 and why startup refuses to run unsandboxed outside Development without
-`Pipeline:AllowUnsandboxedExecution`.
+That holds only while a job runs a single run, and nothing enforces it.
+`Runner:MaxRunsPerInvocation` defaults to 25, its range attribute accepts anything up to
+10,000, and the only place that sets it to 1 is `compose.development.yaml` — a deployment that
+leaves the default drains twenty-five tenants' runs through one process, sharing a filesystem
+and whatever the previous run left behind. What startup does refuse is running unsandboxed at
+all outside Development without `Pipeline:AllowUnsandboxedExecution`; the exception it throws
+asks for `MaxRunsPerInvocation` to be kept at 1 without ever checking that it is.
 
 ## Auth
 
 - Access tokens are short-lived (15 min); refresh tokens rotate on every use.
 - Presenting a used refresh token revokes its entire family — the safe response to a leaked
   token, since the legitimate holder and the attacker are indistinguishable at that point.
-- Login returns the same response for an unknown address and a wrong password, so the
-  endpoint cannot enumerate accounts.
+- Login returns the same response for an unknown address and a wrong password, so one attempt
+  cannot tell the two apart. Lockout is the exception, and it is worth naming: ten failures
+  against a registered address turn the answer into 423 for fifteen minutes, which an address
+  with no account never gets. Enumeration is expensive rather than impossible.
 - Registration, login and waitlist signup are rate-limited per IP.
 
 ## Password reset
@@ -127,7 +152,7 @@ Requesting a reset supersedes any outstanding token, so a forwarded older email 
 
 Two properties matter more than the token itself:
 
-- **The flow is not an account oracle.** `POST /auth/forgot-password` returns the same 202 and
+- **The flow is not an account oracle.** `POST /api/v1/auth/forgot-password` returns the same 202 and
   the same body whether or not the address is registered, and every way a token can be
   unusable — unknown, expired, spent, superseded — produces one identical rejection. A
   password-policy failure is the exception: that is the caller's own input, so it is safe to
@@ -155,21 +180,25 @@ one NAT address exhausted it faster. Separate windows still stop spraying a sing
 
 ## Mail delivery
 
-Scaleway Transactional Email, called at
-`POST /transactional-email/v1alpha1/regions/{region}/emails` with the API key in
-`X-Auth-Token`. Two deployment prerequisites are not optional: the sending domain must be
-verified in the Scaleway console (SPF, DKIM and MX records) or every send is rejected, and
-`Email:Smtp:Host`/`Username`/`Password` must be set — startup fails without them rather than
-quietly writing reset links to the log.
+SMTP, over MailKit. Two deployment prerequisites are not optional: the sending domain must be
+one the relay has been shown to own (SPF, DKIM and MX records) or every send is rejected, and
+`Email:Smtp:Host`/`Username`/`Password` must be set — outside Development startup fails
+without them rather than quietly writing reset links to the log. `Email:Smtp:Security` of
+`None` is refused outside Development for the same reason: a relay reached in the clear
+carries the password and every reset link with it.
 
 Message bodies are never logged by this transport. A reset link is a bearer credential, and
 an error path that dumped the request body would put it in the log store anyway, which is
-precisely what moving off the logging transport was meant to prevent. Recipients are masked
-to `y***@domain` so a delivery can still be correlated with a complaint.
+precisely what moving off the logging transport was meant to prevent. The recipient is not
+treated the same way: `SmtpEmailTransport` logs the address in full, on the success path and
+the failure path alike. Nothing masks it.
 
-Retries, exponential backoff with jitter, per-attempt timeouts and a circuit breaker come
-from `Microsoft.Extensions.Http.Resilience`. The jitter matters more than it looks: without
-it, every message queued during an outage stampedes the provider the moment it recovers.
+Retries with exponential backoff and jitter, a per-attempt timeout and a total timeout come
+from a Polly `ResiliencePipeline` built in `EmailServiceExtensions`, and only transport-level
+trouble is retried — a rejected recipient or a refused password is not. There is no circuit
+breaker: not on this pipeline, and not anywhere else in the repository. The jitter matters
+more than it looks: without it, every message queued during an outage stampedes the relay the
+moment it recovers.
 
 ## Deleting things
 
@@ -207,19 +236,27 @@ lease would carry on against rows that no longer exist and report its failure no
 
 ## Where pipeline steps run
 
-Steps run in the runner's own process, with Kiota and Node baked into its image. The isolation
-is the job's: one execution per container, created for that run and destroyed afterwards.
+Steps run in the runner's own process, with Node baked into its image. Kiota is not: it is a
+package reference of `SpaceCraft.Pipeline`, restored into `/app` with everything else, so
+`npm` — install, compile, pack, publish — is the only name the pipeline still resolves off
+PATH. `tsc` is not among them: it comes out of the generated package's own `node_modules`,
+which `npm` invokes.
+The isolation is the job's: one execution per container, created for that run and destroyed
+afterwards.
 
-That assertion holds only while **one job runs one run**. Draining several runs through a
-single invocation puts other tenants' specs in the same process, sharing `/tmp` and whatever
-the previous run left behind — so runs are triggered individually, and the development
-compose sets `Runner__MaxRunsPerInvocation=1` to match.
+That assertion holds only while **one job runs one run**, and it is a convention rather than a
+guarantee. Draining several runs through a single invocation puts other tenants' specs in the
+same process, sharing `/tmp` and whatever the previous run left behind. Runs are triggered
+individually and the development compose sets `Runner__MaxRunsPerInvocation=1` to match, but
+the default in `appsettings.json` is 25 and the e2e compose sets 25 as well — a deployment
+that does not set it to 1 does not have this property.
 
 What the job does not give, that a container per step would:
 
 | Control | Available |
 |---|---|
-| `--network none` during generate and build | no |
+| No egress during generation | yes, but from the offline `HttpClient`, not a namespace |
+| No egress during build | no |
 | Dropped capabilities, read-only rootfs | whatever the platform provides |
 | CPU / memory / PID ceilings | per job, not per step |
 | Blast radius of a hostile build | the whole job |

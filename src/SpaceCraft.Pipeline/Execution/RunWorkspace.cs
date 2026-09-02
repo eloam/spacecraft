@@ -3,9 +3,10 @@ namespace SpaceCraft.Pipeline.Execution;
 /// <summary>
 /// The scratch directory for a single pipeline run.
 /// <para>
-/// Every path handed to a sandboxed command is <em>relative</em> to the workspace root.
-/// That is what lets the same command line work under the local runner (where the root is
-/// a host directory) and under Docker (where the root is bind-mounted at /workspace).
+/// Every path handed to a command is <em>relative</em> to the workspace root, so a command
+/// line never carries an absolute host path. Commands run in this process today, on paths
+/// the runner resolves; keeping them relative is what would let a step be moved behind a
+/// boundary without rewriting the step.
 /// </para>
 /// </summary>
 public sealed class RunWorkspace : IDisposable
@@ -73,7 +74,8 @@ public sealed class RunWorkspace : IDisposable
         }
         catch (UnauthorizedAccessException)
         {
-            // Container-created files can be owned by the sandbox uid on Linux hosts.
+            // A file left by a run that executed under a different uid — a container's, or a
+            // previous deployment's — cannot be removed by this one.
         }
     }
 }

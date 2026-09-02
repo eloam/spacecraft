@@ -16,9 +16,21 @@ minutes a function-style platform typically permits.
 | Migrations | Serverless Job | same image | `--migrate`, once per release |
 | Database | Managed Database for PostgreSQL | — | — |
 | Specs, artifacts, logs | Object Storage | — | S3-compatible; MinIO in development |
-| Email | Transactional Email | — | API |
+| Email | Transactional Email | — | SMTP |
 
 One image serves the runner, the reaper and the migration step; they differ only by argument.
+
+Mail leaves over SMTP, not over Scaleway's REST API. `SmtpEmailTransport` opens a MailKit
+connection to the relay named in `Email:Smtp:Host`; there is no HTTP client, no route and no
+token on that path. Scaleway happens to be the relay, and everything the application knows
+about it is a hostname, a port and a password.
+
+**Both deployed images are built on a preview tag.** The API and runner Dockerfiles take
+`ARG DOTNET_VERSION=11.0-preview`, `Directory.Build.props` targets `net11.0`, and `global.json`
+pins the SDK to `11.0.100-preview.7.26381.103`. There is no plain `11.0` tag on mcr until .NET
+11 goes GA on 10 November 2026, and the `-preview` tags stop being updated the same day — so an
+image built on them after that date is one that no longer receives patches, and the tag and the
+pin both have to be revisited then.
 
 ## The API container
 
@@ -42,9 +54,12 @@ on the Keycloak Admin API — 382 KB of spec, 11,000 lines of generated models:
 Allocate **1 GiB** for the runner job. 512 MiB fits the measurement but leaves nothing for a
 larger spec, and the failure mode is an OOM kill mid-build rather than a clear error.
 
-Pipeline steps run in the runner's own process, with Kiota and Node baked into its image. The
-isolation is the job's: one execution per container, torn down afterwards — which holds only
-while a job runs a single run, so trigger `--run <id>` per run rather than draining a queue.
+Pipeline steps run in the runner's own process. Generation is no longer one of those steps:
+Kiota is a `PackageReference` of `SpaceCraft.Pipeline` and the builder is called in process, so
+the image carries Node and nothing else, and `npm` — install, pack, publish — is the only name
+the pipeline resolves off `PATH`. The isolation is the job's: one execution per container, torn
+down afterwards — which holds only while a job runs a single run, so trigger `--run <id>` per
+run rather than draining a queue.
 See [security.md](security.md) for what that gives up, and for why it becomes a real decision
 the day a language whose build system executes code (Gradle, Maven, `setup.py`) is added.
 
@@ -61,8 +76,9 @@ execute code from the package being built. Putting them beside each other means 
 radius of one hostile spec is every toolchain in the image, rather than the one its own
 language needs.
 
-So: a shared base stage carrying .NET, the runner and Kiota, and one thin image per language
-on top of it. Nothing new is needed to route to them — a run records its target's language
+So: a shared base stage carrying .NET and the runner — Kiota travels inside it as a library
+rather than as a tool — and one thin image per language on top of it. Nothing new is needed
+to route to them — a run records its target's language
 when it is queued (`PipelineRun.TargetLanguage`), and deployment already triggers one job per
 run with `--run <id>`, so the trigger picks the image the same way it picks the id. The cost
 is N images to keep current, which the shared base bounds.
@@ -96,7 +112,7 @@ Nested keys use a double underscore: `ConnectionStrings__Postgres` maps to
 # Database
 ConnectionStrings__Postgres=Host=…;Port=5432;Database=spacecraft;Username=…;Password=…
 
-# Auth — validated at startup, at least 32 bytes
+# Auth — validated at startup, at least 32 characters
 Jwt__SigningKey=…
 Jwt__Issuer=spacecraft
 Jwt__Audience=spacecraft-api
@@ -119,6 +135,10 @@ ObjectStorage__ServiceUrl=https://s3.fr-par.scw.cloud
 ObjectStorage__Region=fr-par
 ObjectStorage__AccessKey=…
 ObjectStorage__SecretKey=…
+# The runner's own appsettings.json ships Region=us-east-1 and ForcePathStyle=true, where the
+# API's ships fr-par and false. Both have to be set on the runner job or it addresses Scaleway
+# path-style, in a region that is not the bucket's.
+ObjectStorage__ForcePathStyle=false
 
 # Email — startup fails without these outside Development
 # SMTP rather than a provider API: the relay is swappable without touching code, and
@@ -134,12 +154,18 @@ Email__Smtp__FromName=SpaceCraft
 
 # Pipeline — steps run in the worker's own process, with no sandbox between a tenant's
 # build and the host. Startup refuses without this outside Development, so that it is a
-# decision written down rather than a default nobody read. Keep MaxRunsPerInvocation at 1:
-# the isolation being relied on is the job's, and it only holds for one run at a time.
+# decision written down rather than a default nobody read. There is no companion setting
+# that turns a sandbox on — none exists. This acknowledges the absence; it selects nothing.
 Pipeline__AllowUnsandboxedExecution=true
 
-# Pipeline — baked into the runner image, override only to change it
-Pipeline__Sandbox=PlatformIsolated
+# Runner — the isolation being relied on is the job's, and it only holds for one run at a
+# time. The shipped default is 25, so a job left to drain will carry several tenants' work
+# in one process, sharing a filesystem and a network. Set it to 1 explicitly; the value in
+# the image's appsettings.json is not the value this deployment wants.
+Runner__MaxRunsPerInvocation=1
+
+# Pipeline — the runner image sets this as an ENV, override only to move it
+Pipeline__WorkspaceRoot=/tmp/spacecraft-workspaces
 # Where dependencies are resolved from. Publishing goes wherever each credential says.
 Pipeline__DependencyRegistry=https://registry.npmjs.org
 
@@ -154,10 +180,26 @@ RateLimits__CredentialPermitsPerWindow=10
 RateLimits__CredentialWindow=00:15:00
 ```
 
-Startup fails fast on a missing signing key, missing email credentials, an unpinned generator
-image, or `Pipeline:Sandbox=None`, rather than running degraded.
+Startup fails fast rather than running degraded: on a signing key that is missing or shorter
+than 32 characters, on mail that is unconfigured or half configured outside Development, on
+`Email:Smtp:Security=None` there, on a port and a handshake that contradict each other, on
+`KeyProtection:Provider` left at `None` outside Development, and on
+`Pipeline:AllowUnsandboxedExecution` not being `true` there.
 
-It also refuses to start while any setting still reads `[REQUIRED]` — the marker
+Key protection goes one step further and proves itself before anything is served. A hosted
+service runs one real encrypt-and-decrypt against Key Manager on boot and refuses to start
+unless the same bytes come back, because Data Protection does not fail the way one would hope:
+a decryptor that throws is retried, then the key is dropped and a fresh one minted, and the
+process serves traffic normally while every stored registry credential has quietly become
+unreadable.
+
+Nothing is checked about the generator, because there is nothing to check at runtime: which
+generator runs is not configurable at all. Kiota is a compile-time dependency pinned by
+`KiotaVersion` in `Directory.Packages.props`. What generation does read from configuration is
+`Pipeline:GenerateTimeout` and `Pipeline:WorkspaceRoot`, and neither can select a different
+generator or a different version of one.
+
+Startup also refuses while any setting still reads `[REQUIRED]` — the marker
 `appsettings.json` uses for what a deployment must supply — and names every one of them at
 once. Without that check the placeholder is just a string: it satisfies `[Required]`, passes
 every option validation, and reappears much later as a rejected SMTP password or a 403 from
@@ -232,9 +274,16 @@ Two prerequisites are not configuration and cannot be worked around:
   registry tokens and the runner that decrypts them to publish. A ring local to each
   container meant the runner could not read what the API wrote, which surfaced as "the key
   was not found in the key ring" in the middle of a publish, after a build had succeeded.
-  It is still **unencrypted at rest**: `ProtectKeysWithCertificate` or a KMS-backed
-  `IXmlEncryptor` is the remaining step, and until then a database dump carries the keys that
-  open every stored token.
+  It is **wrapped at rest**: `KeyProtection:Provider=ScalewayKms` installs
+  `ScalewayKmsXmlEncryptor` as Data Protection's `XmlEncryptor`, so each key reaches Postgres
+  already encrypted under a Key Manager key the database does not hold. Leaving the provider
+  at `None` outside Development is refused at startup rather than tolerated.
+
+  Wrapping only applies to keys minted after it is switched on. Keys already in the ring stay
+  in clear, and a dump still opens every token encrypted under them, until
+  `--rewrap-credentials` on the runner image re-encrypts every credential under a freshly
+  wrapped key and then drops the unwrapped keys behind it — `--dry-run` first. It names any
+  credential it cannot decrypt instead of counting it: each one has to be replaced by hand.
 
 ## Latency to expect
 

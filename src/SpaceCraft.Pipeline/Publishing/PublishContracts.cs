@@ -26,7 +26,7 @@ public sealed record PublishRequest
 
     /// <summary>
     /// Decrypted registry token. Held only for the duration of this call, never logged,
-    /// and always listed in the sandbox's redaction set.
+    /// and always listed in the command's <c>SecretsToRedact</c>.
     /// </summary>
     public required string Token { get; init; }
 
