@@ -82,11 +82,23 @@
        that label before this, under the 4.5:1 normal text asks for, and a mid-tone primary
        would have made it 3.3:1. Darkening moves the other way: 9.5:1. */
     --primary-hover: oklch(0.4 0.14 322);
-    --secondary: oklch(0.96 0.003 325.6);
+    /* The surfaces above a card — table headers at /50, the small framed panels at /40, a
+       row under the pointer at full strength, the chips in an empty state.
+
+       Chroma 0.014 rather than the 0.003 they had. At 0.003 they are grey, so every one of
+       them read as somebody else's component sitting in this theme — and tinting a panel by
+       hand would only have made the hover inside it look greyer still. Tinting the family
+       they are all mixed from keeps every step where it was — a panel lighter than a header,
+       a header lighter than a hover — and gives the whole ladder the cast the dark theme has
+       had all along.
+
+       --page stays at 0.003 on purpose. The dark theme raises chroma as surfaces rise above
+       its ground; this is the same ladder, the right way up. */
+    --secondary: oklch(0.96 0.014 325.6);
     --secondary-foreground: oklch(0.212 0.019 322.12);
-    --muted: oklch(0.96 0.003 325.6);
+    --muted: oklch(0.96 0.014 325.6);
     --muted-foreground: oklch(0.542 0.034 322.5);
-    --accent: oklch(0.96 0.003 325.6);
+    --accent: oklch(0.96 0.014 325.6);
     --accent-foreground: oklch(0.212 0.019 322.12);
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.922 0.005 325.62);
