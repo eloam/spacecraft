@@ -1,18 +1,20 @@
 # Image for running SDK pipelines as a one-shot job.
 #
-# Steps run in this image's own process, so every toolchain the
-# pipeline shells out to has to be present here: the Kiota CLI to generate, and Node to
-# install, compile and publish. That is what makes this image large — and it is the trade
-# for being able to run where a Docker daemon is not available.
+# Steps run in this image's own process, so every toolchain the pipeline shells out to has to
+# be present here. That is now Node alone — to install, compile and publish. Generation is
+# no longer a process: Kiota is a NuGet reference of SpaceCraft.Pipeline, restored into /app
+# with everything else, so there is no CLI to install and nothing resolved off PATH.
 #
-# The Kiota version is pinned to match the runtime packages it emits code against. Bumping
-# one without the other produces SDKs that do not compile; see PipelineOptions.KiotaImage.
-ARG DOTNET_VERSION=10.0
-ARG KIOTA_VERSION=1.34.1
+# Node is still the exception, and it is why this image is large: npm, tsc and npm publish
+# have no in-process equivalent. Its version is pinned below and restated in .nvmrc for a
+# runner started on a developer's host, where npm comes off PATH instead.
+#
+# 11.0-preview, not 11.0: there is no plain 11.0 tag on mcr until GA on 10 November, and the
+# -preview tags stop updating that day. Both need revisiting then.
+ARG DOTNET_VERSION=11.0-preview
 ARG NODE_VERSION=22
 
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
-ARG KIOTA_VERSION
 WORKDIR /src
 
 # Restore against the manifests alone so this layer survives source-only changes.
@@ -26,9 +28,6 @@ RUN dotnet restore src/SpaceCraft.Runner/SpaceCraft.Runner.csproj
 COPY src/ src/
 RUN dotnet publish src/SpaceCraft.Runner/SpaceCraft.Runner.csproj \
         -c Release -o /app --no-restore
-
-# Kiota ships as a dotnet tool; install it here so the runtime image needs no SDK.
-RUN dotnet tool install --tool-path /kiota Microsoft.OpenApi.Kiota --version ${KIOTA_VERSION}
 
 FROM node:${NODE_VERSION}-bookworm-slim AS node
 
@@ -49,9 +48,6 @@ COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
  && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
-
-COPY --from=build /kiota /opt/kiota
-ENV PATH="/opt/kiota:${PATH}"
 
 COPY --from=build /app /app
 WORKDIR /app

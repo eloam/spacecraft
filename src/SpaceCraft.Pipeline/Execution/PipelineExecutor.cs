@@ -406,7 +406,6 @@ public sealed class PipelineExecutor(
         {
             SourceDirectory = workspace.HostPath(RunWorkspace.SourceRelativePath),
             WorkspaceRoot = workspace.Root,
-            SpecRelativePath = RunWorkspace.SpecRelativePath(specFileName),
             PackageName = target.PackageName,
             Version = version,
             ClientClassName = clientName,

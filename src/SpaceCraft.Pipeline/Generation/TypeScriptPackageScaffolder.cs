@@ -26,8 +26,7 @@ public sealed class TypeScriptPackageScaffolder(IKiotaDependencyProvider depende
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var runtime = await dependencies.GetRuntimeDependenciesAsync(
-            SdkLanguage.TypeScript, request.WorkspaceRoot, request.SpecRelativePath, ct);
+        var runtime = dependencies.GetRuntimeDependencies(SdkLanguage.TypeScript);
 
         await File.WriteAllTextAsync(
             Path.Combine(request.SourceDirectory, "package.json"),

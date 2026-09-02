@@ -3,7 +3,7 @@
 # Unlike the runner, this carries no language toolchains: the API never generates or builds
 # an SDK, it only records the intent and hands work to the queue. That keeps the image small,
 # which is what a scale-to-zero platform charges for on every cold start.
-ARG DOTNET_VERSION=10.0
+ARG DOTNET_VERSION=11.0-preview
 
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
 WORKDIR /src

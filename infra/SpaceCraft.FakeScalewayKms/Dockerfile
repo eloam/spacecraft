@@ -2,7 +2,7 @@
 #
 # Deliberately outside src/: the API and runner images copy src/ wholesale, and a fake key
 # manager has no business inside an image that talks to the real one.
-ARG DOTNET_VERSION=10.0
+ARG DOTNET_VERSION=11.0-preview
 
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
 WORKDIR /src

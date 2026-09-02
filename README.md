@@ -71,15 +71,25 @@ every language on the roadmap and is maintained by Microsoft. The product's valu
 orchestration, versioning and publication — not the code emitter. `ISdkGenerator` exists so
 that choice can be revisited per language without touching the pipeline.
 
-**The Kiota image is pinned, never `:latest`.** The generator and its per-language runtime
-packages are a matched pair. MCR's `:latest` currently resolves to 1.29.1, which emits
-`getCollectionOfPrimitiveValues<string>()` while recommending abstractions `preview.103` —
-where that method takes an argument. Every SDK containing a primitive array then fails to
-compile. `PipelineOptions.Validate` refuses a floating tag outright.
+**The generator is a dependency, not a program on the path.** Kiota and its per-language
+runtime packages are a matched pair: 1.29.1 emits `getCollectionOfPrimitiveValues<string>()`
+while recommending abstractions `preview.103`, where that method takes an argument, so every
+SDK containing a primitive array fails to compile. A generator resolved by name off `PATH`
+makes that mismatch a property of whichever machine ran, discovered by the customer.
 
-To upgrade Kiota: bump `Pipeline:KiotaImage`, then run one real spec through the pipeline and
-confirm the build step passes. `kiota info` reporting a version is *not* evidence that the
-generated code compiles against it.
+So `Microsoft.OpenApi.Kiota.Builder` is a `PackageReference`, restored like anything else and
+identical on a laptop and in the image by construction. The runtime versions written into a
+generated `package.json` are not in that library — they are in the CLI package's own
+settings, which `SpaceCraft.Pipeline.csproj` embeds at build time via `PackageDownload`, at
+the same `KiotaVersion`. Generator and declared dependencies cannot drift apart.
+
+To upgrade Kiota: bump `KiotaVersion` in `Directory.Packages.props` — it moves both — then run
+one real spec through the pipeline and confirm the build step passes. A generation that
+succeeds is *not* evidence that the generated code compiles.
+
+`npm` is still resolved by name, because `npm install`, `tsc` and `npm publish` have no
+in-process equivalent. `.nvmrc` states the version for a host run and
+`scripts/check-toolchain.sh` compares it against the Dockerfile and against `PATH`.
 
 **SDK versions are normalised to semver.** Registries require `major.minor.patch`, and real
 specs often do not have one — Keycloak's Admin API declares `"1.0"`. That is normalised to
@@ -128,10 +138,11 @@ build rather than the browser. A product that sells OpenAPI tooling should eat i
 
 ## Getting started
 
-Requires .NET 10 SDK, Node 20+, and Docker.
+Requires .NET 11 SDK (preview until 10 November), Node 22 (`.nvmrc` — it is the version the runner image ships, and the
+one the generated SDKs are built against), and Docker.
 
 ```bash
-docker compose up -d
+docker compose -f compose.development.yaml up -d
 ```
 
 Postgres, [MinIO](https://min.io), [Mailpit](https://mailpit.axllent.org) and a local

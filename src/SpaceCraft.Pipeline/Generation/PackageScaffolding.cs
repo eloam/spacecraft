@@ -10,9 +10,6 @@ public sealed record ScaffoldRequest
     /// <summary>Absolute host path of the run workspace.</summary>
     public required string WorkspaceRoot { get; init; }
 
-    /// <summary>Spec path relative to the workspace root, needed to query the generator.</summary>
-    public required string SpecRelativePath { get; init; }
-
     public required string PackageName { get; init; }
 
     public required string Version { get; init; }

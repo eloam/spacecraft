@@ -1,14 +1,14 @@
 using System.Text.RegularExpressions;
+using Kiota.Builder;
+using Kiota.Builder.Configuration;
 using SpaceCraft.Domain.Projects;
-using SpaceCraft.Pipeline.Execution;
-using SpaceCraft.Pipeline.Sandbox;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Pipeline.Generation;
 
 /// <summary>
-/// Emits SDK sources by shelling out to the Kiota CLI.
+/// Emits SDK sources with Kiota.
 /// <para>
 /// Kiota is used rather than a hand-written emitter because it already covers every
 /// language on SpaceCraft's roadmap (C#, Java, TypeScript, Python, PHP, Go) and is maintained
@@ -18,7 +18,6 @@ namespace SpaceCraft.Pipeline.Generation;
 /// </para>
 /// </summary>
 public sealed partial class KiotaSdkGenerator(
-    ICommandRunner runner,
     IOptions<PipelineOptions> options,
     ILogger<KiotaSdkGenerator> logger) : ISdkGenerator
 {
@@ -31,55 +30,110 @@ public sealed partial class KiotaSdkGenerator(
         ArgumentNullException.ThrowIfNull(request);
 
         var clientName = request.ClientClassName ?? DeriveClientName(request.ApiTitle, request.PackageName);
+        var outputPath = Path.Combine(request.WorkspaceRoot, request.OutputDirectory);
 
-
-        var command = new CommandRequest
+        var configuration = new GenerationConfiguration
         {
-            // Installed as a dotnet tool in the runner image and on its PATH.
-            Executable = "kiota",
-            Arguments =
-            [
-                "generate",
-                "--openapi", request.SpecFilePath,
-                "--language", request.Language.KiotaName(),
-                "--output", request.OutputDirectory,
-                "--class-name", clientName,
-                "--namespace-name", NamespaceFor(request.PackageName),
-                "--clean-output",
-                "--log-level", "Warning",
-            ],
-            WorkingDirectory = request.WorkspaceRoot,
-            // Generation reads a local file and writes local files. It needs no egress —
-            // external $refs were already rejected at validation time.
-            Network = NetworkPolicy.None,
-            Timeout = _options.GenerateTimeout,
-            // Kiota checks for updates and emits telemetry by default. The sandbox has no
-            // egress, so both would just stall the step until they time out.
-            Environment = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
-                ["KIOTA_TUTORIAL_ENABLED"] = "false",
-                ["KIOTA_OFFLINE_ENABLED"] = "true",
-            },
+            OpenAPIFilePath = Path.Combine(request.WorkspaceRoot, request.SpecFilePath),
+            OutputPath = outputPath,
+            Language = request.Language.KiotaLanguage(),
+            ClientClassName = clientName,
+            ClientNamespaceName = NamespaceFor(request.PackageName),
+            CleanOutput = true,
+            // A workspace file is Kiota's own project bookkeeping, for people re-running the
+            // CLI in a directory they own. A run workspace is thrown away.
+            NoWorkspace = true,
         };
 
-        var result = await runner.RunAsync(command, ct);
+        // Kiota's own diagnostics are the only account of what happened, and the run summary
+        // shows them. Collected here rather than read off a pipe.
+        var captured = new CapturingLogger();
 
-        if (!result.Succeeded)
+        // Generation reads a local file and writes local files. It needs no egress — external
+        // $refs were already rejected at validation time — so the client is given none.
+        using var offline = new HttpClient(new OfflineHandler()) { Timeout = _options.GenerateTimeout };
+
+        // The step's budget. A process could be killed; this asks the builder to stop, which
+        // it honours between units of work rather than instantly.
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        budget.CancelAfter(_options.GenerateTimeout);
+
+        try
         {
-            logger.LogWarning("Kiota generation failed with exit code {ExitCode}", result.ExitCode);
+            var builder = new KiotaBuilder(captured, configuration, offline);
+            await builder.GenerateClientAsync(budget.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            logger.LogWarning("Kiota generation exceeded its budget of {Timeout}", _options.GenerateTimeout);
             return GenerationOutcome.Failed(
-                result.TimedOut
-                    ? $"Generation timed out after {_options.GenerateTimeout.TotalMinutes:0.#} minutes."
-                    : $"Kiota exited with code {result.ExitCode}. {result.Tail(10)}",
-                result.Output);
+                $"Generation timed out after {_options.GenerateTimeout.TotalMinutes:0.#} minutes.",
+                captured.Text);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A malformed or unsupported document arrives here, and it is the customer's
+            // document — so the message has to carry Kiota's own words, not a status code.
+            logger.LogWarning(ex, "Kiota generation failed");
+            return GenerationOutcome.Failed($"Kiota could not generate the client. {ex.Message}", captured.Text);
         }
 
         return new GenerationOutcome
         {
             Succeeded = true,
-            Output = result.Output,
+            Output = captured.Text,
+            FileCount = Directory.Exists(outputPath)
+                ? Directory.EnumerateFiles(outputPath, "*", SearchOption.AllDirectories).Count()
+                : 0,
         };
+    }
+
+    /// <summary>
+    /// Refuses every request. Kiota takes an <see cref="HttpClient"/> so it can fetch a remote
+    /// description; ours is always on disk, and the old process had <c>NetworkPolicy.None</c>
+    /// declared on it. In-process there is no sandbox to declare it to, so the denial is here,
+    /// where it is actually enforced.
+    /// </summary>
+    private sealed class OfflineHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException(
+                $"The generator tried to reach {request?.RequestUri}. Generation runs offline; "
+                + "a specification must not pull anything over the network.");
+    }
+
+    /// <summary>
+    /// Keeps Kiota's log lines so they can be shown in the run summary, the way the CLI's
+    /// stdout used to be. Bounded, because a pathological document can be very talkative.
+    /// </summary>
+    private sealed class CapturingLogger : ILogger<KiotaBuilder>
+    {
+        private const int MaxLines = 500;
+        private readonly System.Text.StringBuilder _text = new();
+        private int _lines;
+
+        public string Text => _text.ToString();
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            ArgumentNullException.ThrowIfNull(formatter);
+            if (!IsEnabled(logLevel) || _lines >= MaxLines)
+            {
+                return;
+            }
+
+            _lines++;
+            _text.Append(logLevel).Append(": ").AppendLine(formatter(state, exception));
+        }
     }
 
     /// <summary>

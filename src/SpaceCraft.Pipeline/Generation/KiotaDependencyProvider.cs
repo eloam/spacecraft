@@ -2,9 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SpaceCraft.Domain.Projects;
-using SpaceCraft.Pipeline.Sandbox;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Pipeline.Generation;
 
@@ -13,27 +11,24 @@ public sealed record KiotaDependency(string Name, string Version, string Type);
 /// <summary>
 /// Supplies the runtime packages a Kiota-generated client needs.
 /// <para>
-/// Asking the CLI (<c>kiota info --json</c>) rather than hard-coding versions means the
-/// generated package.json always matches the generator that produced the sources. Pinning
-/// them by hand guarantees a silent drift the first time Kiota is upgraded.
+/// Reading them from the Kiota package rather than hard-coding them means the generated
+/// package.json always matches the generator that produced the sources. Pinning them by hand
+/// guarantees a silent drift the first time Kiota is upgraded.
+/// </para>
+/// <para>
+/// This used to shell out to <c>kiota info --json</c>, which made the versions depend on
+/// whichever CLI happened to be on PATH. They now come from the CLI package's own
+/// appsettings.json, embedded at build time from the version in Directory.Packages.props —
+/// see SpaceCraft.Pipeline.csproj. Same data, same origin, no process and nothing to install.
 /// </para>
 /// </summary>
 public interface IKiotaDependencyProvider
 {
-    /// <summary>
-    /// Resolves the runtime packages for a language. A description must be supplied because
-    /// the CLI's `info` command loads one even when only reporting dependencies.
-    /// </summary>
-    Task<IReadOnlyList<KiotaDependency>> GetRuntimeDependenciesAsync(
-        SdkLanguage language,
-        string workspaceRoot,
-        string specRelativePath,
-        CancellationToken ct = default);
+    /// <summary>Resolves the runtime packages for a language.</summary>
+    IReadOnlyList<KiotaDependency> GetRuntimeDependencies(SdkLanguage language);
 }
 
 public sealed class KiotaDependencyProvider(
-    ICommandRunner runner,
-    IOptions<PipelineOptions> options,
     ILogger<KiotaDependencyProvider> logger) : IKiotaDependencyProvider
 {
     /// <summary>
@@ -43,58 +38,43 @@ public sealed class KiotaDependencyProvider(
     /// </summary>
     private static readonly string[] RequiredTypes = ["Abstractions", "Http", "Serialization"];
 
-    private readonly PipelineOptions _options = options.Value;
+    /// <summary>Embedded by the EmbedKiotaLanguages target; see SpaceCraft.Pipeline.csproj.</summary>
+    private const string LanguagesResource = "kiota-languages.json";
+
     private readonly ConcurrentDictionary<SdkLanguage, IReadOnlyList<KiotaDependency>> _cache = new();
 
-    public async Task<IReadOnlyList<KiotaDependency>> GetRuntimeDependenciesAsync(
-        SdkLanguage language,
-        string workspaceRoot,
-        string specRelativePath,
-        CancellationToken ct = default)
+    public IReadOnlyList<KiotaDependency> GetRuntimeDependencies(SdkLanguage language) =>
+        _cache.GetOrAdd(language, static (lang, log) => Parse(ReadLanguageSection(lang), log), logger);
+
+    /// <summary>
+    /// Pulls one language out of the embedded Kiota settings. The shape is the CLI's, because
+    /// the file is the CLI's: <c>Languages.TypeScript.Dependencies[]</c> of Name/Version/Type.
+    /// </summary>
+    private static string ReadLanguageSection(SdkLanguage language)
     {
-        if (_cache.TryGetValue(language, out var cached))
-        {
-            return cached;
-        }
+        using var stream = typeof(KiotaDependencyProvider).Assembly
+            .GetManifestResourceStream(LanguagesResource)
+            ?? throw new InvalidOperationException(
+                $"{LanguagesResource} is not embedded. The build target that takes it from the "
+                + "Kiota CLI package did not run — see SpaceCraft.Pipeline.csproj.");
 
+        using var document = JsonDocument.Parse(stream);
+        var name = language.SettingsKey();
 
-        var result = await runner.RunAsync(new CommandRequest
-        {
-            Executable = "kiota",
-            Arguments = ["info", "--openapi", specRelativePath, "--language", language.KiotaName(), "--json"],
-            WorkingDirectory = workspaceRoot,
-            Network = NetworkPolicy.None,
-            Timeout = TimeSpan.FromMinutes(2),
-            Environment = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
-                ["KIOTA_OFFLINE_ENABLED"] = "true",
-            },
-        }, ct);
-
-        if (!result.Succeeded)
+        if (!document.RootElement.TryGetProperty("Languages", out var languages)
+            || !languages.TryGetProperty(name, out var section))
         {
             throw new InvalidOperationException(
-                $"Could not read Kiota dependencies for {language}: exit {result.ExitCode}. {result.Tail(5)}");
+                $"Kiota's settings describe no language named '{name}'.");
         }
 
-        var dependencies = Parse(result.Output, logger);
-        _cache[language] = dependencies;
-        return dependencies;
+        return section.GetRawText();
     }
 
-    internal static IReadOnlyList<KiotaDependency> Parse(string cliOutput, ILogger logger)
+    internal static IReadOnlyList<KiotaDependency> Parse(string json, ILogger logger)
     {
-        // The CLI prefixes JSON with an update-check banner when a newer version exists,
-        // so seek to the first object rather than parsing the whole stream.
-        var start = cliOutput.IndexOf('{');
-        if (start < 0)
-        {
-            throw new InvalidOperationException("kiota info produced no JSON payload.");
-        }
-
-        var payload = JsonSerializer.Deserialize<KiotaInfoPayload>(cliOutput[start..], JsonOptions)
-            ?? throw new InvalidOperationException("kiota info produced an unreadable JSON payload.");
+        var payload = JsonSerializer.Deserialize<KiotaInfoPayload>(json, JsonOptions)
+            ?? throw new InvalidOperationException("Kiota's language information was unreadable.");
 
         var dependencies = payload.Dependencies
             .Where(d => RequiredTypes.Contains(d.Type, StringComparer.OrdinalIgnoreCase))
@@ -104,7 +84,9 @@ public sealed class KiotaDependencyProvider(
 
         if (dependencies.Count == 0)
         {
-            throw new InvalidOperationException("kiota info returned no usable runtime dependencies.");
+            throw new InvalidOperationException(
+                $"Kiota declares no usable runtime dependencies for this language. Expected at "
+                + $"least one of: {string.Join(", ", RequiredTypes)}.");
         }
 
         // Kiota's TypeScript packages are still pre-release. Worth a log line so nobody is

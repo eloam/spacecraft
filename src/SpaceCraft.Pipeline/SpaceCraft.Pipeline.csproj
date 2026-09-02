@@ -6,8 +6,37 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.OpenApi" />
+    <PackageReference Include="Microsoft.OpenApi.Kiota.Builder" />
     <PackageReference Include="Microsoft.OpenApi.YamlReader" />
   </ItemGroup>
+
+  <!--
+    The runtime package versions a generated client depends on are not in Kiota.Builder. They
+    live in the CLI's appsettings.json, and that package cannot be referenced — it is a
+    DotnetTool package, so a PackageReference to it is NU1212.
+
+    PackageDownload puts it on disk without referencing it, and the target below embeds that
+    one file. The version comes from KiotaVersion in Directory.Packages.props, the same property
+    the library reference uses, so the versions written
+    into a generated package.json cannot drift from the generator that emitted the sources —
+    which is the whole reason this was read from the CLI rather than hard-coded.
+
+    Bump KiotaVersion and both move together. There is nothing else to remember.
+  -->
+  <ItemGroup>
+    <PackageDownload Include="Microsoft.OpenApi.Kiota" Version="[$(KiotaVersion)]" />
+  </ItemGroup>
+  <Target Name="EmbedKiotaLanguages" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <_KiotaLanguages>$(NuGetPackageRoot)microsoft.openapi.kiota/$(KiotaVersion)/tools/net10.0/any/appsettings.json</_KiotaLanguages>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_KiotaLanguages)')"
+           Text="Kiota language information not found at $(_KiotaLanguages). Run 'dotnet restore' first; if the path moved, the Kiota CLI package layout changed and KiotaDependencyProvider needs revisiting." />
+    <ItemGroup>
+      <EmbeddedResource Include="$(_KiotaLanguages)" LogicalName="kiota-languages.json" />
+    </ItemGroup>
+  </Target>
+
   <!-- Internal helpers are unit-tested directly rather than being made public
        just to satisfy the test project. -->
   <ItemGroup>
