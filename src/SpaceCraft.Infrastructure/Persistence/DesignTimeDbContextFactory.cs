@@ -19,11 +19,20 @@ namespace SpaceCraft.Infrastructure.Persistence;
 /// lets both be true.
 /// </para>
 /// <para>
-/// The connection string here is a design-time placeholder. Neither <c>migrations add</c> nor
-/// <c>migrations bundle</c> opens a connection; they need a provider to know how to translate the
-/// model, not a database. The bundle takes the real connection at run time, from
-/// <c>--connection</c>, which is how the schema-changing credential stays out of everything but
-/// the one CI step that applies it.
+/// There is no connection string, and that is the whole of the second decision. Building a model
+/// needs a provider — something that knows how PostgreSQL spells a column type — and not a
+/// database: <c>migrations add</c>, <c>script</c>, <c>bundle</c> and
+/// <c>has-pending-model-changes</c> all run without opening one. So this passes none, which the
+/// provider supports precisely for this case.
+/// </para>
+/// <para>
+/// A placeholder would have been worse than nothing. It would make <c>dotnet ef database
+/// update</c> silently target whatever the placeholder named — a localhost database that is not
+/// the developer's — instead of failing. With no connection string it fails on the spot with
+/// "The ConnectionString property has not been initialized.", which is the truth: this factory
+/// exists to describe a model, and applying one is a different job. The bundle takes the real
+/// connection at run time from <c>--connection</c>, which is how the schema-changing credential
+/// stays out of everything but the one CI step that applies it.
 /// </para>
 /// </remarks>
 public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<SpaceCraftDbContext>
@@ -31,9 +40,7 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Spa
     public SpaceCraftDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<SpaceCraftDbContext>()
-            .UseNpgsql(
-                "Host=localhost;Database=spacecraft;Username=design-time;Password=design-time",
-                npgsql => npgsql.MigrationsHistoryTable("__migrations", "spacecraft"))
+            .UseNpgsql(npgsql => npgsql.MigrationsHistoryTable("__migrations", "spacecraft"))
             .Options;
 
         return new SpaceCraftDbContext(options);
