@@ -11,8 +11,8 @@ minutes a function-style platform typically permits.
 | Component | Scaleway product | Image | Invocation |
 |---|---|---|---|
 | API | Serverless Container | `src/SpaceCraft.Api/Dockerfile` | HTTP, scale-to-zero |
-| Pipeline runner | Serverless Job | `src/SpaceCraft.Runner/Dockerfile` | `--run <id>`, one job per run |
-| Lease reaper | Serverless Job | same image | `--reap`, cron `* * * * *` |
+| Pipeline runner | Serverless Job | `src/SpaceCraft.Runner/Dockerfile` | `--run <id>`, started by the API, one execution per run |
+| Lease reaper | Serverless Job | same image | `--reap`, cron `*/15 * * * *` |
 | Migrations | Serverless Job | same image | `--migrate`, once per release |
 | Database | Managed Database for PostgreSQL | — | — |
 | Specs, artifacts, logs | Object Storage | — | S3-compatible; MinIO in development |
@@ -58,8 +58,10 @@ Pipeline steps run in the runner's own process. Generation is no longer one of t
 Kiota is a `PackageReference` of `SpaceCraft.Pipeline` and the builder is called in process, so
 the image carries Node and nothing else, and `npm` — install, pack, publish — is the only name
 the pipeline resolves off `PATH`. The isolation is the job's: one execution per container, torn
-down afterwards — which holds only while a job runs a single run, so trigger `--run <id>` per
-run rather than draining a queue.
+down afterwards — which holds only while a job runs a single run, so the API starts one
+execution per run with `--run <id>` rather than letting anything drain a queue. The image
+carries no `CMD` for that reason: a job definition created without an explicit command would
+inherit one, and `--drain` puts several tenants' builds in a single process.
 See [security.md](security.md) for what that gives up, and for why it becomes a real decision
 the day a language whose build system executes code (Gradle, Maven, `setup.py`) is added.
 
@@ -79,8 +81,8 @@ language needs.
 So: a shared base stage carrying .NET and the runner — Kiota travels inside it as a library
 rather than as a tool — and one thin image per language on top of it. Nothing new is needed
 to route to them — a run records its target's language
-when it is queued (`PipelineRun.TargetLanguage`), and deployment already triggers one job per
-run with `--run <id>`, so the trigger picks the image the same way it picks the id. The cost
+when it is queued (`PipelineRun.TargetLanguage`), and the API already starts one job per run
+with `--run <id>`, so the dispatcher would pick the definition the same way it picks the id. The cost
 is N images to keep current, which the shared base bounds.
 
 The one place this would need code is a queue that drains rather than being triggered per
@@ -284,6 +286,35 @@ Two prerequisites are not configuration and cannot be worked around:
   `--rewrap-credentials` on the runner image re-encrypts every credential under a freshly
   wrapped key and then drops the unwrapped keys behind it — `--dry-run` first. It names any
   credential it cannot decrypt instead of counting it: each one has to be replaced by hand.
+
+## Starting a run
+
+Nothing else reads the queue, so the API starts the job itself. `RunDispatcher` sweeps runs
+that are still queued, claims a batch with `FOR UPDATE SKIP LOCKED`, and calls
+`POST /serverless-jobs/v1alpha2/regions/{region}/job-definitions/{id}/start` with
+`args: ["--run", "<guid>"]`. Serverless Jobs offer a cron trigger and nothing else — no queue
+trigger, no event trigger — so this call is the only way.
+
+There is deliberately no call from the request handler. A start that fails inline leaves a run
+queued and never started, which is the same defect as having no trigger at all, only rarer and
+therefore harder to see. One sweep is one code path, and a refusal is retried by the next.
+
+```
+PipelineJobs__BaseUrl=https://api.scaleway.com
+PipelineJobs__Region=fr-par
+PipelineJobs__JobDefinitionId=…
+PipelineJobs__SecretKey=…            # IAM key allowed to start this job definition
+```
+
+That key is the platform's only control-plane credential, and it belongs to the API alone —
+never to a job definition. Everything else the deployment holds reads or decrypts data; this
+one starts compute, and a build running a customer's transitive npm dependencies must not be
+able to reach it. It is why the code lives under `SpaceCraft.Api/Jobs` rather than in the
+shared project.
+
+`dispatched_at` on the run records that a job was asked for. It is a column rather than
+memory because several API instances sweep the same table: without it each starts its own job
+for the same run, which claiming makes harmless and the parallel-run quota makes expensive.
 
 ## Latency to expect
 

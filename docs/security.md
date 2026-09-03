@@ -196,9 +196,14 @@ the failure path alike. Nothing masks it.
 Retries with exponential backoff and jitter, a per-attempt timeout and a total timeout come
 from a Polly `ResiliencePipeline` built in `EmailServiceExtensions`, and only transport-level
 trouble is retried — a rejected recipient or a refused password is not. There is no circuit
-breaker: not on this pipeline, and not anywhere else in the repository. The jitter matters
-more than it looks: without it, every message queued during an outage stampedes the relay the
-moment it recovers.
+breaker on this pipeline. The jitter matters more than it looks: without it, every message
+queued during an outage stampedes the relay the moment it recovers.
+
+The two outbound HTTP clients — Key Manager and Serverless Jobs — do have one, through
+`AddStandardResilienceHandler`, which brings retries, per-attempt and total timeouts and a
+breaker together. It earns its place at the key manager in particular: readiness unwraps every
+stored key before the host will serve, so a blip there is not a slow request but an instance
+that fails to start.
 
 ## Deleting things
 

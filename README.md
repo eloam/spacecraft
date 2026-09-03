@@ -34,9 +34,9 @@ installs and type-checks in a consumer project under `strict`.
 
 ```
 ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
-│  web (React) │──────▶│  Api         │◀──────│  Runner      │
-│  Vite + TSQ  │  REST  │ Minimal API  │  SQL   │ one job =    │
-└──────────────┘        └──────┬───────┘        │ one run      │
+│  web (React) │───────▶│  Api         │───────▶│  Runner      │
+│  Vite + TSQ  │  REST  │ Minimal API  │ starts │ one job =    │
+└──────────────┘        └──────┬───────┘  a job │ one run      │
                                │                └──────┬───────┘
                         ┌──────▼───────┐         ┌──────▼────────┐
                         │  Postgres    │         │ node + npm    │
@@ -61,7 +61,13 @@ installs and type-checks in a consumer project under `strict`.
 
 ### Decisions worth knowing
 
-**The queue is a Postgres table.** The runner claims runs with `FOR UPDATE SKIP LOCKED` and
+**The queue is a Postgres table, and the API starts a job for what is in it.** Nothing else
+reads the queue, so a sweep in the API claims queued runs and asks Scaleway to start one job
+execution per run — never from the request handler, where a failed start would leave a run
+queued and never started. One run per execution is what makes the container boundary mean
+something: a build carries one tenant's work, not whatever else was waiting.
+
+The runner claims runs with `FOR UPDATE SKIP LOCKED` and
 holds a 25-minute lease, renewed before each step. It only has to outlast the longest single
 step, and for a while it did not: the build is allowed fifteen minutes and the lease was
 fifteen minutes, so a build that used its whole budget was declared abandoned while still
@@ -119,7 +125,7 @@ registry accepts, is only an Information diagnostic saying it will publish as `1
 and Packagist and as declared elsewhere. None of those three stops an upload.
 
 ```bash
-SpaceCraft.Runner --run <guid>   # execute one run; what a per-run trigger invokes
+SpaceCraft.Runner --run <guid>   # execute one run; what the API starts, one job per run
 SpaceCraft.Runner --drain        # work the queue until empty or the budget is spent
 SpaceCraft.Runner --reap         # requeue runs abandoned by a dead executor; what cron invokes
 ```
