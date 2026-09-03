@@ -11,7 +11,7 @@ namespace SpaceCraft.Domain.Notifications;
 /// from. That is deliberate: runs finish in the runner, a separate process with no mail
 /// transport of its own, so the event has to survive a hop through the database either way.
 /// Making that hop the notification as well means one description, every rendering — the same
-/// principle <see cref="T:SpaceCraft.Api.Email.Emails"/> follows for its two bodies.
+/// principle <see cref="SpaceCraft.Api.Email.Emails"/> follows for its two bodies.
 /// <para>
 /// The wording is written here, at the moment the event happened, rather than rebuilt from
 /// ids when someone opens the list. A run's target can be repointed and a member can leave;

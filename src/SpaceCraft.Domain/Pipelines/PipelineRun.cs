@@ -155,6 +155,24 @@ public sealed class PipelineRun : Entity
 
     public DateTimeOffset? LeaseExpiresAt { get; private set; }
 
+    /// <summary>
+    /// When a job was last started for this run, or null when none has been.
+    /// </summary>
+    /// <remarks>
+    /// Durable rather than held in a dispatcher's memory, and that is the whole point: several
+    /// API instances sweep the same table, and memory in one of them says nothing to the
+    /// others. Without this column three instances start three jobs for one run — harmless,
+    /// because claiming filters on <see cref="RunStatus.Queued"/> under SKIP LOCKED and the
+    /// losers exit having done nothing, but it spends three executions against a parallel-run
+    /// ceiling of ten. It also survives a redeploy, where memory would re-dispatch everything
+    /// still in flight.
+    /// <para>
+    /// A dispatch is not a claim: the run stays <see cref="RunStatus.Queued"/> until a worker
+    /// takes it, because the job may never boot. This only records that one was asked for.
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? DispatchedAt { get; private set; }
+
     public int AttemptCount { get; private set; }
     public int MaxAttempts { get; private set; } = DefaultMaxAttempts;
 
@@ -185,6 +203,23 @@ public sealed class PipelineRun : Entity
         LeaseExpiresAt = now + LeaseDuration;
         StartedAt ??= now;
         AttemptCount++;
+        Touch();
+    }
+
+    /// <summary>Records that a job has been asked to execute this run.</summary>
+    public void MarkDispatched(DateTimeOffset now)
+    {
+        DispatchedAt = now;
+        Touch();
+    }
+
+    /// <summary>
+    /// Undoes a dispatch that never happened, so the next sweep tries again at once instead of
+    /// waiting out the redispatch window for a job that was never started.
+    /// </summary>
+    public void ClearDispatch()
+    {
+        DispatchedAt = null;
         Touch();
     }
 
@@ -291,6 +326,10 @@ public sealed class PipelineRun : Entity
         Status = RunStatus.Queued;
         ClaimedBy = null;
         LeaseExpiresAt = null;
+
+        // Forgotten deliberately: a requeued run should be dispatched again at once, not after
+        // the redispatch window of the job that just died on it.
+        DispatchedAt = null;
 
         foreach (var step in _steps.Where(s => s.Status is StepStatus.Running))
         {

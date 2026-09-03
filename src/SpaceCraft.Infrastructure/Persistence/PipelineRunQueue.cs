@@ -23,6 +23,32 @@ public interface IPipelineRunQueue
     Task<PipelineRun?> TryClaimAsync(Guid runId, string workerId, CancellationToken ct = default);
 
     /// <summary>
+    /// Takes up to <paramref name="batchSize"/> queued runs that no job has been started for
+    /// recently, stamps them as dispatched, and returns their ids.
+    /// </summary>
+    /// <remarks>
+    /// The third claim in this class, and the same mechanism as the other two, because the
+    /// problem is the same: several API instances sweep this table and must not all start a
+    /// job for the same run. SKIP LOCKED makes them share the work rather than race for it.
+    /// <para>
+    /// It does not change <see cref="RunStatus"/>. A dispatched run is still queued — the job
+    /// may fail to boot, and the only thing that may say a run is running is a worker that has
+    /// actually taken it. <paramref name="redispatchAfter"/> is what lets a run that was
+    /// dispatched into silence be tried again.
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlyList<Guid>> ClaimForDispatchAsync(
+        int batchSize,
+        TimeSpan redispatchAfter,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Undoes the stamp on runs a job could not be started for, so the next sweep retries them
+    /// immediately rather than after the redispatch window.
+    /// </summary>
+    Task ReleaseDispatchAsync(IReadOnlyCollection<Guid> runIds, CancellationToken ct = default);
+
+    /// <summary>
     /// Returns runs whose worker died mid-flight back to the queue. Called periodically.
     /// </summary>
     Task<int> RequeueExpiredAsync(CancellationToken ct = default);
@@ -134,6 +160,66 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
         Log.ClaimedById(logger, workerId, run.Id, run.AttemptCount);
 
         return run;
+    }
+
+    public async Task<IReadOnlyList<Guid>> ClaimForDispatchAsync(
+        int batchSize,
+        TimeSpan redispatchAfter,
+        CancellationToken ct = default)
+    {
+        var strategy = db.Database.CreateExecutionStrategy();
+
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+
+            var cutoff = DateTimeOffset.UtcNow - redispatchAfter;
+
+            // Oldest first, so a backlog drains in the order people queued it. SELECT * because
+            // FromSql must return every mapped column, and because the rows are tracked and
+            // stamped below rather than projected.
+            var claimed = await db.PipelineRuns
+                .FromSql($"""
+                    SELECT * FROM spacecraft.pipeline_runs
+                    WHERE status = {(int)RunStatus.Queued}
+                      AND (dispatched_at IS NULL OR dispatched_at < {cutoff})
+                    ORDER BY queued_at
+                    LIMIT {batchSize}
+                    FOR UPDATE SKIP LOCKED
+                    """)
+                .ToListAsync(ct);
+
+            if (claimed.Count == 0)
+            {
+                await transaction.RollbackAsync(ct);
+                return (IReadOnlyList<Guid>)[];
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            foreach (var run in claimed)
+            {
+                run.MarkDispatched(now);
+            }
+
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+
+            return (IReadOnlyList<Guid>)[.. claimed.Select(r => r.Id)];
+        });
+    }
+
+    public async Task ReleaseDispatchAsync(IReadOnlyCollection<Guid> runIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(runIds);
+
+        if (runIds.Count == 0)
+        {
+            return;
+        }
+
+        await db.PipelineRuns
+            .Where(r => runIds.Contains(r.Id) && r.Status == RunStatus.Queued)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.DispatchedAt, (DateTimeOffset?)null), ct);
     }
 
     public async Task<int> RequeueExpiredAsync(CancellationToken ct = default)

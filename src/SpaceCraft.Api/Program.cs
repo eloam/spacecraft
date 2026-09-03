@@ -2,6 +2,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Extensions;
 using SpaceCraft.Api.Features;
+using SpaceCraft.Api.Jobs;
 using SpaceCraft.Infrastructure;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.DataProtection;
@@ -56,6 +57,12 @@ builder.Services.AddHostedService<SpaceCraft.Api.Common.NotificationRetention>()
 builder.Services.AddSpaceCraftDataProtection(
     builder.Configuration,
     builder.Environment.IsDevelopment());
+
+// Turns a queued run into a running one. Without it the API writes a row that nothing reads:
+// runs sit at Queued for ever, and no page or log says so. It lives here rather than beside
+// --reap in the runner image because the key that starts jobs must never reach a process that
+// executes a customer's build.
+builder.Services.AddSpaceCraftJobs(builder.Configuration, builder.Environment.IsDevelopment());
 
 builder.Services.AddProblemDetails();
 // Runs before the default handler, which would answer 500 to a request the caller malformed.

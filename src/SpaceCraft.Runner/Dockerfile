@@ -73,5 +73,7 @@ RUN useradd --uid 10001 --create-home --home-dir /home/runner runner \
  && chown -R runner:runner /tmp/spacecraft-workspaces /app
 USER 10001
 
+# No CMD. A job definition created without an explicit command would inherit it, and --drain
+# carries several tenants' runs in one process — the isolation this image relies on is one
+# execution per container. Every caller says what it wants: --run <id>, --reap, --migrate.
 ENTRYPOINT ["dotnet", "/app/SpaceCraft.Runner.dll"]
-CMD ["--drain"]

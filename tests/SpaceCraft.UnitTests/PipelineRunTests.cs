@@ -133,4 +133,55 @@ public class PipelineRunTests
 
         Should.Throw<InvalidOperationException>(() => run.RenewLease(DateTimeOffset.UtcNow));
     }
+
+    [Fact]
+    public void A_new_run_has_never_been_dispatched()
+    {
+        NewRun().DispatchedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Dispatching_records_when_without_claiming_the_run()
+    {
+        var run = NewRun();
+        var at = DateTimeOffset.UtcNow;
+
+        run.MarkDispatched(at);
+
+        run.DispatchedAt.ShouldBe(at);
+
+        // The job may never boot. Only a worker that has actually taken the run may say it is
+        // running, so a dispatch leaves the status alone.
+        run.Status.ShouldBe(RunStatus.Queued);
+        run.ClaimedBy.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Releasing_a_dispatch_that_never_started_makes_the_run_available_again()
+    {
+        var run = NewRun();
+        run.MarkDispatched(DateTimeOffset.UtcNow);
+
+        run.ClearDispatch();
+
+        run.DispatchedAt.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// The subtle one. A requeued run has to be dispatched again at once, not after the
+    /// redispatch window of the job that just died on it — otherwise a crashed worker costs
+    /// the run that window on top of the lease it already waited out.
+    /// </summary>
+    [Fact]
+    public void Requeueing_forgets_the_dispatch()
+    {
+        var run = NewRun();
+        run.MarkDispatched(DateTimeOffset.UtcNow);
+        run.Claim("worker-1", DateTimeOffset.UtcNow);
+
+        run.TryRequeue("Worker lease expired.").ShouldBeTrue();
+
+        run.Status.ShouldBe(RunStatus.Queued);
+        run.DispatchedAt.ShouldBeNull();
+    }
 }

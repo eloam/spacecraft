@@ -24,6 +24,7 @@
   </Folder>
   <Folder Name="/infra/">
     <Project Path="infra/SpaceCraft.FakeScalewayKms/SpaceCraft.FakeScalewayKms.csproj" />
+    <Project Path="infra/SpaceCraft.FakeScalewayJobs/SpaceCraft.FakeScalewayJobs.csproj" />
     <File Path="infra/verdaccio/config.yaml" />
   </Folder>
   <Folder Name="/tests/">

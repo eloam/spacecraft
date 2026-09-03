@@ -130,7 +130,6 @@ services:
     build:
       context: .
       dockerfile: src/SpaceCraft.Runner/Dockerfile
-    command: ["--drain"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -163,14 +162,53 @@ services:
       # Where dependencies are resolved from, not where packages go: that is on the
       # credential now. Verdaccio proxies npmjs, so this also keeps builds off the wire.
       Pipeline__DependencyRegistry: "http://verdaccio:4873"
-      # One run per invocation, so the container is as single-use here as the job is there.
-      Runner__MaxRunsPerInvocation: "1"
-      # Nothing triggers the runner locally the way the API triggers a job in production, so
-      # it watches the queue itself: a minute of waiting, then exit, then restart. One run per
-      # container either way — the isolation is the same, only the trigger differs.
-      Runner__EmptyQueueGrace: "00:01:00"
       Database__MigrateOnStartup: "false"
-    restart: always
+    # One shot, then gone. This service no longer watches the queue: fake-scaleway-jobs starts
+    # a container per run, the way the deployment starts a job per run. What it still does is
+    # build the image that fake uses and prove it boots — and run the reaper once, which is a
+    # real production component that would otherwise never execute here.
+    command: ["--reap"]
+    restart: "no"
+
+  # Stands in for Scaleway Serverless Jobs. The API calls it to start one container per run —
+  # the same call, the same routes and the same quota refusal it will meet in production. It
+  # holds the Docker socket because starting a job here means starting a container; see its
+  # Program.cs for why that is the design and what it costs.
+  fake-scaleway-jobs:
+    build:
+      context: .
+      dockerfile: infra/SpaceCraft.FakeScalewayJobs/Dockerfile
+    ports:
+      - "8098:8098"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # The image compose just built, and the network it must join to reach postgres, minio,
+      # verdaccio and the fake key manager. Both are named by the compose project, so neither
+      # can be hardcoded in the fake: this file is the only place that knows them.
+      Fake__Definitions__spacecraft-pipeline__Image: "spacecraft-development-runner"
+      Fake__Definitions__spacecraft-pipeline__Network: "spacecraft-development_default"
+      # What a job definition carries in production: the platform's own settings. The run id is
+      # not here — it travels as an argument on the execution.
+      Fake__Definitions__spacecraft-pipeline__Env__DOTNET_ENVIRONMENT: "Development"
+      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Provider: "ScalewayKms"
+      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Kms__BaseUrl: "http://fake-scaleway-kms:8099"
+      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Kms__Region: "fr-par"
+      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Kms__KeyId: "00000000-0000-4000-8000-000000000001"
+      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Kms__SecretKey: "fake-token"
+      Fake__Definitions__spacecraft-pipeline__Env__ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"
+      Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__ServiceUrl: "http://minio:9000"
+      Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__BucketName: "openapi-bucket"
+      Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__AccessKey: "spacecraft"
+      Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__SecretKey: "spacecraft-dev-secret"
+      Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__ForcePathStyle: "true"
+      Fake__Definitions__spacecraft-pipeline__Env__Pipeline__DependencyRegistry: "http://verdaccio:4873"
+      Fake__Definitions__spacecraft-pipeline__Env__Database__MigrateOnStartup: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8098/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   postgres-data:
