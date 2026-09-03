@@ -75,7 +75,13 @@ public static class KeyProtectionExtensions
             // path segment of the base address would be replaced instead of extended.
             client.BaseAddress = new Uri(kms.BaseUrl!.TrimEnd('/') + "/");
             client.DefaultRequestHeaders.Add("X-Auth-Token", kms.SecretKey);
-        });
+        })
+            // Retries, exponential backoff with jitter, per-attempt and total timeouts, and a
+            // circuit breaker. Worth more here than anywhere else in the application: the
+            // readiness check unwraps every stored key before the host is allowed to serve, so
+            // without this a momentary blip at the key manager is not a slow request, it is an
+            // instance that fails to start.
+            .AddStandardResilienceHandler();
 
         services.AddSingleton<ScalewayKmsXmlEncryptor>();
 

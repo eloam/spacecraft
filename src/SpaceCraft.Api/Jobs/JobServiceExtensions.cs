@@ -34,10 +34,25 @@ public static class JobServiceExtensions
             client.BaseAddress = new Uri(options.BaseUrl!.TrimEnd('/') + "/");
             client.DefaultRequestHeaders.Add("X-Auth-Token", options.SecretKey);
 
-            // Short: a sweep that hangs on one start delays every other queued run behind it,
-            // and the next sweep is a few seconds away anyway.
-            client.Timeout = TimeSpan.FromSeconds(15);
-        });
+            // Infinite here on purpose: the resilience handler below owns the deadlines, and an
+            // HttpClient timeout under its total budget would fire first and cut the retries
+            // short — the classic way to configure both and get neither.
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        })
+            // A transient 5xx should cost this call a few hundred milliseconds, not the whole
+            // batch: the sweep stops at the first deferral and releases everything behind it,
+            // so without retries one blip delays every other queued run by a sweep. Quota
+            // refusals are 403 and are not retried, which is right — they mean later, and the
+            // run stays queued for the next sweep either way.
+            .AddStandardResilienceHandler(resilience =>
+            {
+                // Shorter than the default 30s: a sweep runs every few seconds, and a start
+                // that is still failing after this should let the next sweep try rather than
+                // hold the batch.
+                resilience.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(15);
+                resilience.AttemptTimeout.Timeout = TimeSpan.FromSeconds(5);
+                resilience.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(10);
+            });
 
         services.AddHostedService<RunDispatcher>();
 
