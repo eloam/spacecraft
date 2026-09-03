@@ -45,7 +45,8 @@ using var host = builder.Build();
 var logger = host.Services.GetRequiredService<ILogger<Program>>();
 
 // A scheduler stopping the task sends SIGTERM. Cancelling lets the current run unwind; the
-// lease it holds then lapses and the reaper returns it to the queue, so nothing is lost.
+// lease it holds then lapses, and the next dispatch sweep sees the lapsed lease and queues the
+// run again, so nothing is lost. Nothing has to be told this happened.
 using var lifetime = new CancellationTokenSource();
 using var sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, context =>
 {
@@ -64,11 +65,11 @@ try
     await host.StartAsync(lifetime.Token);
 
     var executor = host.Services.GetRequiredService<RunExecutor>();
-    var outcome = await executor.ExecuteAsync(command, lifetime.Token);
+    var outcome = await executor.ExecuteAsync(command.Run, lifetime.Token);
 
     await host.StopAsync(CancellationToken.None);
 
-    return (int)ExitCodeFor(outcome);
+    return (int)outcome.ExitCode();
 }
 catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
 {
@@ -80,13 +81,3 @@ catch (Exception ex)
     logger.LogCritical(ex, "Runner faulted");
     return (int)RunnerExitCode.Faulted;
 }
-
-// A run that fails on its own merits is recorded in the database and is not a failure of the
-// invocation — exiting non-zero would make a scheduler retry work already accounted for.
-// Only the runner being unable to do its job warrants a non-zero code.
-static RunnerExitCode ExitCodeFor(RunnerOutcome outcome) => outcome switch
-{
-    RunnerOutcome.Completed => RunnerExitCode.Success,
-    RunnerOutcome.NothingToDo => RunnerExitCode.Success,
-    _ => RunnerExitCode.Faulted,
-};

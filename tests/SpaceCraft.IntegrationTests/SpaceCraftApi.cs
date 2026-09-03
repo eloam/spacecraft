@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using SpaceCraft.Api.Jobs;
 using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Infrastructure.Persistence;
@@ -150,6 +151,19 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
             // what was sent rather than grep for it.
             services.RemoveAll<IEmailTransport>();
             services.AddSingleton<IEmailTransport>(new CapturingTransport(Mailbox));
+
+            // The run dispatcher must not run here. It is a background sweep, and this host
+            // loads the API's own appsettings.Development.json — which points PipelineJobs at
+            // the development fake on localhost:8098. A developer with that stack up would
+            // have their integration tests start real containers for runs seeded in a
+            // throwaway database, and DispatchClaimTests would be racing a third sweeper it
+            // never agreed to. Tests that want the claim call it directly.
+            foreach (var sweep in services
+                .Where(s => s.ImplementationType == typeof(RunDispatcher))
+                .ToList())
+            {
+                services.Remove(sweep);
+            }
         });
     }
 

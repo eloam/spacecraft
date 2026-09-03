@@ -202,10 +202,13 @@ public sealed class DispatchClaimTests(SpaceCraftApi api)
         db.PipelineRuns.AddRange(runs);
         await db.SaveChangesAsync(ct);
 
-        // Ordered here rather than trusted from insertion: the sweep orders by queued_at, and
-        // the assertions about ordering have to compare against the same thing the query sees.
+        // Ordered here rather than trusted from insertion, and by the same total order the
+        // sweep uses. Seeding a handful of runs in a loop puts several in one millisecond, so
+        // queued_at alone is not an order — which is exactly how this test failed one run in
+        // three before the tiebreak existed.
         return await db.PipelineRuns
             .OrderBy(r => r.QueuedAt)
+            .ThenBy(r => r.Id)
             .Select(r => r.Id)
             .ToListAsync(ct);
     }

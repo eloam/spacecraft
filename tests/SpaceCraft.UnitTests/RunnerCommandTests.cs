@@ -20,7 +20,7 @@ public class RunnerCommandTests
         // process. An invocation that does not say which run it is for is a mistake, and the
         // message has to say what to pass instead.
         command.IsValid.ShouldBeFalse();
-        command.Mode.ShouldBe(RunnerMode.None);
+        command.RunId.ShouldBeNull();
         command.Error.ShouldNotBeNull().ShouldContain("--run");
     }
 
@@ -31,7 +31,7 @@ public class RunnerCommandTests
 
         var command = RunnerCommand.Parse([], Environment("SPACECRAFT_RUN_ID", id.ToString()));
 
-        command.Mode.ShouldBe(RunnerMode.OneRun);
+        command.IsValid.ShouldBeTrue();
         command.RunId.ShouldBe(id);
     }
 
@@ -42,10 +42,9 @@ public class RunnerCommandTests
 
         var command = RunnerCommand.Parse(["--run", id.ToString()], NoEnvironment);
 
-        command.Mode.ShouldBe(RunnerMode.OneRun);
+        command.IsValid.ShouldBeTrue();
         command.RunId.ShouldBe(id);
     }
-
 
     [Fact]
     public void An_argument_wins_over_a_run_id_left_in_the_environment()
@@ -101,4 +100,26 @@ public class RunnerCommandTests
     [Fact]
     public void An_empty_environment_variable_is_treated_as_absent() =>
         RunnerCommand.Parse([], Environment("SPACECRAFT_RUN_ID", "   ")).IsValid.ShouldBeFalse();
+
+    [Fact]
+    public void An_invalid_command_refuses_to_hand_out_a_run_rather_than_a_default()
+    {
+        var command = RunnerCommand.Parse([], NoEnvironment);
+
+        // The alternative was a null-forgiving operator where this is consumed, which asserts
+        // the invariant instead of establishing it and fails as "Nullable object must have a
+        // value" — true, useless, and nowhere near the mistake that caused it.
+        var thrown = Should.Throw<InvalidOperationException>(() => command.Run);
+
+        thrown.Message.ShouldContain("no run to execute");
+        thrown.Message.ShouldContain("--run");
+    }
+
+    [Fact]
+    public void A_valid_command_hands_out_its_run()
+    {
+        var id = Guid.CreateVersion7();
+
+        RunnerCommand.Parse(["--run", id.ToString()], NoEnvironment).Run.ShouldBe(id);
+    }
 }

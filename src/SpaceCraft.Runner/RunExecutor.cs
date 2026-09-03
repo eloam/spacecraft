@@ -25,36 +25,24 @@ public enum RunnerOutcome
 }
 
 /// <summary>
-/// Executes pipeline runs and then stops, rather than servicing a queue forever.
-/// <para>
-/// This is the same work <c>SpaceCraft.Worker</c> does, shaped for an environment where the
-/// process *is* the unit of scheduling — a serverless job, a batch task, a one-shot pod. The
-/// long-lived worker keeps its polling loop; both call the same executor underneath, so the
-/// pipeline has exactly one implementation.
-/// </para>
-/// <para>
-/// A run that fails is a normal result, not a failure of the invocation: the run is marked
-/// failed in the database and the process still exits zero. Exiting non-zero would make a
-/// scheduler retry the whole job and re-execute work that is already accounted for.
-/// </para>
+/// Claims one run, executes it, and stops. The process is the unit of scheduling.
 /// </summary>
+/// <remarks>
+/// One run per process is the isolation this design rests on: a container holds one tenant's
+/// document, one tenant's registry token, and one tenant's generated code, and it is destroyed
+/// afterwards. A process that serviced a queue would hold several tenants' secrets at once.
+/// <para>
+/// Note what this class does <em>not</em> decide. Whether a run failed is recorded against the
+/// run in the database; whether the <em>invocation</em> failed is a separate question, answered
+/// by <see cref="RunnerOutcomeExtensions.ExitCode"/>, because that is what the scheduler reads.
+/// The two come apart on purpose, and the mapping is where the reasoning lives.
+/// </para>
+/// </remarks>
 public sealed class RunExecutor(
     IServiceScopeFactory scopeFactory,
     ILogger<RunExecutor> logger)
 {
-
-    public async Task<RunnerOutcome> ExecuteAsync(RunnerCommand command, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-
-        return command.Mode switch
-        {
-            RunnerMode.OneRun => await ExecuteSingleAsync(command.RunId!.Value, ct),
-            _ => RunnerOutcome.Faulted,
-        };
-    }
-
-    private async Task<RunnerOutcome> ExecuteSingleAsync(Guid runId, CancellationToken ct)
+    public async Task<RunnerOutcome> ExecuteAsync(Guid runId, CancellationToken ct)
     {
         var executorId = ExecutorId(slot: 0);
 

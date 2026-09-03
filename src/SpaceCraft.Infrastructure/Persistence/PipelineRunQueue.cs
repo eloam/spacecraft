@@ -195,7 +195,10 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
             var cutoff = now - redispatchAfter;
 
             // Two shapes, one query: a run waiting for its first job, and a run whose worker
-            // died holding it. Oldest first, so a backlog drains in the order people queued it.
+            // died holding it. Oldest first, so a backlog drains in the order people queued it
+            // — with id as a tiebreak, because two runs queued in the same millisecond share a
+            // queued_at and would otherwise come back in whatever order the index felt like.
+            // Ids are UUIDv7, so the tiebreak is itself time-ordered rather than arbitrary.
             // SELECT * because FromSql must return every mapped column, and because these rows
             // are tracked and mutated below rather than projected.
             var claimed = await db.PipelineRuns
@@ -206,11 +209,18 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
                        OR (status = {(int)RunStatus.Running}
                            AND lease_expires_at IS NOT NULL
                            AND lease_expires_at < {now})
-                    ORDER BY queued_at
+                    ORDER BY queued_at, id
                     LIMIT {batchSize}
                     FOR UPDATE SKIP LOCKED
                     """)
                 .Include(r => r.Steps)
+                // Ordered again out here, and this is not redundant. Include makes EF wrap the
+                // statement above as a subquery and join the steps onto it, and an ORDER BY
+                // inside a subquery does not survive that — the rows come back in whatever
+                // order the join produces. The inner ORDER BY still decides *which* rows the
+                // LIMIT takes; this decides the order they are handed back in.
+                .OrderBy(r => r.QueuedAt)
+                .ThenBy(r => r.Id)
                 .ToListAsync(ct);
 
             if (claimed.Count == 0)

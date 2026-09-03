@@ -66,14 +66,15 @@ ENV HOME=/tmp \
 # which is HOME, and /home/runner, which useradd creates for them. Everything else laid down
 # above belongs to root and is read-only to them.
 #
-# It buys nothing between one run and the next. The same uid serves every run an invocation
-# drains, so two tenants' work is kept apart by directory, not by user.
+# It is not what separates one tenant from another — the container is, and it is destroyed
+# after the single run it was started for. This uid never sees a second tenant's work.
 RUN useradd --uid 10001 --create-home --home-dir /home/runner runner \
  && mkdir -p /tmp/spacecraft-workspaces \
  && chown -R runner:runner /tmp/spacecraft-workspaces /app
 USER 10001
 
-# No CMD. A job definition created without an explicit command would inherit it, and --drain
-# carries several tenants' runs in one process — the isolation this image relies on is one
-# execution per container. Every caller says what it wants: --run <id>, --reap, --migrate.
+# No CMD, so an invocation that names no run fails at once with its usage rather than starting
+# something nobody asked for. There is exactly one thing to ask for: --run <id>, or the same id
+# in SPACECRAFT_RUN_ID. The job definition leaves both unset and the API supplies the run id per
+# execution, which is what keeps one container to one tenant.
 ENTRYPOINT ["dotnet", "/app/SpaceCraft.Runner.dll"]
