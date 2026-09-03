@@ -15,6 +15,7 @@
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="11.0.0-preview.6.26359.118" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.0.0-preview.6.26359.118" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="11.0.0-preview.6.26359.118" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.KeyPerFile" Version="11.0.0-preview.6.26359.118" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="11.0.0-preview.6.26359.118" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="11.0.0-preview.6.26359.118" />

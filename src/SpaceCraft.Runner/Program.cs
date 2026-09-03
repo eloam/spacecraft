@@ -18,6 +18,19 @@ if (!command.IsValid)
 }
 
 var builder = Host.CreateApplicationBuilder(args);
+// Secrets arrive as files, not as environment variables. The deployment mounts each one at
+// /run/secrets/<key>, where the file name is the configuration key with the same double
+// underscores the environment uses — so ConnectionStrings__Postgres becomes
+// ConnectionStrings:Postgres and the settings block in docs/deployment.md transposes unchanged.
+//
+// The default host does not do this. It reads appsettings, the environment and the command
+// line, and a mounted file it was never told about is simply not configuration — which is what
+// makes this one line load-bearing rather than decorative.
+//
+// Added last, so a file wins over an environment variable of the same name. The point of the
+// mount is that a secret is not sitting in the process environment; letting a stray variable
+// shadow it would quietly restore the thing being avoided.
+builder.Configuration.AddKeyPerFile("/run/secrets", optional: true);
 
 builder.Services.AddSerilog((services, configuration) => configuration
     .ReadFrom.Configuration(builder.Configuration)

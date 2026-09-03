@@ -19,6 +19,11 @@ env:
   REGISTRY: ${{ vars.SCW_REGISTRY_ENDPOINT || 'rg.fr-par.scw.cloud' }}
   NAMESPACE: ${{ vars.SCW_REGISTRY_NAMESPACE || 'spacecraft' }}
 
+  # Kept next to the pin in Directory.Packages.props. The bundle is produced by the tool and
+  # run against a schema the library wrote; a tool older than the provider fails at generation
+  # rather than at apply, which is the better place but only if the two are kept level.
+  EF_VERSION: 11.0.0-preview.6.26359.118
+
 jobs:
   test:
     name: Verify
@@ -35,6 +40,17 @@ jobs:
 
       # See ci.yml for why this is not `dotnet test`.
       - run: dotnet run --project tests/SpaceCraft.UnitTests --configuration Release --no-build
+
+      # A model that has drifted from the last migration makes the bundle throw on EF Core 9 and
+      # later. Catching it here is the difference between a red pull request and a deployment
+      # that stops between pushing images and applying the schema.
+      - name: Check the model matches the last migration
+        run: |
+          dotnet tool install --global dotnet-ef --version ${{ env.EF_VERSION }}
+          dotnet ef migrations has-pending-model-changes \
+            --project src/SpaceCraft.Infrastructure \
+            --startup-project src/SpaceCraft.Api \
+            --no-build --configuration Release
 
   publish:
     name: Push ${{ matrix.name }}

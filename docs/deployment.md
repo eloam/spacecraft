@@ -237,7 +237,7 @@ KeyProtection__Kms__SecretKey=…
 # Scaleway account — shared by every service that talks to it
 
 # Object storage — its own IAM key, distinct from the email one
-ObjectStorage__BucketName=spacecraft
+ObjectStorage__BucketName=openapi-bucket
 ObjectStorage__ServiceUrl=https://s3.fr-par.scw.cloud
 ObjectStorage__Region=fr-par
 ObjectStorage__AccessKey=…
@@ -379,8 +379,25 @@ as the same user, in the same PID namespace. Everything in that process's enviro
 `/proc/self/environ` by anything the build executes. A file is not containment against the same
 uid, but it is no longer handed over by simply existing.
 
-It is the cheapest hardening available on this deployment: one block per secret in the job
-definition, and no code change.
+It costs one block per secret in the job definition and one line of code, and the line is not
+optional. The .NET default host reads `appsettings`, the environment and the command line —
+nothing else. A file mounted at a path it was never told about is not configuration, so both
+hosts call:
+
+```csharp
+builder.Configuration.AddKeyPerFile("/run/secrets", optional: true);
+```
+
+The file name is the configuration key with the same double underscores the environment uses, so
+`/run/secrets/ConnectionStrings__Postgres` becomes `ConnectionStrings:Postgres` and the settings
+block below transposes to file names unchanged. `optional: true` keeps development and the test
+hosts working, where the directory does not exist.
+
+Remove that line and the job does not run on stale values — it fails its startup validation
+naming the key it could not find, which is the right way for this to break.
+
+The API's secrets stay environment variables. The argument for files is that a customer's build
+runs inside the runner's process; nothing runs inside the API but the API.
 
 Two prerequisites are not configuration and cannot be worked around:
 
