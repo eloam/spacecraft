@@ -4,7 +4,7 @@
     "runner": {
       "commandName": "Project",
       "dotnetRunMessages": true,
-      "commandLineArgs": "--reap",
+      "commandLineArgs": "--run 00000000-0000-0000-0000-000000000000",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"
       }

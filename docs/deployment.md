@@ -12,13 +12,14 @@ minutes a function-style platform typically permits.
 |---|---|---|---|
 | API | Serverless Container | `src/SpaceCraft.Api/Dockerfile` | HTTP, minimum one instance |
 | Pipeline runner | Serverless Job | `src/SpaceCraft.Runner/Dockerfile` | `--run <id>`, started by the API, one execution per run |
-| Lease reaper | Serverless Job | same image | `--reap`, cron `*/15 * * * *` |
 | Migrations | Migration bundle | built in CI | applied from the release pipeline, once per release |
 | Database | Managed Database for PostgreSQL | — | — |
 | Specs, artifacts, logs | Object Storage | — | S3-compatible; MinIO in development |
 | Email | Transactional Email | — | SMTP |
 
-One image serves the runner, the reaper and the migration step; they differ only by argument.
+The runner image serves one purpose and takes one argument. Recovering a run whose worker died
+used to be a second job on a cron; it is now a predicate in the dispatcher's claim, so there is
+no schedule to create and a dead executor costs seconds rather than a cron interval.
 
 Mail leaves over SMTP, not over Scaleway's REST API. `SmtpEmailTransport` opens a MailKit
 connection to the relay named in `Email:Smtp:Host`; there is no HTTP client, no route and no
@@ -111,13 +112,12 @@ performs an ordered sequence, and each is bad at the other's job.
 
 **Terraform owns the cloud resources.** Managed Postgres and its two roles, the Object Storage
 buckets, the IAM applications and keys, the Key Manager key, the API container, and every job
-definition — `spacecraft-pipeline`, the reaper with its `cron` block, and any maintenance
-definition. `scaleway_job_definition` carries `image_uri`, `startup_command`, `args`, `env`,
+definition — today that is `spacecraft-pipeline` and nothing else. `scaleway_job_definition` carries `image_uri`, `startup_command`, `args`, `env`,
 `cpu_limit`, `memory_limit`, `local_storage_capacity`, `timeout`, `cron` and
 `secret_reference`, which is the whole surface this deployment needs.
 
-This is not tidiness. The run trigger assumes a job definition exists; the reaper assumes a
-cron exists; the API assumes an IAM key allowed to start jobs exists. Nothing in the repository
+This is not tidiness. The run trigger assumes a job definition exists, and the API assumes an
+IAM key allowed to start jobs exists. Nothing in the repository
 creates any of them, and what nobody declares, nobody recreates.
 
 **GitHub Actions owns the release.** Build the images, build the migration bundle, apply it,

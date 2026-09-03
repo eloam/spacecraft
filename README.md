@@ -74,8 +74,9 @@ fifteen minutes, so a build that used its whole budget was declared abandoned wh
 running and handed to a second worker. `PipelineTimeoutTests` now requires the lease to
 outlast the longest step by at least five minutes, so raising a step's budget past that fails
 the build rather than reintroducing the race. A runner
-that dies mid-build has its run requeued by `--reap` rather than leaving it stuck in
-`Running`. That is one fewer piece of infrastructure to operate than a broker, and the
+that dies mid-build leaves its run `Running` with a lapsed lease, and the same sweep that
+starts jobs treats that as a queued run — so recovery is a predicate rather than a second
+mechanism somebody has to deploy. That is one fewer piece of infrastructure to operate than a broker, and the
 `IPipelineRunQueue` seam is narrow enough to swap later.
 
 **Generation is delegated to [Kiota](https://github.com/microsoft/kiota).** It already covers
@@ -125,8 +126,7 @@ registry accepts, is only an Information diagnostic saying it will publish as `1
 and Packagist and as declared elsewhere. None of those three stops an upload.
 
 ```bash
-SpaceCraft.Runner --run <guid>   # execute one run; what the API starts, one job per run
-SpaceCraft.Runner --reap         # requeue runs abandoned by a dead executor; what cron invokes
+SpaceCraft.Runner --run <guid>   # execute one run; the only thing it does
 ```
 
 A run that fails is recorded as failed and the process still exits `0`. Exiting non-zero
@@ -282,7 +282,7 @@ git config core.hooksPath .githooks
 ## Deploying
 
 See [docs/deployment.md](docs/deployment.md). In short: the API is a Serverless Container, and
-the runner, reaper and migration step are Serverless Jobs sharing one image — Scaleway's
+the runner is a Serverless Job — Scaleway's
 Functions runtimes do not include .NET, and jobs allow far longer executions anyway.
 
 ## Tests

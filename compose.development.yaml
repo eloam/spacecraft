@@ -165,9 +165,10 @@ services:
       Database__MigrateOnStartup: "false"
     # One shot, then gone. This service no longer watches the queue: fake-scaleway-jobs starts
     # a container per run, the way the deployment starts a job per run. What it still does is
-    # build the image that fake uses and prove it boots — and run the reaper once, which is a
-    # real production component that would otherwise never execute here.
-    command: ["--reap"]
+    # A run id that does not exist: the container boots the whole container — Postgres, storage,
+    # key protection — finds nothing to claim, and exits 0. A smoke test of the image on the
+    # real entry point, which is the only one there is now.
+    command: ["--run", "00000000-0000-0000-0000-000000000000"]
     restart: "no"
 
   # Stands in for Scaleway Serverless Jobs. The API calls it to start one container per run —

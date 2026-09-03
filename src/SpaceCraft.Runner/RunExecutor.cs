@@ -50,7 +50,6 @@ public sealed class RunExecutor(
         return command.Mode switch
         {
             RunnerMode.OneRun => await ExecuteSingleAsync(command.RunId!.Value, ct),
-            RunnerMode.Reap => await ReapAsync(ct),
             _ => RunnerOutcome.Faulted,
         };
     }
@@ -74,23 +73,6 @@ public sealed class RunExecutor(
         var executor = scope.ServiceProvider.GetRequiredService<IPipelineExecutor>();
         await executor.ExecuteAsync(run.Id, ct);
 
-        return RunnerOutcome.Completed;
-    }
-
-    private async Task<RunnerOutcome> ReapAsync(CancellationToken ct)
-    {
-        await using var scope = scopeFactory.CreateAsyncScope();
-        var queue = scope.ServiceProvider.GetRequiredService<IPipelineRunQueue>();
-
-        var requeued = await queue.RequeueExpiredAsync(ct);
-
-        if (requeued == 0)
-        {
-            logger.LogInformation("No abandoned runs to recover");
-            return RunnerOutcome.NothingToDo;
-        }
-
-        logger.LogWarning("Recovered {Count} abandoned run(s)", requeued);
         return RunnerOutcome.Completed;
     }
 

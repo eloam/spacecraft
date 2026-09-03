@@ -31,10 +31,18 @@ public interface IPipelineRunQueue
     /// problem is the same: several API instances sweep this table and must not all start a
     /// job for the same run. SKIP LOCKED makes them share the work rather than race for it.
     /// <para>
-    /// It does not change <see cref="RunStatus"/>. A dispatched run is still queued — the job
-    /// may fail to boot, and the only thing that may say a run is running is a worker that has
-    /// actually taken it. <paramref name="redispatchAfter"/> is what lets a run that was
-    /// dispatched into silence be tried again.
+    /// It also picks up runs whose worker died — <see cref="RunStatus.Running"/> with a lease
+    /// that has expired. A run in that state is a queued run that does not know it yet, and
+    /// treating it as one collapses two recovery mechanisms into a predicate: there is no
+    /// separate reaper, no cron to remember, and a dead executor costs seconds rather than
+    /// however long that cron's interval was. Attempts are still bounded — a run that has
+    /// exhausted them fails here rather than being handed out again.
+    /// </para>
+    /// <para>
+    /// A dispatch does not change <see cref="RunStatus"/> for a run that was already queued.
+    /// The job may fail to boot, and the only thing that may say a run is running is a worker
+    /// that has actually taken it. <paramref name="redispatchAfter"/> is what lets a run that
+    /// was dispatched into silence be tried again.
     /// </para>
     /// </remarks>
     Task<IReadOnlyList<Guid>> ClaimForDispatchAsync(
@@ -62,10 +70,6 @@ public interface IPipelineRunQueue
     /// </remarks>
     Task<(int Count, TimeSpan OldestAge)> QueueDepthAsync(CancellationToken ct = default);
 
-    /// <summary>
-    /// Returns runs whose worker died mid-flight back to the queue. Called periodically.
-    /// </summary>
-    Task<int> RequeueExpiredAsync(CancellationToken ct = default);
 }
 
 /// <summary>
@@ -187,20 +191,26 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
         {
             await using var transaction = await db.Database.BeginTransactionAsync(ct);
 
-            var cutoff = DateTimeOffset.UtcNow - redispatchAfter;
+            var now = DateTimeOffset.UtcNow;
+            var cutoff = now - redispatchAfter;
 
-            // Oldest first, so a backlog drains in the order people queued it. SELECT * because
-            // FromSql must return every mapped column, and because the rows are tracked and
-            // stamped below rather than projected.
+            // Two shapes, one query: a run waiting for its first job, and a run whose worker
+            // died holding it. Oldest first, so a backlog drains in the order people queued it.
+            // SELECT * because FromSql must return every mapped column, and because these rows
+            // are tracked and mutated below rather than projected.
             var claimed = await db.PipelineRuns
                 .FromSql($"""
                     SELECT * FROM spacecraft.pipeline_runs
-                    WHERE status = {(int)RunStatus.Queued}
-                      AND (dispatched_at IS NULL OR dispatched_at < {cutoff})
+                    WHERE (status = {(int)RunStatus.Queued}
+                           AND (dispatched_at IS NULL OR dispatched_at < {cutoff}))
+                       OR (status = {(int)RunStatus.Running}
+                           AND lease_expires_at IS NOT NULL
+                           AND lease_expires_at < {now})
                     ORDER BY queued_at
                     LIMIT {batchSize}
                     FOR UPDATE SKIP LOCKED
                     """)
+                .Include(r => r.Steps)
                 .ToListAsync(ct);
 
             if (claimed.Count == 0)
@@ -209,16 +219,38 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
                 return (IReadOnlyList<Guid>)[];
             }
 
-            var now = DateTimeOffset.UtcNow;
+            var dispatchable = new List<Guid>(claimed.Count);
+
             foreach (var run in claimed)
             {
+                if (run.Status is RunStatus.Running)
+                {
+                    // Its lease lapsed, so whatever held it is gone. Back to the queue, unless
+                    // it has used its attempts — in which case it fails here and is not handed
+                    // out again. Steps left mid-flight are failed with the same reason, which
+                    // is why this query loads them.
+                    var requeued = run.TryRequeue(
+                        "Worker lease expired; the worker likely crashed or was evicted.");
+
+                    if (requeued)
+                    {
+                        Log.LeaseExpiredRequeued(logger, run.Id, run.AttemptCount);
+                    }
+                    else
+                    {
+                        Log.LeaseExpiredGaveUp(logger, run.Id, run.AttemptCount);
+                        continue;
+                    }
+                }
+
                 run.MarkDispatched(now);
+                dispatchable.Add(run.Id);
             }
 
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
 
-            return (IReadOnlyList<Guid>)[.. claimed.Select(r => r.Id)];
+            return (IReadOnlyList<Guid>)dispatchable;
         });
     }
 
@@ -270,32 +302,6 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
         return (count, oldest is null ? TimeSpan.Zero : DateTimeOffset.UtcNow - oldest.Value);
     }
 
-    public async Task<int> RequeueExpiredAsync(CancellationToken ct = default)
-    {
-        var now = DateTimeOffset.UtcNow;
-
-        var expired = await db.PipelineRuns
-            .Where(r => r.Status == RunStatus.Running
-                        && r.LeaseExpiresAt != null
-                        && r.LeaseExpiresAt < now)
-            .Include(r => r.Steps)
-            .ToListAsync(ct);
-
-        if (expired.Count == 0)
-        {
-            return 0;
-        }
-
-        foreach (var run in expired)
-        {
-            var requeued = run.TryRequeue("Worker lease expired; the worker likely crashed or was evicted.");
-
-            Log.LeaseExpired(logger, run.Id, run.AttemptCount, requeued ? "requeued" : "failed permanently");
-        }
-
-        await db.SaveChangesAsync(ct);
-        return expired.Count;
-    }
 }
 
 /// <summary>
@@ -316,9 +322,19 @@ internal static partial class Log
         Message = "Run {RunId} was not claimable by {WorkerId}: absent, already running, or finished")]
     public static partial void NotClaimable(ILogger logger, Guid runId, string workerId);
 
-    [LoggerMessage(Level = LogLevel.Warning,
-        Message = "Run {RunId} lease expired after {Attempts} attempt(s); {Action}")]
-    public static partial void LeaseExpired(ILogger logger, Guid runId, int attempts, string action);
+    // Error, not Warning: a lease only lapses because whatever held the run died — an OOM, an
+    // eviction, a job killed at its timeout. None of those is a condition to watch pass by, and
+    // an error reporter is the right place for them to land.
+    //
+    // Two templates rather than one with a variable, because a reporter groups by template.
+    // "recovered" and "gave up" are different incidents and should not share a bucket.
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Run {RunId} lease expired after {Attempts} attempt(s) and was requeued; its worker died mid-run")]
+    public static partial void LeaseExpiredRequeued(ILogger logger, Guid runId, int attempts);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Run {RunId} failed: its worker died mid-run for the {Attempts}th time, which is the limit")]
+    public static partial void LeaseExpiredGaveUp(ILogger logger, Guid runId, int attempts);
 
     [LoggerMessage(Level = LogLevel.Error,
         Message = "Run {RunId} failed: a job could not be started for it after {Attempts} attempt(s)")]

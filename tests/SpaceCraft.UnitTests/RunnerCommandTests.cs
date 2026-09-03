@@ -36,17 +36,6 @@ public class RunnerCommandTests
     }
 
     [Fact]
-    public void An_explicit_flag_beats_the_environment()
-    {
-        // A scheduler may leave a stale run id in the environment of a cron invocation.
-        var command = RunnerCommand.Parse(
-            ["--reap"], Environment("SPACECRAFT_RUN_ID", Guid.CreateVersion7().ToString()));
-
-        command.Mode.ShouldBe(RunnerMode.Reap);
-        command.RunId.ShouldBeNull();
-    }
-
-    [Fact]
     public void The_run_flag_carries_its_id()
     {
         var id = Guid.CreateVersion7();
@@ -57,18 +46,19 @@ public class RunnerCommandTests
         command.RunId.ShouldBe(id);
     }
 
-    [Theory]
-    [InlineData("--reap", RunnerMode.Reap)]
-    public void Each_mode_has_a_flag(string flag, RunnerMode expected) =>
-        RunnerCommand.Parse([flag], NoEnvironment).Mode.ShouldBe(expected);
 
     [Fact]
-    public void An_explicit_flag_ignores_a_run_id_left_in_the_environment() =>
-        // The environment is only consulted when no argument was given. A maintenance
-        // invocation must never be turned into a pipeline run by a stale variable.
+    public void An_argument_wins_over_a_run_id_left_in_the_environment()
+    {
+        // The environment is only consulted when no argument was given, so an explicit --run
+        // cannot be redirected by a variable a scheduler forgot to clear.
+        var wanted = Guid.CreateVersion7();
+
         RunnerCommand.Parse(
-            ["--reap"], Environment("SPACECRAFT_RUN_ID", Guid.CreateVersion7().ToString()))
-            .Mode.ShouldBe(RunnerMode.Reap);
+            ["--run", wanted.ToString()],
+            Environment("SPACECRAFT_RUN_ID", Guid.CreateVersion7().ToString()))
+            .RunId.ShouldBe(wanted);
+    }
 
     [Fact]
     public void A_run_flag_with_no_id_is_rejected()

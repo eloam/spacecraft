@@ -156,7 +156,10 @@ services:
     # container per run, which is the path production takes. Left as a service so compose
     # still builds the image the fake needs, and so a boot failure surfaces here rather than
     # inside a job nobody is watching.
-    command: ["--reap"]
+    # A run id that does not exist: the container boots the whole container — Postgres, storage,
+    # key protection — finds nothing to claim, and exits 0. A smoke test of the image on the
+    # real entry point, which is the only one there is now.
+    command: ["--run", "00000000-0000-0000-0000-000000000000"]
     environment:
       DOTNET_ENVIRONMENT: "Development"
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"

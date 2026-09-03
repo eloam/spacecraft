@@ -8,13 +8,6 @@ public enum RunnerMode
 
     /// <summary>Execute one named run. The shape a per-run trigger uses.</summary>
     OneRun,
-
-
-    /// <summary>Return abandoned runs to the queue and exit. The shape a cron trigger uses.</summary>
-    Reap,
-
-
-
 }
 
 /// <summary>
@@ -34,7 +27,6 @@ public sealed record RunnerCommand(
         SpaceCraft.Runner — executes SDK pipeline runs, then exits.
 
           --run <guid>   execute one specific queued run
-          --reap         requeue runs abandoned by a dead executor, then exit
 
         The run id may also be supplied as SPACECRAFT_RUN_ID, which is how most schedulers
         pass per-invocation input.
@@ -54,7 +46,6 @@ public sealed record RunnerCommand(
 
         return args[0] switch
         {
-            "--reap" => new RunnerCommand(RunnerMode.Reap),
             "--run" when args.Length < 2 => Invalid("--run requires a run id."),
             "--run" => Guid.TryParse(args[1], out var id)
                 ? new RunnerCommand(RunnerMode.OneRun, id)

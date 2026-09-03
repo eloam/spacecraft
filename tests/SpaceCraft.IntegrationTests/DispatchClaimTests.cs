@@ -91,6 +91,75 @@ public sealed class DispatchClaimTests(SpaceCraftApi api)
         claimed.ShouldBe(runIds.Take(2).ToList());
     }
 
+    [Fact]
+    public async Task A_run_whose_worker_died_is_picked_up_without_a_reaper()
+    {
+        var runIds = await SeedQueuedRunsAsync(1);
+
+        // Claimed by a worker that then stopped existing. The lease is what says so, and it
+        // has lapsed — there is no separate reaper any more, so the sweep has to see it.
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
+            var run = await db.PipelineRuns.SingleAsync(r => r.Id == runIds[0], TestContext.Current.CancellationToken);
+            run.Claim("worker-that-died", DateTimeOffset.UtcNow - PipelineRun.LeaseDuration - TimeSpan.FromMinutes(1));
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        (await ClaimAsync(batchSize: 10)).ShouldBe(runIds);
+
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
+            var run = await db.PipelineRuns.SingleAsync(r => r.Id == runIds[0], TestContext.Current.CancellationToken);
+
+            // Back to queued and stamped for dispatch, with the attempt that died still counted
+            // against the limit — a run that kills its worker three times has to stop, not loop.
+            run.Status.ShouldBe(RunStatus.Queued);
+            run.ClaimedBy.ShouldBeNull();
+            run.LeaseExpiresAt.ShouldBeNull();
+            run.DispatchedAt.ShouldNotBeNull();
+            run.AttemptCount.ShouldBe(1);
+        }
+    }
+
+    [Fact]
+    public async Task A_run_that_has_killed_its_worker_too_often_fails_instead_of_being_handed_out()
+    {
+        var runIds = await SeedQueuedRunsAsync(1);
+
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
+            var run = await db.PipelineRuns.SingleAsync(r => r.Id == runIds[0], TestContext.Current.CancellationToken);
+            var expired = DateTimeOffset.UtcNow - PipelineRun.LeaseDuration - TimeSpan.FromMinutes(1);
+
+            // Three claims, three deaths. The third is the limit.
+            for (var i = 0; i < 3; i++)
+            {
+                run.Claim($"worker-{i}", expired);
+                if (i < 2)
+                {
+                    run.TryRequeue("died");
+                }
+            }
+
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        // Not dispatchable: the sweep fails it rather than starting a fourth job for it.
+        (await ClaimAsync(batchSize: 10)).ShouldBeEmpty();
+
+        await using (var verify = api.Services.CreateAsyncScope())
+        {
+            var db = verify.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
+            var run = await db.PipelineRuns.SingleAsync(r => r.Id == runIds[0], TestContext.Current.CancellationToken);
+
+            run.Status.ShouldBe(RunStatus.Failed);
+            run.FailureReason.ShouldNotBeNull().ShouldContain("gave up after 3 attempts");
+        }
+    }
+
     private async Task<IReadOnlyList<Guid>> ClaimAsync(int batchSize)
     {
         await using var scope = api.Services.CreateAsyncScope();
