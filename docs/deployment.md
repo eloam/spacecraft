@@ -10,7 +10,7 @@ minutes a function-style platform typically permits.
 
 | Component | Scaleway product | Image | Invocation |
 |---|---|---|---|
-| API | Serverless Container | `src/SpaceCraft.Api/Dockerfile` | HTTP, scale-to-zero |
+| API | Serverless Container | `src/SpaceCraft.Api/Dockerfile` | HTTP, minimum one instance |
 | Pipeline runner | Serverless Job | `src/SpaceCraft.Runner/Dockerfile` | `--run <id>`, started by the API, one execution per run |
 | Lease reaper | Serverless Job | same image | `--reap`, cron `*/15 * * * *` |
 | Migrations | Serverless Job | same image | `--migrate`, once per release |
@@ -37,8 +37,21 @@ pin both have to be revisited then.
 The platform injects `PORT` and routes to it. `Program.cs` binds `0.0.0.0` on that port —
 binding loopback instead makes the startup probe fail, and with it the deployment.
 
-Scale-to-zero is safe here: the API holds no state between requests, and the queues it writes
-to live in Postgres.
+**The API must not scale to zero.** It holds no state between requests and the queues it
+writes to live in Postgres, so nothing about a request needs it — but `RunDispatcher` is a
+background service inside it, and it is the only thing that starts a pipeline job. Scaled to
+zero there is no dispatcher, so a run queued while nobody is browsing is not started until
+somebody loads a page. That is the missing-trigger failure again, intermittently, and no test
+would report it.
+
+Set a minimum of one instance. The dispatcher is safe to run in several at once — it claims
+its batch the same way the runner claims a run — so scaling up costs nothing but the sweep's
+own queries.
+
+The mail dispatchers are the second reason, and they are weaker but real: they drain an
+in-memory channel, so an instance that goes away takes whatever it was holding with it. A
+minimum of one does not make that safe, only rarer — "min 1" is not "the same one", and a
+redeploy still replaces the process.
 
 ## Sizing the runner job
 
@@ -294,6 +307,9 @@ that are still queued, claims a batch with `FOR UPDATE SKIP LOCKED`, and calls
 `POST /serverless-jobs/v1alpha2/regions/{region}/job-definitions/{id}/start` with
 `args: ["--run", "<guid>"]`. Serverless Jobs offer a cron trigger and nothing else — no queue
 trigger, no event trigger — so this call is the only way.
+
+This is why the API cannot scale to zero: the sweep is what starts a job, so an instance has
+to be up for anything to run. See [The API container](#the-api-container).
 
 There is deliberately no call from the request handler. A start that fails inline leaves a run
 queued and never started, which is the same defect as having no trigger at all, only rarer and
