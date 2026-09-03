@@ -56,16 +56,16 @@ public class RunnerCommandTests
     [Theory]
     [InlineData("--drain", RunnerMode.Drain)]
     [InlineData("--reap", RunnerMode.Reap)]
-    [InlineData("--migrate", RunnerMode.Migrate)]
     public void Each_mode_has_a_flag(string flag, RunnerMode expected) =>
         RunnerCommand.Parse([flag], NoEnvironment).Mode.ShouldBe(expected);
 
     [Fact]
-    public void Migrate_ignores_a_run_id_left_in_the_environment() =>
-        // A deployment step must never be turned into a pipeline run by a stale variable.
+    public void An_explicit_flag_ignores_a_run_id_left_in_the_environment() =>
+        // The environment is only consulted when no argument was given. A maintenance
+        // invocation must never be turned into a pipeline run by a stale variable.
         RunnerCommand.Parse(
-            ["--migrate"], Environment("SPACECRAFT_RUN_ID", Guid.CreateVersion7().ToString()))
-            .Mode.ShouldBe(RunnerMode.Migrate);
+            ["--reap"], Environment("SPACECRAFT_RUN_ID", Guid.CreateVersion7().ToString()))
+            .Mode.ShouldBe(RunnerMode.Reap);
 
     [Fact]
     public void A_run_flag_with_no_id_is_rejected()
@@ -108,27 +108,4 @@ public class RunnerCommandTests
     [Fact]
     public void An_empty_environment_variable_is_treated_as_absent() =>
         RunnerCommand.Parse([], Environment("SPACECRAFT_RUN_ID", "   ")).Mode.ShouldBe(RunnerMode.Drain);
-
-    [Fact]
-    public void Relocating_storage_is_destructive_and_defaults_to_doing_it()
-    {
-        var command = RunnerCommand.Parse(["--relocate-storage"], NoEnvironment);
-
-        command.Mode.ShouldBe(RunnerMode.RelocateStorage);
-        command.DryRun.ShouldBeFalse();
-        command.IsValid.ShouldBeTrue();
-    }
-
-    [Fact]
-    public void A_dry_run_is_recognised_wherever_it_sits()
-    {
-        // Position-independent on purpose: a flag that guards a destructive command should
-        // not be ignored for arriving in the wrong order.
-        RunnerCommand.Parse(["--relocate-storage", "--dry-run"], NoEnvironment).DryRun.ShouldBeTrue();
-    }
-
-    [Fact]
-    public void Dry_run_belongs_to_the_command_that_declares_it() =>
-        // Nothing else takes the flag, so it must not leak into another mode's meaning.
-        RunnerCommand.Parse(["--drain", "--dry-run"], NoEnvironment).DryRun.ShouldBeFalse();
 }

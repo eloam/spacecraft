@@ -68,11 +68,12 @@ sat in the same database as the credentials it protects, and a single dump carri
 ciphertext and the key that opens it. The only unwrapped secret now lives in the deployment —
 `KeyProtection:Kms:SecretKey` — where a database dump cannot reach it.
 
-With one caveat that matters on an existing deployment: an `IXmlEncryptor` applies when a key
-is minted, not retroactively. Keys already in the ring when Key Manager was switched on stay
-unwrapped, and every credential encrypted under one stays readable from a dump alone. That is
-what `SpaceCraft.Runner --rewrap-credentials` is for, and until it has run the paragraph above
-describes only the keys minted since.
+An `IXmlEncryptor` applies when a key is minted rather than retroactively, so a ring that
+predates Key Manager keeps its old keys in clear. That cannot happen on a deployment:
+`AddSpaceCraftDataProtection` throws outside Development when no provider is configured, so
+the first key a deployed ring holds is already wrapped and every one after it too. The
+retroactive case exists only on a development stack, whose ring protects nothing but locally
+stored test tokens.
 
 Development points the same client at `infra/SpaceCraft.FakeScalewayKms`, a stand-in that
 speaks Key Manager's documented routes, in the same spirit as MinIO for Object Storage and

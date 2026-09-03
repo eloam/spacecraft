@@ -12,22 +12,8 @@ public enum RunnerMode
     /// <summary>Return abandoned runs to the queue and exit. The shape a cron trigger uses.</summary>
     Reap,
 
-    /// <summary>Apply pending database migrations and exit. Runs as a deployment step.</summary>
-    Migrate,
 
-    /// <summary>
-    /// Move stored objects to the current key layout and exit. A one-off after the layout
-    /// changes, not part of any schedule.
-    /// </summary>
-    RelocateStorage,
 
-    /// <summary>
-    /// Re-encrypt every registry credential under a freshly wrapped key, then drop the
-    /// unwrapped keys that used to hold them. A one-off after key protection is switched on:
-    /// wrapping applies to keys minted from then on, and does nothing for what is already
-    /// stored until this has run.
-    /// </summary>
-    RewrapCredentials,
 }
 
 /// <summary>
@@ -41,8 +27,7 @@ public enum RunnerMode
 public sealed record RunnerCommand(
     RunnerMode Mode,
     Guid? RunId = null,
-    string? Error = null,
-    bool DryRun = false)
+    string? Error = null)
 {
     public const string Usage = """
         SpaceCraft.Runner — executes SDK pipeline runs, then exits.
@@ -50,14 +35,6 @@ public sealed record RunnerCommand(
           --run <guid>   execute one specific queued run
           --drain        execute queued runs until the queue is empty (default)
           --reap         requeue runs abandoned by a dead executor, then exit
-          --migrate      apply pending database migrations, then exit
-
-          --relocate-storage   move stored objects to the current key layout, then exit
-                               add --dry-run to print the moves without making them
-
-          --rewrap-credentials re-encrypt every registry credential under a freshly wrapped
-                               key and drop the unwrapped keys behind them, then exit
-                               add --dry-run to print what would change without changing it
 
         The run id may also be supplied as SPACECRAFT_RUN_ID, which is how most schedulers
         pass per-invocation input.
@@ -78,16 +55,6 @@ public sealed record RunnerCommand(
         return args[0] switch
         {
             "--reap" => new RunnerCommand(RunnerMode.Reap),
-            "--relocate-storage" => new RunnerCommand(
-                RunnerMode.RelocateStorage,
-                // Position-independent: --dry-run guards a destructive command, and having it
-                // silently ignored because it came in the wrong order is not a failure mode
-                // worth having.
-                DryRun: args.Contains("--dry-run", StringComparer.Ordinal)),
-            "--rewrap-credentials" => new RunnerCommand(
-                RunnerMode.RewrapCredentials,
-                DryRun: args.Contains("--dry-run", StringComparer.Ordinal)),
-            "--migrate" => new RunnerCommand(RunnerMode.Migrate),
             "--drain" => new RunnerCommand(RunnerMode.Drain),
             "--run" when args.Length < 2 => Invalid("--run requires a run id."),
             "--run" => Guid.TryParse(args[1], out var id)

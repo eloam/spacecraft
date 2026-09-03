@@ -13,7 +13,7 @@ minutes a function-style platform typically permits.
 | API | Serverless Container | `src/SpaceCraft.Api/Dockerfile` | HTTP, minimum one instance |
 | Pipeline runner | Serverless Job | `src/SpaceCraft.Runner/Dockerfile` | `--run <id>`, started by the API, one execution per run |
 | Lease reaper | Serverless Job | same image | `--reap`, cron `*/15 * * * *` |
-| Migrations | Serverless Job | same image | `--migrate`, once per release |
+| Migrations | Migration bundle | built in CI | applied from the release pipeline, once per release |
 | Database | Managed Database for PostgreSQL | — | — |
 | Specs, artifacts, logs | Object Storage | — | S3-compatible; MinIO in development |
 | Email | Transactional Email | — | SMTP |
@@ -104,14 +104,106 @@ to stop a TypeScript image picking up a Java run. That is a predicate on the exi
 query, not a new mechanism — worth writing the day draining is used in production, and not
 before, since a filter for a language nothing produces cannot be tested.
 
+## Who creates what
+
+Two tools, and the split is not a matter of taste: one converges a declared state, the other
+performs an ordered sequence, and each is bad at the other's job.
+
+**Terraform owns the cloud resources.** Managed Postgres and its two roles, the Object Storage
+buckets, the IAM applications and keys, the Key Manager key, the API container, and every job
+definition — `spacecraft-pipeline`, the reaper with its `cron` block, and any maintenance
+definition. `scaleway_job_definition` carries `image_uri`, `startup_command`, `args`, `env`,
+`cpu_limit`, `memory_limit`, `local_storage_capacity`, `timeout`, `cron` and
+`secret_reference`, which is the whole surface this deployment needs.
+
+This is not tidiness. The run trigger assumes a job definition exists; the reaper assumes a
+cron exists; the API assumes an IAM key allowed to start jobs exists. Nothing in the repository
+creates any of them, and what nobody declares, nobody recreates.
+
+**GitHub Actions owns the release.** Build the images, build the migration bundle, apply it,
+then move the container and job definitions to the new image. That is an ordered sequence with
+a dependency on the application version — Terraform has no primitive for "run this, wait for
+exit 0, then update that", and `null_resource` with `local-exec` is not one either.
+
+`image_uri` lives on the job definition and `StartJobDefinition` cannot override it — only the
+command, the arguments and the environment. So a release must update the definition, which
+means the pipeline passes the new tag to Terraform rather than Terraform being run by hand.
+The alternative, a mutable tag repushed each release, keeps Terraform out of the deploy path
+at the cost of a definition that no longer says which image it runs.
+
 ## Order of operations for a release
 
-1. Build and push both images.
-2. Run the migration job to completion — **not** at container startup. Two API containers
-   coming up together would race on the same migration.
-3. Deploy the API container and the job definitions.
+1. Verify: build, test, and `dotnet ef migrations has-pending-model-changes`. On EF Core 9 and
+   later a model that has drifted from the last migration makes the bundle throw, and this is
+   the difference between finding that on a pull request and finding it mid-deployment.
+2. Build and push both images.
+3. Generate the migration bundle and apply it to completion.
+4. Move the API container and the job definitions to the new images.
+
+Steps 3 and 4 are separate jobs with a `needs:` between them, which is the point: the ordering
+was documented and manual before, and a deployment that skipped the migration produced an API
+that started cleanly, reported healthy, and threw `column does not exist` on the first request
+that touched a new column.
 
 `Database:MigrateOnStartup` stays `false` outside Development, so nothing migrates implicitly.
+
+## Migrations
+
+The schema is applied by a **migration bundle** — a single-file executable produced by
+`dotnet ef migrations bundle`, generated in CI and run from the deployment pipeline. It needs
+neither the .NET SDK, nor the EF tools, nor the project's source code at execution.
+
+```bash
+ASPNETCORE_ENVIRONMENT=Production \
+    dotnet ef migrations bundle --self-contained --target-runtime linux-x64 \
+    --output artifacts/efbundle
+
+ASPNETCORE_ENVIRONMENT=Production \
+    ./artifacts/efbundle --connection "$MIGRATION_CONNECTION"
+```
+
+The environment is set at **both** steps deliberately: EF's design-time tooling defaults to
+`Development`, which would have the bundle read development user secrets.
+
+Rolling back is the same executable with a target: `./efbundle <PreviousMigration>`, or `0` to
+revert everything. It runs the `Down` of every migration newer than the target, so it can lose
+data — review before using it on production data.
+
+A bundle cannot show the SQL it will run. When a change needs review before it is applied,
+generate a script instead — `dotnet ef migrations script --idempotent` — read it, and keep it
+as the release artifact.
+
+**The migration identity is not the application identity.** Postgres carries two roles: one
+that can change the schema, used only by the bundle, and one that can only read and write
+rows, used by the API container and every job definition. This is the one objection to
+runtime migration that no tooling choice removes on its own, and it is stated three times in
+EF Core's own guidance. Without it the credential that serves the internet — and the one
+inside which a customer's transitive npm dependencies execute — can drop a table.
+
+That is also why the runner image cannot apply migrations at all: the mode was removed with
+the decision above. Development applies them at API startup through
+`Database:MigrateOnStartup`, and everywhere else it is the bundle. Nothing that runs a
+customer's build has ever needed schema rights, and now nothing that runs it can ask for
+them.
+
+### Reaching the database from CI
+
+Serverless Jobs cannot join a Private Network — Scaleway's own FAQ says so plainly: *"Scaleway
+Serverless Jobs does not currently support Scaleway VPC or Private Networks, though this
+feature is under development."* The database therefore already answers on a public endpoint,
+firewalled to Scaleway's published IP prefixes, which is every Scaleway customer.
+
+Running the bundle from a GitHub runner widens that allow-list to GitHub's ranges. It does not
+open a boundary that was closed — there is no private path to widen — but it is a real
+extension, and the migration job belongs behind a GitHub Environment with required reviewers
+for that reason. A self-hosted runner inside the project is the alternative when that is not
+acceptable.
+
+### What is not automated yet
+
+`release.yml` builds, tests and pushes the two images, and stops. The bundle, its application
+and the Terraform apply are described above and not yet written; until they are, steps 3 and 4
+are manual and their ordering rests on whoever runs them.
 
 ## Configuration
 
@@ -277,9 +369,24 @@ orgs/{org}/projects/{project}/runs/{run}/artifact/{fileName}
 orgs/{org}/projects/{project}/runs/{run}/logs/{step}.log
 ```
 
-One prefix per project is what makes a per-project lifecycle rule or bulk delete possible. After
-a change to that layout, `--relocate-storage` on the runner image moves existing objects onto
-it; `--dry-run` first, since it deletes the sources once the copies are confirmed.
+One prefix per project is what makes a per-project lifecycle rule or bulk delete possible.
+Changing the layout later means moving what is already stored, and nothing in the repository
+does that — decide the shape before there is anything in a production bucket.
+
+### Secrets belong in files, not in the environment
+
+With no Private Network available, Scaleway's own recommendation for Serverless Jobs is Secret
+Manager. `scaleway_job_definition` takes a `secret_reference` block that mounts a secret as a
+**file** rather than as an environment variable, and that difference is worth taking.
+
+Pipeline steps run in the runner's own process, so a customer's transitive npm dependency runs
+as the same user, in the same PID namespace. Everything in that process's environment —
+`KeyProtection__Kms__SecretKey`, the storage keys, the connection string — is readable from
+`/proc/self/environ` by anything the build executes. A file is not containment against the same
+uid, but it is no longer handed over by simply existing.
+
+It is the cheapest hardening available on this deployment: one block per secret in the job
+definition, and no code change.
 
 Two prerequisites are not configuration and cannot be worked around:
 
@@ -294,11 +401,11 @@ Two prerequisites are not configuration and cannot be worked around:
   already encrypted under a Key Manager key the database does not hold. Leaving the provider
   at `None` outside Development is refused at startup rather than tolerated.
 
-  Wrapping only applies to keys minted after it is switched on. Keys already in the ring stay
-  in clear, and a dump still opens every token encrypted under them, until
-  `--rewrap-credentials` on the runner image re-encrypts every credential under a freshly
-  wrapped key and then drops the unwrapped keys behind it — `--dry-run` first. It names any
-  credential it cannot decrypt instead of counting it: each one has to be replaced by hand.
+  Wrapping applies to keys minted after it is switched on, not retroactively — which sounds
+  like a gap and is not one here, because there is no way to reach production with an
+  unwrapped ring. Startup refuses outside Development unless a provider is configured, so the
+  very first key a deployed ring ever holds is already wrapped. The retroactive case only
+  arises on a development stack, where the ring protects nothing worth keeping.
 
 ## Starting a run
 
