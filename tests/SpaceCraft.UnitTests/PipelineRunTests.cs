@@ -184,4 +184,54 @@ public class PipelineRunTests
         run.Status.ShouldBe(RunStatus.Queued);
         run.DispatchedAt.ShouldBeNull();
     }
+
+    [Fact]
+    public void A_refused_dispatch_is_retried_and_clears_its_stamp()
+    {
+        var run = NewRun();
+        run.MarkDispatched(DateTimeOffset.UtcNow);
+
+        run.TryRecordDispatchRefusal("job definition not found").ShouldBeTrue();
+
+        run.DispatchAttempts.ShouldBe(1);
+        run.Status.ShouldBe(RunStatus.Queued);
+
+        // Cleared, so the next sweep retries at once rather than waiting out the window for a
+        // job that was never started.
+        run.DispatchedAt.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// A run nobody can start has to say so. Spinning silently is the same failure as having no
+    /// trigger at all — the person waiting sees the same thing either way.
+    /// </summary>
+    [Fact]
+    public void A_run_that_cannot_be_started_fails_rather_than_retrying_for_ever()
+    {
+        var run = NewRun();
+
+        run.TryRecordDispatchRefusal("key rejected").ShouldBeTrue();
+        run.TryRecordDispatchRefusal("key rejected").ShouldBeTrue();
+        run.TryRecordDispatchRefusal("key rejected").ShouldBeFalse();
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.FailureReason.ShouldNotBeNull();
+        run.FailureReason.ShouldContain("3 attempts");
+
+        // The reason the platform gave, not a generic one: it is what tells whoever looks
+        // whether this is their document or somebody's deployment.
+        run.FailureReason.ShouldContain("key rejected");
+    }
+
+    [Fact]
+    public void Dispatch_refusals_are_counted_separately_from_executions()
+    {
+        var run = NewRun();
+        run.TryRecordDispatchRefusal("transient");
+
+        // A run can exhaust one without ever having reached a worker, and the two numbers say
+        // different things to whoever reads the failure.
+        run.DispatchAttempts.ShouldBe(1);
+        run.AttemptCount.ShouldBe(0);
+    }
 }

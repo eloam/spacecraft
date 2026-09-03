@@ -54,6 +54,9 @@ public static class JobServiceExtensions
                 resilience.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(10);
             });
 
+        // Singleton: a Meter and its observable instruments are created once and live as long
+        // as the process. Registered before the dispatcher that writes to it.
+        services.AddSingleton<PipelineMetrics>();
         services.AddHostedService<RunDispatcher>();
 
         return services;

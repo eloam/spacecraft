@@ -32,6 +32,7 @@ namespace SpaceCraft.Api.Jobs;
 public sealed class RunDispatcher(
     IServiceScopeFactory scopeFactory,
     IJobTrigger trigger,
+    PipelineMetrics metrics,
     IOptions<PipelineJobOptions> options,
     ILogger<RunDispatcher> logger) : BackgroundService
 {
@@ -91,6 +92,7 @@ public sealed class RunDispatcher(
 
             if (result.Outcome is JobStartOutcome.Started)
             {
+                metrics.JobsStarted.Add(1);
                 logger.LogInformation("Started job {JobRunId} for run {RunId}", result.JobRunId, runId);
                 continue;
             }
@@ -103,14 +105,20 @@ public sealed class RunDispatcher(
             {
                 // The parallel-run ceiling, or the platform being unreachable. Both apply to
                 // the rest of the batch too, so stop asking and release what is left.
+                metrics.JobsDeferred.Add(1);
                 logger.LogDebug("Deferred run {RunId}: {Detail}", runId, result.Detail);
                 unstarted.AddRange(claimed.Skip(i + 1));
                 break;
             }
 
-            // A deployment fault — an unknown job definition, a key that is not accepted. The
-            // run stays queued, which is recoverable the moment somebody fixes the setting.
+            // A deployment fault — an unknown job definition, a key that is not accepted.
+            // Recoverable the moment somebody fixes the setting, so it is retried; but not for
+            // ever, because a run nobody can start has to say so rather than spin in silence.
+            // Counted here rather than released above: the refusal itself clears the stamp.
+            metrics.JobsRefused.Add(1);
+            unstarted.Remove(runId);
             logger.LogError("Could not start a job for run {RunId}: {Detail}", runId, result.Detail);
+            await queue.RecordDispatchRefusalAsync(runId, result.Detail ?? "No detail.", ct);
         }
 
         await queue.ReleaseDispatchAsync(unstarted, ct);

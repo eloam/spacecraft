@@ -173,6 +173,19 @@ public sealed class PipelineRun : Entity
     /// </remarks>
     public DateTimeOffset? DispatchedAt { get; private set; }
 
+    /// <summary>How many times starting a job for this run was refused outright.</summary>
+    /// <remarks>
+    /// Only refusals that will not fix themselves are counted — an unknown job definition, a
+    /// key the platform does not accept. A quota refusal is backpressure, not a fault, and a
+    /// run waiting behind a busy fleet must not be failed for waiting.
+    /// <para>
+    /// Separate from <see cref="AttemptCount"/>, which counts executions that ran. A run can
+    /// exhaust this without ever having reached a worker, and the two say different things to
+    /// whoever reads the failure.
+    /// </para>
+    /// </remarks>
+    public int DispatchAttempts { get; private set; }
+
     public int AttemptCount { get; private set; }
     public int MaxAttempts { get; private set; } = DefaultMaxAttempts;
 
@@ -211,6 +224,32 @@ public sealed class PipelineRun : Entity
     {
         DispatchedAt = now;
         Touch();
+    }
+
+    /// <summary>
+    /// Records that starting a job was refused in a way retrying will not fix, and fails the
+    /// run once that has happened <see cref="DefaultMaxAttempts"/> times.
+    /// </summary>
+    /// <returns><c>true</c> while the run is still worth retrying.</returns>
+    /// <remarks>
+    /// Without this a misconfigured job definition leaves runs queued for ever, retried every
+    /// few seconds, with nothing said to the person waiting — the same silence as having no
+    /// trigger at all, in a smaller shape. Failing says so, in the place they are already
+    /// looking.
+    /// </remarks>
+    public bool TryRecordDispatchRefusal(string reason)
+    {
+        DispatchAttempts++;
+        DispatchedAt = null;
+
+        if (DispatchAttempts < DefaultMaxAttempts)
+        {
+            Touch();
+            return true;
+        }
+
+        Fail($"Could not start a job for this run after {DispatchAttempts} attempts. {reason}");
+        return false;
     }
 
     /// <summary>

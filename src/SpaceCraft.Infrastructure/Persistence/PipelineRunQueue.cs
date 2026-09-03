@@ -49,6 +49,20 @@ public interface IPipelineRunQueue
     Task ReleaseDispatchAsync(IReadOnlyCollection<Guid> runIds, CancellationToken ct = default);
 
     /// <summary>
+    /// Records that starting a job for this run was refused in a way retrying will not fix,
+    /// and fails the run once that has happened enough times. Returns whether it is still
+    /// worth retrying.
+    /// </summary>
+    Task<bool> RecordDispatchRefusalAsync(Guid runId, string reason, CancellationToken ct = default);
+
+    /// <summary>How many runs are queued, and how long the oldest has been waiting.</summary>
+    /// <remarks>
+    /// The one number that would have shown the trigger was missing: with nothing reading the
+    /// queue, this grew without bound and nothing said so.
+    /// </remarks>
+    Task<(int Count, TimeSpan OldestAge)> QueueDepthAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Returns runs whose worker died mid-flight back to the queue. Called periodically.
     /// </summary>
     Task<int> RequeueExpiredAsync(CancellationToken ct = default);
@@ -222,6 +236,40 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.DispatchedAt, (DateTimeOffset?)null), ct);
     }
 
+    public async Task<bool> RecordDispatchRefusalAsync(
+        Guid runId, string reason, CancellationToken ct = default)
+    {
+        var run = await db.PipelineRuns.FirstOrDefaultAsync(r => r.Id == runId, ct);
+
+        if (run is null || run.Status != RunStatus.Queued)
+        {
+            return false;
+        }
+
+        var retryable = run.TryRecordDispatchRefusal(reason);
+        await db.SaveChangesAsync(ct);
+
+        if (!retryable)
+        {
+            Log.DispatchGaveUp(logger, runId, run.DispatchAttempts);
+        }
+
+        return retryable;
+    }
+
+    public async Task<(int Count, TimeSpan OldestAge)> QueueDepthAsync(CancellationToken ct = default)
+    {
+        var oldest = await db.PipelineRuns
+            .Where(r => r.Status == RunStatus.Queued)
+            .OrderBy(r => r.QueuedAt)
+            .Select(r => (DateTimeOffset?)r.QueuedAt)
+            .FirstOrDefaultAsync(ct);
+
+        var count = await db.PipelineRuns.CountAsync(r => r.Status == RunStatus.Queued, ct);
+
+        return (count, oldest is null ? TimeSpan.Zero : DateTimeOffset.UtcNow - oldest.Value);
+    }
+
     public async Task<int> RequeueExpiredAsync(CancellationToken ct = default)
     {
         var now = DateTimeOffset.UtcNow;
@@ -271,4 +319,8 @@ internal static partial class Log
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Run {RunId} lease expired after {Attempts} attempt(s); {Action}")]
     public static partial void LeaseExpired(ILogger logger, Guid runId, int attempts, string action);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Run {RunId} failed: a job could not be started for it after {Attempts} attempt(s)")]
+    public static partial void DispatchGaveUp(ILogger logger, Guid runId, int attempts);
 }

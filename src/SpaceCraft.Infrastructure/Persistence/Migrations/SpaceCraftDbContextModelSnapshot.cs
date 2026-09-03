@@ -16,7 +16,7 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260903101519_AddPipelineRunDispatchedAt";
+    public override string LastMigrationId => "20260903111054_AddPipelineRunDispatchAttempts";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -447,6 +447,10 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
                 b.Property<DateTimeOffset>("CreatedAt")
                     .HasColumnType("timestamp with time zone")
                     .HasColumnName("created_at");
+
+                b.Property<int>("DispatchAttempts")
+                    .HasColumnType("integer")
+                    .HasColumnName("dispatch_attempts");
 
                 b.Property<DateTimeOffset?>("DispatchedAt")
                     .HasColumnType("timestamp with time zone")
