@@ -39,8 +39,8 @@ public static class DependencyInjection
             throw new InvalidOperationException(
                 "Pipeline steps run in the worker's own process, with no sandbox between a "
                 + "tenant's build and the host. Set Pipeline:AllowUnsandboxedExecution to true "
-                + "to accept that, and keep Runner:MaxRunsPerInvocation at 1 so a job carries "
-                + "one tenant's run at a time.");
+                + "to accept that. One tenant per process is no longer a setting to remember: "
+                + "the runner executes exactly one run per invocation and has no other mode.");
         }
 
         services.AddSingleton<ICommandRunner, LocalCommandRunner>();

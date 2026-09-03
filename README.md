@@ -126,7 +126,6 @@ and Packagist and as declared elsewhere. None of those three stops an upload.
 
 ```bash
 SpaceCraft.Runner --run <guid>   # execute one run; what the API starts, one job per run
-SpaceCraft.Runner --drain        # work the queue until empty or the budget is spent
 SpaceCraft.Runner --reap         # requeue runs abandoned by a dead executor; what cron invokes
 ```
 
@@ -138,9 +137,11 @@ the runner being unable to operate earns a non-zero code.
 is a boolean, and outside Development `AddSpaceCraftPipeline` throws unless it is true. It
 grants nothing: there is no second runner to select instead, so the flag buys no safety and
 changes no behaviour. All it does is make the trade a decision that was taken rather than a
-default nobody read. The exception it throws also asks that `Runner:MaxRunsPerInvocation`
-stay at 1, because draining more than one run puts several tenants' work in one process —
-but nothing enforces that, and the default is 25.
+default nobody read.
+
+One tenant per process is no longer part of that trade. The runner takes a single run id and
+has no mode that claims a second, so what used to depend on an operator keeping
+`MaxRunsPerInvocation` at 1 now holds because there is nothing else the process can do.
 
 **Names are restricted so the URL is predictable.** Organizations and projects accept
 letters, numbers, spaces and hyphens; the slug is derived from the name and is what appears

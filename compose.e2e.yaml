@@ -107,6 +107,14 @@ services:
       # test registers an account.
       Database__MigrateOnStartup: "true"
       KeyProtection__Provider: "None"
+      # What starts a pipeline job. The dispatcher sweeps queued runs and asks this to run
+      # one execution each — the same call, and the same arguments, that production makes.
+      PipelineJobs__BaseUrl: "http://fake-scaleway-jobs:8098"
+      PipelineJobs__Region: "fr-par"
+      PipelineJobs__JobDefinitionId: "spacecraft-pipeline"
+      PipelineJobs__SecretKey: "fake-token"
+      # Tighter than the default: a suite waiting on a run should not also wait on a sweep.
+      PipelineJobs__SweepSeconds: "2"
       ObjectStorage__ServiceUrl: "http://minio:9000"
       ObjectStorage__BucketName: "openapi-bucket"
       ObjectStorage__AccessKey: "spacecraft"
@@ -144,37 +152,57 @@ services:
     build:
       context: .
       dockerfile: src/SpaceCraft.Runner/Dockerfile
-    command: ["--drain"]
+    # One shot, then gone. It no longer watches the queue: fake-scaleway-jobs starts a
+    # container per run, which is the path production takes. Left as a service so compose
+    # still builds the image the fake needs, and so a boot failure surfaces here rather than
+    # inside a job nobody is watching.
+    command: ["--reap"]
     environment:
       DOTNET_ENVIRONMENT: "Development"
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"
       Database__MigrateOnStartup: "false"
       KeyProtection__Provider: "None"
-      ObjectStorage__ServiceUrl: "http://minio:9000"
-      ObjectStorage__BucketName: "openapi-bucket"
-      ObjectStorage__AccessKey: "spacecraft"
-      ObjectStorage__SecretKey: "spacecraft-e2e-secret"
-      ObjectStorage__ForcePathStyle: "true"
-      # Many, unlike the development stack, where one per container is the isolation being
-      # relied on. Here the runs are a test's, not a tenant's, and a process that stays alive
-      # across them is a process that is not being started again every few seconds.
-      # Where a generated client's runtime packages come from. Not where anything is
-      # published: that travels with the credential.
-      Pipeline__DependencyRegistry: "http://verdaccio:4873"
-      Runner__MaxRunsPerInvocation: "25"
-      # One wait on an empty queue, then one more look, then exit — not a window it polls.
-      # So this is both the worst case a test waits for a run to be claimed and how often the
-      # container restarts while nothing is queued. Two minutes made every test wait two
-      # minutes; five seconds started a .NET process continuously.
-      Runner__EmptyQueueGrace: "00:00:15"
-    restart: always
+    # The same trade the API makes above, for the same reason: the schema arrives when the API
+    # applies it, and depends_on can only wait for a container to start, not for a migration to
+    # land. So let it fail and come back. It exits 0 once the schema is there and stays stopped
+    # — a one-shot that has to wait for something it cannot observe.
+    restart: on-failure
     depends_on:
-      # The database, which is what it actually needs, and the API, which brings the schema
-      # with it. Started rather than healthy, for the reason above.
       postgres:
         condition: service_healthy
       api:
         condition: service_started
+
+  # Stands in for Serverless Jobs. The suite now exercises the trigger — API to jobs API to a
+  # container per run — instead of a --drain loop that exists nowhere but here. That loop is
+  # exactly how a missing trigger survived being covered by twenty-one end-to-end tests.
+  fake-scaleway-jobs:
+    build:
+      context: .
+      dockerfile: infra/SpaceCraft.FakeScalewayJobs/Dockerfile
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      Fake__Definitions__spacecraft-pipeline__Image: "spacecraft-e2e-runner"
+      Fake__Definitions__spacecraft-pipeline__Network: "spacecraft-e2e_default"
+      Fake__Definitions__spacecraft-pipeline__Env__DOTNET_ENVIRONMENT: "Development"
+      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Provider: "None"
+      Fake__Definitions__spacecraft-pipeline__Env__ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"
+      Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__ServiceUrl: "http://minio:9000"
+      Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__BucketName: "openapi-bucket"
+      Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__AccessKey: "spacecraft"
+      Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__SecretKey: "spacecraft-e2e-secret"
+      Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__ForcePathStyle: "true"
+      Fake__Definitions__spacecraft-pipeline__Env__Pipeline__DependencyRegistry: "http://verdaccio:4873"
+      Fake__Definitions__spacecraft-pipeline__Env__Database__MigrateOnStartup: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8098/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
       verdaccio:
         condition: service_healthy
 

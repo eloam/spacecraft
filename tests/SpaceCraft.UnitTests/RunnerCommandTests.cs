@@ -12,12 +12,16 @@ public class RunnerCommandTests
         name => name == key ? value : null;
 
     [Fact]
-    public void No_arguments_and_no_environment_drains_the_queue()
+    public void No_arguments_and_no_environment_is_refused_rather_than_defaulted()
     {
         var command = RunnerCommand.Parse([], NoEnvironment);
 
-        command.Mode.ShouldBe(RunnerMode.Drain);
-        command.IsValid.ShouldBeTrue();
+        // Draining the queue used to be the default, and it put several tenants' runs in one
+        // process. An invocation that does not say which run it is for is a mistake, and the
+        // message has to say what to pass instead.
+        command.IsValid.ShouldBeFalse();
+        command.Mode.ShouldBe(RunnerMode.None);
+        command.Error.ShouldNotBeNull().ShouldContain("--run");
     }
 
     [Fact]
@@ -54,7 +58,6 @@ public class RunnerCommandTests
     }
 
     [Theory]
-    [InlineData("--drain", RunnerMode.Drain)]
     [InlineData("--reap", RunnerMode.Reap)]
     public void Each_mode_has_a_flag(string flag, RunnerMode expected) =>
         RunnerCommand.Parse([flag], NoEnvironment).Mode.ShouldBe(expected);
@@ -107,5 +110,5 @@ public class RunnerCommandTests
 
     [Fact]
     public void An_empty_environment_variable_is_treated_as_absent() =>
-        RunnerCommand.Parse([], Environment("SPACECRAFT_RUN_ID", "   ")).Mode.ShouldBe(RunnerMode.Drain);
+        RunnerCommand.Parse([], Environment("SPACECRAFT_RUN_ID", "   ")).IsValid.ShouldBeFalse();
 }

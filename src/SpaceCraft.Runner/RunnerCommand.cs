@@ -3,11 +3,12 @@ namespace SpaceCraft.Runner;
 /// <summary>What a single invocation of the runner should do before exiting.</summary>
 public enum RunnerMode
 {
+    /// <summary>No command. Only ever the mode of an invalid parse, never of a run.</summary>
+    None,
+
     /// <summary>Execute one named run. The shape a per-run trigger uses.</summary>
     OneRun,
 
-    /// <summary>Claim and execute queued runs until the queue is empty or the budget is spent.</summary>
-    Drain,
 
     /// <summary>Return abandoned runs to the queue and exit. The shape a cron trigger uses.</summary>
     Reap,
@@ -33,7 +34,6 @@ public sealed record RunnerCommand(
         SpaceCraft.Runner — executes SDK pipeline runs, then exits.
 
           --run <guid>   execute one specific queued run
-          --drain        execute queued runs until the queue is empty (default)
           --reap         requeue runs abandoned by a dead executor, then exit
 
         The run id may also be supplied as SPACECRAFT_RUN_ID, which is how most schedulers
@@ -55,7 +55,6 @@ public sealed record RunnerCommand(
         return args[0] switch
         {
             "--reap" => new RunnerCommand(RunnerMode.Reap),
-            "--drain" => new RunnerCommand(RunnerMode.Drain),
             "--run" when args.Length < 2 => Invalid("--run requires a run id."),
             "--run" => Guid.TryParse(args[1], out var id)
                 ? new RunnerCommand(RunnerMode.OneRun, id)
@@ -74,7 +73,10 @@ public sealed record RunnerCommand(
 
         if (string.IsNullOrWhiteSpace(value))
         {
-            return new RunnerCommand(RunnerMode.Drain);
+            // There is no default any more. Draining a queue was one, and it carried several
+            // tenants' runs in a single process — the isolation this image relies on is one
+            // execution per container, so every invocation has to say which run it is for.
+            return Invalid("No command given. Pass --run <id>, or set SPACECRAFT_RUN_ID.");
         }
 
         return Guid.TryParse(value, out var id)
@@ -82,5 +84,5 @@ public sealed record RunnerCommand(
             : Invalid($"SPACECRAFT_RUN_ID is '{value}', which is not a valid run id.");
     }
 
-    private static RunnerCommand Invalid(string error) => new(RunnerMode.Drain, null, error);
+    private static RunnerCommand Invalid(string error) => new(RunnerMode.None, null, error);
 }

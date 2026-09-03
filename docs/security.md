@@ -126,13 +126,11 @@ says so. What actually holds:
   configuration line of the caller's choosing.
 
 The isolation being relied on is the job's: one execution per container, torn down afterwards.
-That holds only while a job runs a single run, and nothing enforces it.
-`Runner:MaxRunsPerInvocation` defaults to 25, its range attribute accepts anything up to
-10,000, and the only place that sets it to 1 is `compose.development.yaml` — a deployment that
-leaves the default drains twenty-five tenants' runs through one process, sharing a filesystem
-and whatever the previous run left behind. What startup does refuse is running unsandboxed at
-all outside Development without `Pipeline:AllowUnsandboxedExecution`; the exception it throws
-asks for `MaxRunsPerInvocation` to be kept at 1 without ever checking that it is.
+That is now structural rather than conventional. The runner takes a single run id and has no
+mode that claims a second — the drain that could carry twenty-five tenants through one
+process, and the setting that was supposed to hold it at one, were both removed. What startup
+still refuses is running unsandboxed at all outside Development without
+`Pipeline:AllowUnsandboxedExecution`, which remains an acknowledgement rather than a control.
 
 ## Auth
 
@@ -250,12 +248,11 @@ which `npm` invokes.
 The isolation is the job's: one execution per container, created for that run and destroyed
 afterwards.
 
-That assertion holds only while **one job runs one run**, and it is a convention rather than a
-guarantee. Draining several runs through a single invocation puts other tenants' specs in the
-same process, sharing `/tmp` and whatever the previous run left behind. Runs are triggered
-individually and the development compose sets `Runner__MaxRunsPerInvocation=1` to match, but
-the default in `appsettings.json` is 25 and the e2e compose sets 25 as well — a deployment
-that does not set it to 1 does not have this property.
+That assertion rests on **one job running one run**, and it is now a guarantee rather than a
+convention: the runner accepts a run id and nothing else, so there is no invocation that can
+put a second tenant's spec in the same process. Development and the end-to-end stack take the
+same path as production — a container per run, started through the jobs API — so the property
+is exercised by the suite rather than asserted in a paragraph.
 
 What the job does not give, that a container per step would:
 

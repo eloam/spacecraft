@@ -38,9 +38,9 @@ public sealed class PipelineOptions
     /// <remarks>
     /// There is one <c>ICommandRunner</c> and it starts a child process on the host. The
     /// isolation the design relies on is the job's — one execution per container, torn down
-    /// afterwards — which holds only while a job runs a single run. Draining a queue with
-    /// <c>MaxRunsPerInvocation</c> above one puts several tenants' work in one process,
-    /// sharing a filesystem and a network.
+    /// afterwards — and that now holds by construction: the runner takes a single run id and
+    /// has no mode that claims a second. It used to hold only while somebody remembered to
+    /// keep a setting at 1, which is not the same thing.
     /// <para>
     /// That may be an acceptable trade at this stage, but it should be a decision somebody
     /// took rather than a default nobody read. Outside Development, startup refuses unless

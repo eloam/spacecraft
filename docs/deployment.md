@@ -72,9 +72,10 @@ Kiota is a `PackageReference` of `SpaceCraft.Pipeline` and the builder is called
 the image carries Node and nothing else, and `npm` — install, pack, publish — is the only name
 the pipeline resolves off `PATH`. The isolation is the job's: one execution per container, torn
 down afterwards — which holds only while a job runs a single run, so the API starts one
-execution per run with `--run <id>` rather than letting anything drain a queue. The image
-carries no `CMD` for that reason: a job definition created without an explicit command would
-inherit one, and `--drain` puts several tenants' builds in a single process.
+execution per run with `--run <id>`. That is the only thing the runner can do with a queue:
+the mode that drained several runs through one process was removed, along with the setting
+that was supposed to hold it at one. The image also carries no `CMD`, so a definition created
+without an explicit command fails loudly rather than falling back to something.
 See [security.md](security.md) for what that gives up, and for why it becomes a real decision
 the day a language whose build system executes code (Gradle, Maven, `setup.py`) is added.
 
@@ -98,11 +99,10 @@ when it is queued (`PipelineRun.TargetLanguage`), and the API already starts one
 with `--run <id>`, so the dispatcher would pick the definition the same way it picks the id. The cost
 is N images to keep current, which the shared base bounds.
 
-The one place this would need code is a queue that drains rather than being triggered per
-run: `--drain` claims whatever is queued, so it would need a `--language` filter on the claim
-to stop a TypeScript image picking up a Java run. That is a predicate on the existing claim
-query, not a new mechanism — worth writing the day draining is used in production, and not
-before, since a filter for a language nothing produces cannot be tested.
+Nothing about the claim needs a language filter: the dispatcher reads the run's recorded
+language and starts the definition that matches, so an image is only ever handed a run it can
+build. That was not true of a queue that drained whatever it found, which is one more thing
+removing that mode bought.
 
 ## Who creates what
 
@@ -264,12 +264,6 @@ Email__Smtp__FromName=SpaceCraft
 # decision written down rather than a default nobody read. There is no companion setting
 # that turns a sandbox on — none exists. This acknowledges the absence; it selects nothing.
 Pipeline__AllowUnsandboxedExecution=true
-
-# Runner — the isolation being relied on is the job's, and it only holds for one run at a
-# time. The shipped default is 25, so a job left to drain will carry several tenants' work
-# in one process, sharing a filesystem and a network. Set it to 1 explicitly; the value in
-# the image's appsettings.json is not the value this deployment wants.
-Runner__MaxRunsPerInvocation=1
 
 # Pipeline — the runner image sets this as an ENV, override only to move it
 Pipeline__WorkspaceRoot=/tmp/spacecraft-workspaces
