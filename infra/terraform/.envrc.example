@@ -1,0 +1,14 @@
+# terraform/.envrc
+#
+# Copy this file to .envrc, fill in the values below, then run:
+#   direnv allow .
+#
+# .envrc is gitignored — never commit real credentials.
+
+export SCW_ACCESS_KEY="$(scw config get access-key --profile sc-terraform-staging)"
+export SCW_SECRET_KEY="$(scw config get secret-key --profile sc-terraform-staging)"
+export AWS_ACCESS_KEY_ID="$SCW_ACCESS_KEY"
+export AWS_SECRET_ACCESS_KEY="$SCW_SECRET_KEY"
+
+export SCW_DEFAULT_ORGANIZATION_ID="$(scw config get default-organization-id --profile sc-terraform-staging)"
+export SCW_DEFAULT_PROJECT_ID="$(scw config get default-project-id --profile sc-terraform-staging)"

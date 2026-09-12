@@ -5,6 +5,7 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
     <File Path="compose.development.yaml" />
     <File Path="compose.e2e.yaml" />
     <File Path="Directory.Build.props" />
@@ -24,8 +25,8 @@
   </Folder>
   <Folder Name="/infra/">
     <Project Path="infra/SpaceCraft.FakeScalewayKms/SpaceCraft.FakeScalewayKms.csproj" />
+    <File Path="infra\verdaccio\config.yaml" />
     <Project Path="infra/SpaceCraft.FakeScalewayJobs/SpaceCraft.FakeScalewayJobs.csproj" />
-    <File Path="infra/verdaccio/config.yaml" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SpaceCraft.IntegrationTests/SpaceCraft.IntegrationTests.csproj" />

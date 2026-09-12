@@ -43,3 +43,9 @@ Thumbs.db
 # Local scratch
 /tmp/
 /.scratch/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+/infra/terraform/**/*.envrc
