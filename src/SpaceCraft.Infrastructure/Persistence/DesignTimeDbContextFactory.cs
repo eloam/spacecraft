@@ -9,10 +9,10 @@ namespace SpaceCraft.Infrastructure.Persistence;
 /// <remarks>
 /// Without this, the tooling falls back to constructing the startup project's host to find a
 /// registered context — and the API's host cannot be constructed outside Development on a bare
-/// checkout. <c>AddSpaceCraftJobs</c> and the key-protection registration validate eagerly, at
-/// registration rather than at start, and throw on configuration a CI job has no reason to hold:
-/// a job definition id, an IAM key, a Key Manager key id. Generating a migration bundle would
-/// fail asking for credentials it will never use.
+/// checkout. The key-protection and email registrations validate eagerly, at registration
+/// rather than at start, and throw on configuration a CI job has no reason to hold: a Key
+/// Manager key id, an IAM key, a relay password. Generating a migration bundle would fail asking
+/// for credentials it will never use.
 /// <para>
 /// That eagerness is deliberate elsewhere and worth keeping — a deployment that queues runs
 /// nothing will ever start should refuse to boot rather than look healthy. This is the seam that
