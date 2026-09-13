@@ -247,7 +247,7 @@ ObjectStorage__SecretKey=…
 # path-style, in a region that is not the bucket's.
 ObjectStorage__ForcePathStyle=false
 
-# Email — startup fails without these outside Development
+# Email — startup fails without these outside Development; FromEmail is required everywhere
 # SMTP rather than a provider API: the relay is swappable without touching code, and
 # nothing below is derived from one. Scaleway's username is the id of the project the
 # sending domain belongs to.
@@ -281,11 +281,21 @@ RateLimits__CredentialPermitsPerWindow=10
 RateLimits__CredentialWindow=00:15:00
 ```
 
-Startup fails fast rather than running degraded: on a signing key that is missing or shorter
-than 32 characters, on mail that is unconfigured or half configured outside Development, on
-`Email:Smtp:Security=None` there, on a port and a handshake that contradict each other, on
-`KeyProtection:Provider` left at `None` outside Development, and on
+Startup fails fast rather than running degraded, and it names the key. Every required
+setting is listed in the `"//"` key at the top of each `appsettings.json`; a missing or blank
+one is refused before any hosted service runs. Within a section every failing key is reported
+together; the first section that fails stops startup. Among them: a blank connection string, a signing key missing or
+shorter than 32 characters, a bucket name or region left out, `PublicUrls:App` or
+`PublicUrls:Api` missing or not https outside Development, a sender address the relay has
+never been shown to own, mail that is unconfigured or half configured outside Development,
+`Email:Smtp:Security=None` there, a port and a handshake that contradict each other, storage
+keys left blank outside Development, `KeyProtection:Provider` left at `None` there, and
 `Pipeline:AllowUnsandboxedExecution` not being `true` there.
+
+There is no fallback value anywhere. A setting that depends on the deployment — a bucket, a
+region, a URL, a sender — has no default in code, because a default that is wrong does not
+fail: it sends links to the wrong site, or addresses the wrong region with a valid-looking
+name, and nothing says so.
 
 Key protection goes one step further and proves itself before anything is served. A hosted
 service runs one real encrypt-and-decrypt against Key Manager on boot and refuses to start
