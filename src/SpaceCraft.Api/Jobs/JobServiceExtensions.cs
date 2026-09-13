@@ -87,7 +87,7 @@ public static class JobServiceExtensions
                      ("SecretKey", options.SecretKey),
                  })
         {
-            if (string.IsNullOrWhiteSpace(value) || value == "[REQUIRED]")
+            if (string.IsNullOrWhiteSpace(value))
             {
                 throw new InvalidOperationException(
                     $"PipelineJobs:{name} is required. Without it the API queues runs that "

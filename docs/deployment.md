@@ -300,16 +300,6 @@ generator runs is not configurable at all. Kiota is a compile-time dependency pi
 `Pipeline:GenerateTimeout` and `Pipeline:WorkspaceRoot`, and neither can select a different
 generator or a different version of one.
 
-Startup also refuses while any setting still reads `[REQUIRED]` — the marker
-`appsettings.json` uses for what a deployment must supply — and names every one of them at
-once. Without that check the placeholder is just a string: it satisfies `[Required]`, passes
-every option validation, and reappears much later as a rejected SMTP password or a 403 from
-S3, with nothing tying either back to a variable nobody set.
-
-This holds in Development too. A checkout with no account behind it blanks these in
-`appsettings.Development.json` or user secrets, which is a deliberate act — unlike a marker
-nobody noticed.
-
 The relay's certificate is validated in full. Revocation is always requested; what
 `Email__Smtp__RequireCertificateRevocation` decides is what happens when no answer comes back,
 which on macOS and in a container with no route to an OCSP responder is every time.
