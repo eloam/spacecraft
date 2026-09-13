@@ -281,21 +281,22 @@ RateLimits__CredentialPermitsPerWindow=10
 RateLimits__CredentialWindow=00:15:00
 ```
 
-Startup fails fast rather than running degraded, and it names the key. Every required
+Startup fails fast rather than running degraded, and it names the setting. Every required
 setting is listed in the `"//"` key at the top of each `appsettings.json`; a missing or blank
-one is refused before any hosted service runs. Within a section every failing key is reported
-together; the first section that fails stops startup. Among them: a blank connection string, a signing key missing or
-shorter than 32 characters, a bucket name or region left out, `PublicUrls:App` or
-`PublicUrls:Api` missing or not https outside Development, a sender address the relay has
-never been shown to own, mail that is unconfigured or half configured outside Development,
+one is refused before any hosted service runs. For the sections validated by annotations every
+failing key of the section is reported together; the hand-written checks (connection string,
+key protection, email's relay rules) stop at the first, and the first section that fails stops
+startup. Among them: a blank connection string, a signing key missing or shorter than 32
+characters, a bucket name or region left out, `PublicUrls:App` or `PublicUrls:Api` missing or
+not https outside Development, a sender address missing or malformed, mail that is
+unconfigured or half configured outside Development,
 `Email:Smtp:Security=None` there, a port and a handshake that contradict each other, storage
 keys left blank outside Development, `KeyProtection:Provider` left at `None` there, and
 `Pipeline:AllowUnsandboxedExecution` not being `true` there.
 
-There is no fallback value anywhere. A setting that depends on the deployment — a bucket, a
-region, a URL, a sender — has no default in code, because a default that is wrong does not
-fail: it sends links to the wrong site, or addresses the wrong region with a valid-looking
-name, and nothing says so.
+A setting that depends on the deployment — a bucket, a region, a URL, a sender — has no
+default in code, because a default that is wrong does not fail: it sends links to the wrong
+site, or addresses the wrong region with a valid-looking name, and nothing says so.
 
 Key protection goes one step further and proves itself before anything is served. A hosted
 service runs one real encrypt-and-decrypt against Key Manager on boot and refuses to start

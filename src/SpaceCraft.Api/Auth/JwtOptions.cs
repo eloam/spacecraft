@@ -6,8 +6,9 @@ public sealed class JwtOptions
 {
     public const string SectionName = "Jwt";
 
-    // Sensible defaults, so no [Required]: on a string that carries an initializer the
-    // attribute never fires for a missing key and only misleads a reader.
+    // Sensible defaults, so no [Required]: on a string that carries a non-empty initializer
+    // the attribute never fires for a missing key and only misleads a reader. SigningKey below
+    // initialises to string.Empty, which is the one initializer [Required] does refuse.
     public string Issuer { get; set; } = "spacecraft";
 
     public string Audience { get; set; } = "spacecraft-api";

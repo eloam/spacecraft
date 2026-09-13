@@ -97,8 +97,9 @@ public static class DependencyInjection
                 config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region);
             }
 
-            // Fall back to the ambient credential chain (IAM role, environment) when no
-            // static keys are configured — static keys are a development convenience.
+            // Empty keys select the ambient credential chain (IAM role, environment). Outside
+            // Development the validation above has already refused that, so this branch is
+            // Development's — a developer on an AWS instance with a role, typically.
             return string.IsNullOrWhiteSpace(options.AccessKey)
                 ? new AmazonS3Client(config)
                 : new AmazonS3Client(new BasicAWSCredentials(options.AccessKey, options.SecretKey), config);

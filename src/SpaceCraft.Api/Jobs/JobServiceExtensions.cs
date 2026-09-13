@@ -15,8 +15,9 @@ public static class JobServiceExtensions
     /// <para>
     /// Through the options pipeline rather than a hand-written check at registration, because
     /// nothing here branches on the values — the same services are registered whatever they
-    /// are — and the annotations report every failing member of this section together. The
-    /// hand-written loop stopped at the first. (Across sections the first failing one still
+    /// are — and the annotations report every failing member of this section together, where
+    /// the hand-written loop stopped at the first. (The URL rule in IValidatableObject only runs
+    /// once the annotations pass; that is how the validator sequences the two.) (Across sections the first failing one still
     /// stops startup; the gain is within a section, and that is where the forgotten keys are.)
     /// </para>
     /// </remarks>

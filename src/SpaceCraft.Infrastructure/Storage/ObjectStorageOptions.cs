@@ -6,8 +6,8 @@ public sealed class ObjectStorageOptions
 {
     public const string SectionName = "ObjectStorage";
 
-    // No initializer, on purpose. [Required] on a string that carries a default never fires
-    // for a missing key — the default satisfies it — so the attribute would say "required" and
+    // No initializer, on purpose. [Required] on a string that carries a non-empty default never
+    // fires for a missing key — the default satisfies it — so the attribute would say "required" and
     // the property would quietly mean "spacecraft", a bucket that exists in no environment.
     [Required]
     public string? BucketName { get; set; }
