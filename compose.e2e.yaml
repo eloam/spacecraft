@@ -127,6 +127,7 @@ services:
       Email__Smtp__Password: "spacecraft-e2e"
       # Where the links in those messages point: the preview server the tests drive.
       PublicUrls__App: "http://localhost:4173"
+      PublicUrls__Api: "http://127.0.0.1:58080"
       # A test that waits for an email waits for this. Two seconds rather than fifteen.
       Notifications__SweepSeconds: "2"
       # Every test registers its own account from one address, which is exactly what the

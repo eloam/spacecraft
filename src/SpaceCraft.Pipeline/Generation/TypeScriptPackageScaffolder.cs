@@ -12,6 +12,10 @@ namespace SpaceCraft.Pipeline.Generation;
 /// </summary>
 public sealed class TypeScriptPackageScaffolder(IKiotaDependencyProvider dependencies) : IPackageScaffolder
 {
+    // Where the generated README sends readers. One constant, so a domain move is one edit
+    // rather than a search — this shipped the old domain into every published package once.
+    private const string ProductUrl = "https://spacecraft.sh";
+
     /// <summary>
     /// TypeScript compiler used to build the package. Pinned to a caret range so patch
     /// fixes flow in but a major bump never silently changes the emitted output.
@@ -229,7 +233,7 @@ public sealed class TypeScriptPackageScaffolder(IKiotaDependencyProvider depende
         readme.AppendLine();
         readme.AppendLine("---");
         readme.AppendLine();
-        readme.AppendLine("_Generated automatically by [SpaceCraft](https://spacecraft.dev) from an OpenAPI document.");
+        readme.AppendLine($"_Generated automatically by [SpaceCraft]({ProductUrl}) from an OpenAPI document.");
         readme.AppendLine("Do not edit by hand — changes are overwritten on the next generation._");
 
         return readme.ToString();

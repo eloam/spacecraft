@@ -127,6 +127,31 @@ public static class ApiServiceExtensions
         return services;
     }
 
+    /// <summary>
+    /// Where the deployment is reached from outside. Validated at startup, because every link
+    /// an email carries is built from these, and a wrong value does not fail — it sends
+    /// people somewhere else.
+    /// </summary>
+    public static IServiceCollection AddSpaceCraftPublicUrls(
+        this IServiceCollection services, IConfiguration configuration, bool isDevelopment)
+    {
+        services.AddOptions<PublicUrlsOptions>()
+            .Bind(configuration.GetSection(PublicUrlsOptions.SectionName))
+            .ValidateDataAnnotations()
+            // A reset link over plain http is a bearer token on the wire. Development runs on
+            // localhost and is the one place that is fine. A value that does not parse is
+            // reported by the class itself, so it passes here.
+            .Validate(
+                options => isDevelopment || (IsHttpsOrUnparseable(options.App) && IsHttpsOrUnparseable(options.Api)),
+                "PublicUrls:App and PublicUrls:Api must be https outside Development.")
+            .ValidateOnStart();
+
+        return services;
+
+        static bool IsHttpsOrUnparseable(string? value) =>
+            !Uri.TryCreate(value, UriKind.Absolute, out var url) || url.Scheme == Uri.UriSchemeHttps;
+    }
+
     public static IServiceCollection AddSpaceCraftRateLimiting(
         this IServiceCollection services, IConfiguration configuration)
     {

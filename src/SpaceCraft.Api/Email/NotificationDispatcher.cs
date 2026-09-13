@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Notifications;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Api.Email;
 
@@ -30,6 +31,7 @@ public sealed class NotificationDispatcher(
     IServiceScopeFactory scopeFactory,
     IEmailSender email,
     IConfiguration configuration,
+    IOptions<PublicUrlsOptions> publicUrls,
     ILogger<NotificationDispatcher> logger) : BackgroundService
 {
     /// <summary>
@@ -219,7 +221,7 @@ public sealed class NotificationDispatcher(
             return null;
         }
 
-        var appUrl = (configuration["PublicUrls:App"] ?? "https://app.spacecraft.dev").TrimEnd('/');
+        var urls = publicUrls.Value;
 
         return Emails.Notification(
             row.Email,
@@ -228,9 +230,9 @@ public sealed class NotificationDispatcher(
             row.Summary,
             Shorten(row.Detail),
             row.ActionLabel,
-            appUrl + row.Link,
-            appUrl + "/account/notifications",
-            (configuration["PublicUrls:Api"] ?? "https://api.spacecraft.dev").TrimEnd('/'));
+            urls.AppRoot() + row.Link,
+            urls.AppRoot() + "/account/notifications",
+            urls.ApiRoot());
     }
 
     /// <summary>

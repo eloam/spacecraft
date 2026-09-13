@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Api.Email;
 
@@ -16,7 +17,7 @@ public sealed class InvitationDispatcher(
     BackgroundWorkQueue<InvitationRequest> requests,
     IServiceScopeFactory scopeFactory,
     IEmailSender email,
-    IConfiguration configuration,
+    IOptions<PublicUrlsOptions> publicUrls,
     ILogger<InvitationDispatcher> logger) : BackgroundService
 {
     /// <summary>
@@ -74,8 +75,8 @@ public sealed class InvitationDispatcher(
             .Select(u => u.DisplayName ?? u.Email)
             .FirstOrDefaultAsync(ct);
 
-        var appUrl = (configuration["PublicUrls:App"] ?? "https://app.spacecraft.dev").TrimEnd('/');
-        var link = $"{appUrl}/invitations/accept?token={Uri.EscapeDataString(request.RawToken)}";
+        var urls = publicUrls.Value;
+        var link = $"{urls.AppRoot()}/invitations/accept?token={Uri.EscapeDataString(request.RawToken)}";
 
         await email.SendAsync(
             Emails.OrganizationInvitation(
@@ -85,7 +86,7 @@ public sealed class InvitationDispatcher(
                 invitation.Role.ToString(),
                 link,
                 Lifetime,
-                (configuration["PublicUrls:Api"] ?? "https://api.spacecraft.dev").TrimEnd('/')),
+                urls.ApiRoot()),
             ct);
     }
 }
