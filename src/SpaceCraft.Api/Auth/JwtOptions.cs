@@ -6,10 +6,10 @@ public sealed class JwtOptions
 {
     public const string SectionName = "Jwt";
 
-    [Required]
+    // Sensible defaults, so no [Required]: on a string that carries an initializer the
+    // attribute never fires for a missing key and only misleads a reader.
     public string Issuer { get; set; } = "spacecraft";
 
-    [Required]
     public string Audience { get; set; } = "spacecraft-api";
 
     /// <summary>

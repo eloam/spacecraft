@@ -55,9 +55,8 @@ public sealed class SmtpEmailOptions : IValidatableObject
     /// </summary>
     [Required]
     [EmailAddress]
-    public string FromEmail { get; set; } = "noreply@spacecraft.dev";
+    public string? FromEmail { get; set; }
 
-    [Required]
     public string FromName { get; set; } = "SpaceCraft";
 
     /// <summary>

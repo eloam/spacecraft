@@ -7,7 +7,6 @@ public sealed class PipelineOptions
     public const string SectionName = "Pipeline";
 
     /// <summary>Root directory for per-run workspaces.</summary>
-    [Required]
     public string WorkspaceRoot { get; set; } = Path.Combine(Path.GetTempPath(), "spacecraft-workspaces");
 
     /// <summary>
@@ -20,7 +19,6 @@ public sealed class PipelineOptions
     /// Kiota's runtime packages looking inside a customer's private registry.
     /// </para>
     /// </summary>
-    [Required]
     public string DependencyRegistry { get; set; } = "https://registry.npmjs.org";
 
     public TimeSpan GenerateTimeout { get; set; } = TimeSpan.FromMinutes(5);

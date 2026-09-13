@@ -22,12 +22,18 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddSpaceCraftInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        bool isDevelopment)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var connectionString = configuration.GetConnectionString("Postgres")
-            ?? throw new InvalidOperationException("ConnectionStrings:Postgres is not configured.");
+        // Whitespace as well as null: appsettings.json ships this key empty so the file shows
+        // its shape, and "" is not null. Tested with ?? this guard could never fire.
+        var connectionString = configuration.GetConnectionString("Postgres");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("ConnectionStrings:Postgres is not configured.");
+        }
 
         services.AddDbContext<SpaceCraftDbContext>((provider, options) =>
         {
@@ -57,6 +63,14 @@ public static class DependencyInjection
         services.AddOptions<ObjectStorageOptions>()
             .Bind(configuration.GetSection(ObjectStorageOptions.SectionName))
             .ValidateDataAnnotations()
+            // Empty keys mean the ambient credential chain, and only Development has one. On
+            // the platform this deploys to a forgotten key would fail on the first S3 call,
+            // long after startup reported healthy.
+            .Validate(
+                options => isDevelopment
+                    || (!string.IsNullOrWhiteSpace(options.AccessKey)
+                        && !string.IsNullOrWhiteSpace(options.SecretKey)),
+                "ObjectStorage:AccessKey and ObjectStorage:SecretKey are required outside Development.")
             .ValidateOnStart();
 
         services.AddSingleton<IAmazonS3>(provider =>
@@ -64,10 +78,13 @@ public static class DependencyInjection
             var options = provider
                 .GetRequiredService<Microsoft.Extensions.Options.IOptions<ObjectStorageOptions>>().Value;
 
+            // Validated at startup; the null-forgiving operator asserts what ValidateOnStart established.
+            var region = options.Region!;
+
             var config = new AmazonS3Config
             {
                 ForcePathStyle = options.ForcePathStyle,
-                AuthenticationRegion = options.Region,
+                AuthenticationRegion = region,
             };
 
             if (!string.IsNullOrWhiteSpace(options.ServiceUrl))
@@ -77,7 +94,7 @@ public static class DependencyInjection
             }
             else
             {
-                config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(options.Region);
+                config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region);
             }
 
             // Fall back to the ambient credential chain (IAM role, environment) when no

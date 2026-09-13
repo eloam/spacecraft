@@ -37,7 +37,7 @@ builder.Services.AddSerilog((services, configuration) => configuration
     .ReadFrom.Services(services)
     .Enrich.FromLogContext());
 
-builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
+builder.Services.AddSpaceCraftInfrastructure(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddSpaceCraftPipeline(
     builder.Configuration,
     builder.Environment.IsDevelopment());

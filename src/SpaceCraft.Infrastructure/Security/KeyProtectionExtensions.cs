@@ -124,6 +124,14 @@ public static class KeyProtectionExtensions
             throw new InvalidOperationException("KeyProtection:Kms:SecretKey is not configured.");
         }
 
+        // Presence first. This had a default of fr-par, which is also a region the API serves —
+        // so a missing key passed the check below and a deployment in nl-ams would have called
+        // the wrong region with a valid-looking name.
+        if (string.IsNullOrWhiteSpace(kms.Region))
+        {
+            throw new InvalidOperationException("KeyProtection:Kms:Region is not configured.");
+        }
+
         // Checked rather than trusted: the fake accepts any region, so a typo would work all
         // the way to production and fail there on the first credential.
         if (!isDevelopment && !ScalewayKmsOptions.KnownRegions.Contains(kms.Region, StringComparer.Ordinal))

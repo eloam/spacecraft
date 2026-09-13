@@ -15,6 +15,7 @@ public class SmtpEmailOptionsTests
         Security = security,
         Username = "a-project-id",
         Password = "secret",
+        FromEmail = "noreply@example.test",
     };
 
     /// <summary>
@@ -54,7 +55,7 @@ public class SmtpEmailOptionsTests
     public void No_relay_at_all_is_a_valid_configuration() =>
         // How a checkout runs without an account: blank credentials select the transport that
         // writes messages to the log.
-        Validate(new SmtpEmailOptions { Host = "", Username = "", Password = "" })
+        Validate(new SmtpEmailOptions { Host = "", Username = "", Password = "", FromEmail = "noreply@example.test" })
             .ShouldBeEmpty();
 
     [Fact]

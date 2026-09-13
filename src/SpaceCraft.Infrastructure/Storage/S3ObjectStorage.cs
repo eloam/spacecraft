@@ -12,7 +12,8 @@ namespace SpaceCraft.Infrastructure.Storage;
 /// </summary>
 public sealed class S3ObjectStorage(IAmazonS3 client, IOptions<ObjectStorageOptions> options) : IObjectStorage
 {
-    private readonly ObjectStorageOptions _options = options.Value;
+    // Validated at startup, so the null-forgiving operator asserts what ValidateOnStart established.
+    private readonly string _bucket = options.Value.BucketName!;
 
     public async Task PutAsync(string key, Stream content, string contentType, CancellationToken ct = default)
     {
@@ -21,7 +22,7 @@ public sealed class S3ObjectStorage(IAmazonS3 client, IOptions<ObjectStorageOpti
 
         var request = new PutObjectRequest
         {
-            BucketName = _options.BucketName,
+            BucketName = _bucket,
             Key = key,
             InputStream = content,
             ContentType = contentType,
@@ -42,7 +43,7 @@ public sealed class S3ObjectStorage(IAmazonS3 client, IOptions<ObjectStorageOpti
     {
         try
         {
-            var response = await client.GetObjectAsync(_options.BucketName, key, ct);
+            var response = await client.GetObjectAsync(_bucket, key, ct);
             return response.ResponseStream;
         }
         catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
@@ -62,7 +63,7 @@ public sealed class S3ObjectStorage(IAmazonS3 client, IOptions<ObjectStorageOpti
     {
         try
         {
-            await client.GetObjectMetadataAsync(_options.BucketName, key, ct);
+            await client.GetObjectMetadataAsync(_bucket, key, ct);
             return true;
         }
         catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
@@ -72,7 +73,7 @@ public sealed class S3ObjectStorage(IAmazonS3 client, IOptions<ObjectStorageOpti
     }
 
     public Task DeleteAsync(string key, CancellationToken ct = default) =>
-        client.DeleteObjectAsync(_options.BucketName, key, ct);
+        client.DeleteObjectAsync(_bucket, key, ct);
 
     public async Task CopyAsync(string sourceKey, string destinationKey, CancellationToken ct = default)
     {
@@ -83,9 +84,9 @@ public sealed class S3ObjectStorage(IAmazonS3 client, IOptions<ObjectStorageOpti
         {
             await client.CopyObjectAsync(new CopyObjectRequest
             {
-                SourceBucket = _options.BucketName,
+                SourceBucket = _bucket,
                 SourceKey = sourceKey,
-                DestinationBucket = _options.BucketName,
+                DestinationBucket = _bucket,
                 DestinationKey = destinationKey,
             }, ct);
         }
