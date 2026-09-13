@@ -63,14 +63,16 @@ public static class DependencyInjection
         services.AddOptions<ObjectStorageOptions>()
             .Bind(configuration.GetSection(ObjectStorageOptions.SectionName))
             .ValidateDataAnnotations()
-            // Empty keys mean the ambient credential chain, and only Development has one. On
-            // the platform this deploys to a forgotten key would fail on the first S3 call,
-            // long after startup reported healthy.
+            // Empty means something in Development — no endpoint is real AWS, no keys is the
+            // ambient credential chain — and nothing on the platform this deploys to. A
+            // forgotten endpoint would quietly address AWS; a forgotten key would fail on the
+            // first S3 call, long after startup reported healthy.
             .Validate(
                 options => isDevelopment
-                    || (!string.IsNullOrWhiteSpace(options.AccessKey)
+                    || (!string.IsNullOrWhiteSpace(options.ServiceUrl)
+                        && !string.IsNullOrWhiteSpace(options.AccessKey)
                         && !string.IsNullOrWhiteSpace(options.SecretKey)),
-                "ObjectStorage:AccessKey and ObjectStorage:SecretKey are required outside Development.")
+                "ObjectStorage:ServiceUrl, ObjectStorage:AccessKey and ObjectStorage:SecretKey are required outside Development.")
             .ValidateOnStart();
 
         services.AddSingleton<IAmazonS3>(provider =>

@@ -215,6 +215,12 @@ below are supplied as environment variables in the container and job definitions
 Nested keys use a double underscore: `ConnectionStrings__Postgres` maps to
 `ConnectionStrings:Postgres`.
 
+The tracked `appsettings.json` files carry no deployment value: every setting that depends on
+where this runs — bucket, region, endpoint, URLs, relay, sender — ships empty, so an
+environment that forgets one is refused at startup rather than started on production's value.
+That was the shape of the fallback this replaces: a deployment that forgot `PublicUrls__App`
+would have mailed its password-reset links to another site and reported healthy.
+
 ```
 # Database
 ConnectionStrings__Postgres=Host=…;Port=5432;Database=spacecraft;Username=…;Password=…
@@ -242,9 +248,7 @@ ObjectStorage__ServiceUrl=https://s3.fr-par.scw.cloud
 ObjectStorage__Region=fr-par
 ObjectStorage__AccessKey=…
 ObjectStorage__SecretKey=…
-# The runner's own appsettings.json ships Region=us-east-1 and ForcePathStyle=true, where the
-# API's ships fr-par and false. Both have to be set on the runner job or it addresses Scaleway
-# path-style, in a region that is not the bucket's.
+# Optional; false is the default and is right for Scaleway and AWS. MinIO needs true.
 ObjectStorage__ForcePathStyle=false
 
 # Email — startup fails without these outside Development; FromEmail is required everywhere

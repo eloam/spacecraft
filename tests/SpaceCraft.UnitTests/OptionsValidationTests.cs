@@ -53,6 +53,9 @@ public class OptionsValidationTests
         ["ConnectionStrings:Postgres"] = "Host=localhost;Database=x;Username=x;Password=x",
         ["ObjectStorage:BucketName"] = "spacecraft-dev",
         ["ObjectStorage:Region"] = "fr-par",
+        ["ObjectStorage:ServiceUrl"] = "https://s3.fr-par.scw.cloud",
+        ["ObjectStorage:AccessKey"] = "key",
+        ["ObjectStorage:SecretKey"] = "secret",
     };
 
     [Fact]
@@ -135,5 +138,20 @@ public class OptionsValidationTests
 
         error.ShouldBeOfType<OptionsValidationException>();
         error.Message.ShouldContain("ObjectStorage:AccessKey");
+    }
+
+    [Fact]
+    public async Task An_empty_endpoint_is_refused_outside_Development_rather_than_meaning_AWS()
+    {
+        // Empty selects real AWS S3, which is a meaning for Development and a trap everywhere
+        // else: a deployment that forgets the endpoint would address a cloud it does not use,
+        // with credentials it does not have, and find out on the first upload.
+        var settings = Valid();
+        settings["ObjectStorage:ServiceUrl"] = "";
+
+        var error = await StartWith(settings, isDevelopment: false);
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("ObjectStorage:ServiceUrl");
     }
 }

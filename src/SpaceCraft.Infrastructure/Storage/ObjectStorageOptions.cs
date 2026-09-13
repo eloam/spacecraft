@@ -13,8 +13,9 @@ public sealed class ObjectStorageOptions
     public string? BucketName { get; set; }
 
     /// <summary>
-    /// S3-compatible endpoint — Scaleway Object Storage, e.g. https://s3.fr-par.scw.cloud.
-    /// Leave empty to address real AWS S3 instead.
+    /// S3-compatible endpoint — Scaleway Object Storage, e.g. https://s3.fr-par.scw.cloud, or
+    /// MinIO in Development. Empty addresses real AWS S3, which is allowed in Development only:
+    /// the registration requires it outside, because nothing this platform deploys to is AWS.
     /// </summary>
     public string? ServiceUrl { get; set; }
 
