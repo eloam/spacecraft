@@ -286,7 +286,7 @@ RateLimits__CredentialWindow=00:15:00
 ```
 
 Startup fails fast rather than running degraded, and it names the setting. Every required
-setting is listed in the `"//"` key at the top of each `appsettings.json`; a missing or blank
+setting is listed in the `"//"` key at the top of its section in `appsettings.json`; a missing or blank
 one is refused before any hosted service runs. For the sections validated by annotations every
 failing key of the section is reported together; the hand-written checks (connection string,
 key protection, email's relay rules) stop at the first, and the first section that fails stops
