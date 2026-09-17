@@ -1,12 +1,12 @@
-// Database
+# Database
 
 resource "scaleway_sdb_sql_database" "main" {
-  name = "spacecraft-${var.environment_name}-database"
+  name    = "spacecraft-${var.environment_name}-database"
   min_cpu = 0
   max_cpu = 4
 }
 
-// IAM
+# IAM
 
 resource "scaleway_iam_application" "database" {
   name        = "sc-${var.environment_name}-database"

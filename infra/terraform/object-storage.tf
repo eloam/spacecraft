@@ -1,8 +1,35 @@
-// Object storage
+# Object storage - Frontend bucket
+
+resource "scaleway_object_bucket" "frontend" {
+  name   = "spacecraft-${var.environment_name}-frontend"
+  region = "fr-par"
+}
+
+resource "scaleway_object_bucket_acl" "frontend" {
+  bucket = scaleway_object_bucket.frontend.id
+  acl    = "public-read"
+}
+
+resource "scaleway_object_bucket_website_configuration" "frontend" {
+  bucket = scaleway_object_bucket.frontend.id
+
+  index_document { suffix = "index.html" }
+  error_document { key = "index.html" }
+}
+
+# Object storage - Open API bucket
 
 resource "scaleway_object_bucket" "openapi" {
   name   = "spacecraft-${var.environment_name}-openapi"
   region = "fr-par"
+}
+
+resource "scaleway_object_bucket_versioning" "openapi" {
+  bucket = scaleway_object_bucket.openapi.id
+
+  versioning_configuration {
+    status = "enabled"
+  }
 }
 
 resource "scaleway_object_bucket_acl" "openapi" {
@@ -12,7 +39,7 @@ resource "scaleway_object_bucket_acl" "openapi" {
 
 resource "scaleway_object_bucket_server_side_encryption_configuration" "openapi" {
   bucket = scaleway_object_bucket.openapi.id
-  
+
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
@@ -20,7 +47,7 @@ resource "scaleway_object_bucket_server_side_encryption_configuration" "openapi"
   }
 }
 
-// IAM
+# IAM - Open API bucket
 
 resource "scaleway_iam_application" "object_storage" {
   name        = "sc-${var.environment_name}-object-storage"
