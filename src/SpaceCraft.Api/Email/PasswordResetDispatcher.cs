@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Api.Email;
 
@@ -18,7 +19,7 @@ public sealed class PasswordResetDispatcher(
     BackgroundWorkQueue<PasswordResetRequest> requests,
     IServiceScopeFactory scopeFactory,
     IEmailSender email,
-    IConfiguration configuration,
+    IOptions<PublicUrlsOptions> publicUrls,
     ILogger<PasswordResetDispatcher> logger) : BackgroundService
 {
     /// <summary>
@@ -81,13 +82,9 @@ public sealed class PasswordResetDispatcher(
         await db.SaveChangesAsync(ct);
 
         // The link points at the front end, which collects the new password and posts it back.
-        var appUrl = (configuration["PublicUrls:App"] ?? "https://app.spacecraft.dev").TrimEnd('/');
-        var link = $"{appUrl}/reset-password?token={Uri.EscapeDataString(raw)}";
+        var urls = publicUrls.Value;
+        var link = $"{urls.AppRoot()}/reset-password?token={Uri.EscapeDataString(raw)}";
 
-        await email.SendAsync(Emails.PasswordReset(address, link, TokenLifetime, ApiUrl()), ct);
+        await email.SendAsync(Emails.PasswordReset(address, link, TokenLifetime, urls.ApiRoot()), ct);
     }
-
-    /// <summary>Where wwwroot is served from, for images the email references.</summary>
-    private string ApiUrl() =>
-        (configuration["PublicUrls:Api"] ?? "https://api.spacecraft.dev").TrimEnd('/');
 }

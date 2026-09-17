@@ -48,10 +48,11 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 
 // --- Services -------------------------------------------------------------------------
 
-builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
+builder.Services.AddSpaceCraftInfrastructure(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddSpaceCraftIdentity();
 builder.Services.AddSpaceCraftAuth(builder.Configuration);
 builder.Services.AddSpaceCraftCors(builder.Configuration);
+builder.Services.AddSpaceCraftPublicUrls(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddSpaceCraftRateLimiting(builder.Configuration);
 
 builder.Services.AddScoped<SpaceCraft.Api.Features.Deletion.ResourceDeleter>();

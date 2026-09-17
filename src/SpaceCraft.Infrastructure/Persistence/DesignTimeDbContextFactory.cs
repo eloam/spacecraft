@@ -9,14 +9,14 @@ namespace SpaceCraft.Infrastructure.Persistence;
 /// <remarks>
 /// Without this, the tooling falls back to constructing the startup project's host to find a
 /// registered context — and the API's host cannot be constructed outside Development on a bare
-/// checkout. <c>AddSpaceCraftJobs</c> and the key-protection registration validate eagerly, at
-/// registration rather than at start, and throw on configuration a CI job has no reason to hold:
-/// a job definition id, an IAM key, a Key Manager key id. Generating a migration bundle would
-/// fail asking for credentials it will never use.
+/// checkout. The connection-string guard, the key-protection registration and the email
+/// registration all check eagerly, at registration rather than at start, and throw on
+/// configuration a CI job has no reason to hold: a database, a Key Manager key id, a relay
+/// password. Generating a migration bundle would fail asking for credentials it will never use.
 /// <para>
-/// That eagerness is deliberate elsewhere and worth keeping — a deployment that queues runs
-/// nothing will ever start should refuse to boot rather than look healthy. This is the seam that
-/// lets both be true.
+/// That eagerness is deliberate where it remains — those registrations branch on their
+/// sections, so the values have to be read then — and a host that cannot be built on a bad
+/// configuration is the point rather than a nuisance. This is the seam that lets both be true.
 /// </para>
 /// <para>
 /// There is no connection string, and that is the whole of the second decision. Building a model

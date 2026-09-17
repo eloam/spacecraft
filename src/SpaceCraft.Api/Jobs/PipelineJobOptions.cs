@@ -14,7 +14,7 @@ namespace SpaceCraft.Api.Jobs;
 /// start jobs of its own. Keeping the type out of the shared project is what makes that
 /// structural rather than a rule someone has to remember.
 /// </remarks>
-public sealed class PipelineJobOptions
+public sealed class PipelineJobOptions : IValidatableObject
 {
     public const string SectionName = "PipelineJobs";
 
@@ -76,4 +76,19 @@ public sealed class PipelineJobOptions
     /// </para>
     /// </remarks>
     public int RedispatchAfterSeconds { get; set; } = 120;
+
+    /// <summary>
+    /// What the annotations cannot say: the endpoint has to be a URL, not merely present. The
+    /// https rule is not here because it depends on the environment, which a class does not
+    /// know; the registration adds it.
+    /// </summary>
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (!Uri.TryCreate(BaseUrl, UriKind.Absolute, out _))
+        {
+            yield return new ValidationResult(
+                $"PipelineJobs:BaseUrl must be an absolute URL; it was '{BaseUrl}'.",
+                [nameof(BaseUrl)]);
+        }
+    }
 }

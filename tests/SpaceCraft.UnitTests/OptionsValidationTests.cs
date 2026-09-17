@@ -19,7 +19,8 @@ namespace SpaceCraft.UnitTests;
 /// </summary>
 public class OptionsValidationTests
 {
-    private static async Task<Exception?> StartWith(Dictionary<string, string?> settings)
+    private static async Task<Exception?> StartWith(
+        Dictionary<string, string?> settings, bool isDevelopment = true)
     {
         var builder = Host.CreateApplicationBuilder();
 
@@ -29,10 +30,13 @@ public class OptionsValidationTests
         // an unrelated reason.
         builder.Configuration.Sources.Clear();
         builder.Configuration.AddInMemoryCollection(settings);
-        builder.Services.AddSpaceCraftInfrastructure(builder.Configuration);
 
         try
         {
+            // Inside the try: the connection-string guard throws at registration, before
+            // there is a host to start.
+            builder.Services.AddSpaceCraftInfrastructure(builder.Configuration, isDevelopment);
+
             using var host = builder.Build();
             await host.StartAsync(TestContext.Current.CancellationToken);
             await host.StopAsync(TestContext.Current.CancellationToken);
@@ -49,6 +53,9 @@ public class OptionsValidationTests
         ["ConnectionStrings:Postgres"] = "Host=localhost;Database=x;Username=x;Password=x",
         ["ObjectStorage:BucketName"] = "spacecraft-dev",
         ["ObjectStorage:Region"] = "fr-par",
+        ["ObjectStorage:ServiceUrl"] = "https://s3.fr-par.scw.cloud",
+        ["ObjectStorage:AccessKey"] = "key",
+        ["ObjectStorage:SecretKey"] = "secret",
     };
 
     [Fact]
@@ -80,13 +87,71 @@ public class OptionsValidationTests
     }
 
     [Fact]
-    public async Task Credentials_stay_optional_because_empty_selects_the_ambient_chain()
+    public async Task An_absent_bucket_name_is_the_same_as_a_blank_one()
     {
-        // A deployment on an instance with an IAM role supplies no static keys on purpose.
+        // The property used to carry a default, which is the one shape [Required] cannot see:
+        // a missing key bound to "spacecraft" and passed. Absence has to fail like blankness.
+        var settings = Valid();
+        settings.Remove("ObjectStorage:BucketName");
+
+        var error = await StartWith(settings);
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("BucketName");
+    }
+
+    [Fact]
+    public async Task A_blank_connection_string_is_refused_with_the_key_named()
+    {
+        // appsettings.json ships this key as "" so the file shows its shape. "" is not null,
+        // and the guard was written with ??, so this message could never fire.
+        var settings = Valid();
+        settings["ConnectionStrings:Postgres"] = "";
+
+        var error = await StartWith(settings);
+
+        error.ShouldBeOfType<InvalidOperationException>();
+        error.Message.ShouldContain("ConnectionStrings:Postgres");
+    }
+
+    [Fact]
+    public async Task Credentials_may_be_empty_in_Development_where_an_ambient_chain_exists()
+    {
+        // A developer on an AWS instance with an IAM role supplies no static keys on purpose.
         var settings = Valid();
         settings["ObjectStorage:AccessKey"] = "";
         settings["ObjectStorage:SecretKey"] = "";
 
-        (await StartWith(settings)).ShouldBeNull();
+        (await StartWith(settings, isDevelopment: true)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Credentials_are_required_outside_Development_where_there_is_no_ambient_chain()
+    {
+        // Nothing this platform deploys to has an IAM role to fall back on. A forgotten key
+        // used to fail on the first S3 call, long after startup had reported healthy.
+        var settings = Valid();
+        settings["ObjectStorage:AccessKey"] = "";
+        settings["ObjectStorage:SecretKey"] = "";
+
+        var error = await StartWith(settings, isDevelopment: false);
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("ObjectStorage:AccessKey");
+    }
+
+    [Fact]
+    public async Task An_empty_endpoint_is_refused_outside_Development_rather_than_meaning_AWS()
+    {
+        // Empty selects real AWS S3, which is a meaning for Development and a trap everywhere
+        // else: a deployment that forgets the endpoint would address a cloud it does not use,
+        // with credentials it does not have, and find out on the first upload.
+        var settings = Valid();
+        settings["ObjectStorage:ServiceUrl"] = "";
+
+        var error = await StartWith(settings, isDevelopment: false);
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("ObjectStorage:ServiceUrl");
     }
 }

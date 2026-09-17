@@ -56,7 +56,7 @@ public sealed class ScalewayKmsOptions
     /// accepts whatever it is given, so a typo here surfaces in production rather than
     /// locally — which is why it is validated before the first call.
     /// </summary>
-    public string Region { get; set; } = "fr-par";
+    public string? Region { get; set; }
 
     /// <summary>The symmetric key that wraps the ring. A UUID, in the request path.</summary>
     public string? KeyId { get; set; }

@@ -104,7 +104,7 @@ public static class AuthEndpoints
         ITokenService tokens,
         IOptions<JwtOptions> jwtOptions,
         IEmailSender email,
-        IConfiguration configuration,
+        IOptions<PublicUrlsOptions> publicUrls,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
@@ -129,9 +129,8 @@ public static class AuthEndpoints
 
         // Queued, not awaited: the account exists and the caller has their tokens, so a slow
         // or failing mail provider must not turn a successful registration into an error.
-        var appUrl = (configuration["PublicUrls:App"] ?? "https://app.spacecraft.dev").TrimEnd('/');
-        var apiUrl = (configuration["PublicUrls:Api"] ?? "https://api.spacecraft.dev").TrimEnd('/');
-        await email.SendAsync(Emails.Welcome(user.Email!, appUrl, user.DisplayName, apiUrl), ct);
+        var urls = publicUrls.Value;
+        await email.SendAsync(Emails.Welcome(user.Email!, urls.AppRoot(), user.DisplayName, urls.ApiRoot()), ct);
 
         var pair = await IssueAndStoreAsync(user, db, tokens, jwtOptions.Value, familyId: null, ct);
         return TypedResults.Ok(ToResponse(pair, user));

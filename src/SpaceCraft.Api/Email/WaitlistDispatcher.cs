@@ -2,6 +2,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Waitlist;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Api.Email;
 
@@ -18,7 +19,7 @@ public sealed class WaitlistDispatcher(
     BackgroundWorkQueue<WaitlistSignup> signups,
     IServiceScopeFactory scopeFactory,
     IEmailSender email,
-    IConfiguration configuration,
+    IOptions<PublicUrlsOptions> publicUrls,
     ILogger<WaitlistDispatcher> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -73,7 +74,7 @@ public sealed class WaitlistDispatcher(
 
         await db.SaveChangesAsync(ct);
 
-        var baseUrl = configuration["PublicUrls:Api"] ?? "https://spacecraft.dev";
+        var baseUrl = publicUrls.Value.ApiRoot();
 
         var confirmUrl = $"{baseUrl}/api/v1/waitlist/confirm?token={token}";
 

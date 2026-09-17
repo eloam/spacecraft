@@ -2,7 +2,7 @@
 # Blocks a commit that would put a real credential into a tracked settings file.
 #
 # Distinguishes placeholders from secrets rather than flagging any non-empty value: a rule
-# that cries wolf on "[REQUIRED]" gets bypassed with --no-verify, and then it protects
+# that cries wolf on an empty value gets bypassed with --no-verify, and then it protects
 # nothing. Development files are exempt — their values are local-only by design.
 staged=$(git diff --cached --name-only --diff-filter=ACM | grep 'appsettings.*\.json$')
 [ -z "$staged" ] && exit 0
@@ -33,7 +33,7 @@ for file in $staged; do
         echo "pre-commit: $file — '$key' looks like a real credential."
         echo "  Move it out of the tracked file:"
         echo "    dotnet user-secrets set \"<Section>:$key\" \"<value>\" --project src/SpaceCraft.Api"
-        echo "  Then restore the placeholder. Override with --no-verify only if you are certain."
+        echo "  Then leave the tracked value empty. Override with --no-verify only if you are certain."
         exit 1
       done || fail=1
 done

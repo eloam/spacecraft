@@ -1,6 +1,5 @@
 using Amazon.Runtime;
 using Amazon.S3;
-using SpaceCraft.Infrastructure.Configuration;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Notifications;
 using SpaceCraft.Infrastructure.OpenApi;
@@ -23,16 +22,18 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddSpaceCraftInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        bool isDevelopment)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        // Before anything is registered: a placeholder left in place is a configuration that
-        // was never finished, and every failure it causes afterwards points somewhere else.
-        configuration.ThrowIfPlaceholdersRemain();
-
-        var connectionString = configuration.GetConnectionString("Postgres")
-            ?? throw new InvalidOperationException("ConnectionStrings:Postgres is not configured.");
+        // Whitespace as well as null: appsettings.json ships this key empty so the file shows
+        // its shape, and "" is not null. Tested with ?? this guard could never fire.
+        var connectionString = configuration.GetConnectionString("Postgres");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("ConnectionStrings:Postgres is not configured.");
+        }
 
         services.AddDbContext<SpaceCraftDbContext>((provider, options) =>
         {
@@ -62,6 +63,16 @@ public static class DependencyInjection
         services.AddOptions<ObjectStorageOptions>()
             .Bind(configuration.GetSection(ObjectStorageOptions.SectionName))
             .ValidateDataAnnotations()
+            // Empty means something in Development — no endpoint is real AWS, no keys is the
+            // ambient credential chain — and nothing on the platform this deploys to. A
+            // forgotten endpoint would quietly address AWS; a forgotten key would fail on the
+            // first S3 call, long after startup reported healthy.
+            .Validate(
+                options => isDevelopment
+                    || (!string.IsNullOrWhiteSpace(options.ServiceUrl)
+                        && !string.IsNullOrWhiteSpace(options.AccessKey)
+                        && !string.IsNullOrWhiteSpace(options.SecretKey)),
+                "ObjectStorage:ServiceUrl, ObjectStorage:AccessKey and ObjectStorage:SecretKey are required outside Development.")
             .ValidateOnStart();
 
         services.AddSingleton<IAmazonS3>(provider =>
@@ -69,10 +80,13 @@ public static class DependencyInjection
             var options = provider
                 .GetRequiredService<Microsoft.Extensions.Options.IOptions<ObjectStorageOptions>>().Value;
 
+            // Validated at startup; the null-forgiving operator asserts what ValidateOnStart established.
+            var region = options.Region!;
+
             var config = new AmazonS3Config
             {
                 ForcePathStyle = options.ForcePathStyle,
-                AuthenticationRegion = options.Region,
+                AuthenticationRegion = region,
             };
 
             if (!string.IsNullOrWhiteSpace(options.ServiceUrl))
@@ -82,11 +96,12 @@ public static class DependencyInjection
             }
             else
             {
-                config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(options.Region);
+                config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region);
             }
 
-            // Fall back to the ambient credential chain (IAM role, environment) when no
-            // static keys are configured — static keys are a development convenience.
+            // Empty keys select the ambient credential chain (IAM role, environment). Outside
+            // Development the validation above has already refused that, so this branch is
+            // Development's — a developer on an AWS instance with a role, typically.
             return string.IsNullOrWhiteSpace(options.AccessKey)
                 ? new AmazonS3Client(config)
                 : new AmazonS3Client(new BasicAWSCredentials(options.AccessKey, options.SecretKey), config);

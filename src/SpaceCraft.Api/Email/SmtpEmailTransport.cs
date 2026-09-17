@@ -38,6 +38,7 @@ public sealed class SmtpEmailTransport(
     private readonly string _host = Required(options.Value.Host, "Email:Smtp:Host");
     private readonly string _username = Required(options.Value.Username, "Email:Smtp:Username");
     private readonly string _password = Required(options.Value.Password, "Email:Smtp:Password");
+    private readonly string _fromEmail = Required(options.Value.FromEmail, "Email:Smtp:FromEmail");
 
     private static string Required(string? value, string key) =>
         !string.IsNullOrWhiteSpace(value)
@@ -49,7 +50,7 @@ public sealed class SmtpEmailTransport(
         ArgumentNullException.ThrowIfNull(message);
 
         var mail = new MimeMessage();
-        mail.From.Add(new MailboxAddress(_options.FromName, _options.FromEmail));
+        mail.From.Add(new MailboxAddress(_options.FromName, _fromEmail));
         mail.To.Add(MailboxAddress.Parse(message.To));
         mail.Subject = message.Subject;
         mail.Body = new BodyBuilder

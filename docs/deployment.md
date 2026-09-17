@@ -215,6 +215,12 @@ below are supplied as environment variables in the container and job definitions
 Nested keys use a double underscore: `ConnectionStrings__Postgres` maps to
 `ConnectionStrings:Postgres`.
 
+The tracked `appsettings.json` files carry no deployment value: every setting that depends on
+where this runs — bucket, region, endpoint, URLs, relay, sender — ships empty, so an
+environment that forgets one is refused at startup rather than started on production's value.
+That was the shape of the fallback this replaces: a deployment that forgot `PublicUrls__App`
+would have mailed its password-reset links to another site and reported healthy.
+
 ```
 # Database
 ConnectionStrings__Postgres=Host=…;Port=5432;Database=spacecraft;Username=…;Password=…
@@ -242,12 +248,10 @@ ObjectStorage__ServiceUrl=https://s3.fr-par.scw.cloud
 ObjectStorage__Region=fr-par
 ObjectStorage__AccessKey=…
 ObjectStorage__SecretKey=…
-# The runner's own appsettings.json ships Region=us-east-1 and ForcePathStyle=true, where the
-# API's ships fr-par and false. Both have to be set on the runner job or it addresses Scaleway
-# path-style, in a region that is not the bucket's.
+# Optional; false is the default and is right for Scaleway and AWS. MinIO needs true.
 ObjectStorage__ForcePathStyle=false
 
-# Email — startup fails without these outside Development
+# Email — startup fails without these outside Development; FromEmail is required everywhere
 # SMTP rather than a provider API: the relay is swappable without touching code, and
 # nothing below is derived from one. Scaleway's username is the id of the project the
 # sending domain belongs to.
@@ -281,11 +285,22 @@ RateLimits__CredentialPermitsPerWindow=10
 RateLimits__CredentialWindow=00:15:00
 ```
 
-Startup fails fast rather than running degraded: on a signing key that is missing or shorter
-than 32 characters, on mail that is unconfigured or half configured outside Development, on
-`Email:Smtp:Security=None` there, on a port and a handshake that contradict each other, on
-`KeyProtection:Provider` left at `None` outside Development, and on
+Startup fails fast rather than running degraded, and it names the setting. Every required
+setting is listed in the `"//"` key at the top of each `appsettings.json`; a missing or blank
+one is refused before any hosted service runs. For the sections validated by annotations every
+failing key of the section is reported together; the hand-written checks (connection string,
+key protection, email's relay rules) stop at the first, and the first section that fails stops
+startup. Among them: a blank connection string, a signing key missing or shorter than 32
+characters, a bucket name or region left out, `PublicUrls:App` or `PublicUrls:Api` missing or
+not https outside Development, a sender address missing or malformed, mail that is
+unconfigured or half configured outside Development,
+`Email:Smtp:Security=None` there, a port and a handshake that contradict each other, storage
+keys left blank outside Development, `KeyProtection:Provider` left at `None` there, and
 `Pipeline:AllowUnsandboxedExecution` not being `true` there.
+
+A setting that depends on the deployment — a bucket, a region, a URL, a sender — has no
+default in code, because a default that is wrong does not fail: it sends links to the wrong
+site, or addresses the wrong region with a valid-looking name, and nothing says so.
 
 Key protection goes one step further and proves itself before anything is served. A hosted
 service runs one real encrypt-and-decrypt against Key Manager on boot and refuses to start
@@ -299,16 +314,6 @@ generator runs is not configurable at all. Kiota is a compile-time dependency pi
 `KiotaVersion` in `Directory.Packages.props`. What generation does read from configuration is
 `Pipeline:GenerateTimeout` and `Pipeline:WorkspaceRoot`, and neither can select a different
 generator or a different version of one.
-
-Startup also refuses while any setting still reads `[REQUIRED]` — the marker
-`appsettings.json` uses for what a deployment must supply — and names every one of them at
-once. Without that check the placeholder is just a string: it satisfies `[Required]`, passes
-every option validation, and reappears much later as a rejected SMTP password or a 403 from
-S3, with nothing tying either back to a variable nobody set.
-
-This holds in Development too. A checkout with no account behind it blanks these in
-`appsettings.Development.json` or user secrets, which is a deliberate act — unlike a marker
-nobody noticed.
 
 The relay's certificate is validated in full. Revocation is always requested; what
 `Email__Smtp__RequireCertificateRevocation` decides is what happens when no answer comes back,

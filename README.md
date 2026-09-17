@@ -269,7 +269,7 @@ A `pre-commit` hook refuses a commit that puts something *shaped like* a real cr
 a tracked `appsettings*.json` — a UUID, a long random-looking string, or a known vendor prefix
 (`npm_`, `ghp_`, `SCW`, `sk-`, `xox`) under `ApiKey`, `SecretKey`, `AccessKey`, `SigningKey`,
 `Password`, `Token` or `ClientSecret`. It judges the value, not the key, because a rule that
-cries wolf on `[REQUIRED]` gets bypassed with `--no-verify` and then protects nothing. Two
+cries wolf on an empty value gets bypassed with `--no-verify` and then protects nothing. Two
 things follow from that, and both are worth knowing: every `*Development.json` is skipped
 outright, so the hook will not stop you committing a real key into one, and a secret that
 looks like a passphrase rather than a random string passes. It is a net, not a boundary.
