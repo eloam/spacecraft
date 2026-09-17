@@ -313,8 +313,8 @@ unreadable.
 Nothing is checked about the generator, because there is nothing to check at runtime: which
 generator runs is not configurable at all. Kiota is a compile-time dependency pinned by
 `KiotaVersion` in `Directory.Packages.props`. What generation does read from configuration is
-`Pipeline:GenerateTimeout` and `Pipeline:WorkspaceRoot`, and neither can select a different
-generator or a different version of one.
+`Pipeline:WorkspaceRoot`, which cannot select a different generator or a different version of
+one; its time budget is a constant beside the lease it has to fit under.
 
 The relay's certificate is validated in full. Revocation is always requested; what
 `Smtp__RequireCertificateRevocation` decides is what happens when no answer comes back,

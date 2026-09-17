@@ -63,7 +63,7 @@ public sealed class NpmSdkPublisher(
                 WorkingDirectory = request.WorkspaceRoot,
                 WorkingSubdirectory = request.ArtifactDirectory,
                 Network = NetworkPolicy.Registry,
-                Timeout = _options.PublishTimeout,
+                Timeout = PipelineOptions.PublishTimeout,
                 Environment = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["SPACECRAFT_NPM_TOKEN"] = request.Token,
@@ -103,7 +103,7 @@ public sealed class NpmSdkPublisher(
 
             return PublishOutcome.Failed(
                 result.TimedOut
-                    ? $"Publish timed out after {_options.PublishTimeout.TotalMinutes:0.#} minutes."
+                    ? $"Publish timed out after {PipelineOptions.PublishTimeout.TotalMinutes:0.#} minutes."
                     : $"npm publish failed with exit code {result.ExitCode}. {result.Tail(10)}",
                 result.Output);
         }

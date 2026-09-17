@@ -51,12 +51,12 @@ public sealed partial class KiotaSdkGenerator(
 
         // Generation reads a local file and writes local files. It needs no egress — external
         // $refs were already rejected at validation time — so the client is given none.
-        using var offline = new HttpClient(new OfflineHandler()) { Timeout = _options.GenerateTimeout };
+        using var offline = new HttpClient(new OfflineHandler()) { Timeout = PipelineOptions.GenerateTimeout };
 
         // The step's budget. A process could be killed; this asks the builder to stop, which
         // it honours between units of work rather than instantly.
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        budget.CancelAfter(_options.GenerateTimeout);
+        budget.CancelAfter(PipelineOptions.GenerateTimeout);
 
         try
         {
@@ -65,9 +65,9 @@ public sealed partial class KiotaSdkGenerator(
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            logger.LogWarning("Kiota generation exceeded its budget of {Timeout}", _options.GenerateTimeout);
+            logger.LogWarning("Kiota generation exceeded its budget of {Timeout}", PipelineOptions.GenerateTimeout);
             return GenerationOutcome.Failed(
-                $"Generation timed out after {_options.GenerateTimeout.TotalMinutes:0.#} minutes.",
+                $"Generation timed out after {PipelineOptions.GenerateTimeout.TotalMinutes:0.#} minutes.",
                 captured.Text);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

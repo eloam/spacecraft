@@ -6,6 +6,19 @@ public sealed class PipelineOptions
 {
     public const string SectionName = "Pipeline";
 
+    /// <summary>
+    /// How long each step may run. Constants rather than settings, and the reason is the
+    /// relation nobody can tune around: <see cref="SpaceCraft.Domain.Pipelines.PipelineRun.LeaseDuration"/>
+    /// has to outlast the longest of these, or a run near its limit is a race with the sweep
+    /// that recovers dead workers. A setting could be raised past the lease in one environment
+    /// and nothing would say so; a constant is seen by the test that pins the relation.
+    /// </summary>
+    public static readonly TimeSpan GenerateTimeout = TimeSpan.FromMinutes(5);
+
+    public static readonly TimeSpan BuildTimeout = TimeSpan.FromMinutes(15);
+
+    public static readonly TimeSpan PublishTimeout = TimeSpan.FromMinutes(5);
+
     /// <summary>Root directory for per-run workspaces.</summary>
     public string WorkspaceRoot { get; set; } = Path.Combine(Path.GetTempPath(), "spacecraft-workspaces");
 
@@ -20,12 +33,6 @@ public sealed class PipelineOptions
     /// </para>
     /// </summary>
     public string DependencyRegistry { get; set; } = "https://registry.npmjs.org";
-
-    public TimeSpan GenerateTimeout { get; set; } = TimeSpan.FromMinutes(5);
-
-    public TimeSpan BuildTimeout { get; set; } = TimeSpan.FromMinutes(15);
-
-    public TimeSpan PublishTimeout { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>Keep run workspaces on disk after completion. Debugging aid.</summary>
     public bool RetainWorkspaces { get; set; }

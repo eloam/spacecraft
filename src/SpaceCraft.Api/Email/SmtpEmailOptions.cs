@@ -77,16 +77,6 @@ public sealed class SmtpEmailOptions : IValidatableObject
     /// </summary>
     public bool RequireCertificateRevocation { get; set; } = true;
 
-    /// <summary>Ceiling for one delivery including every retry.</summary>
-    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
-
-    /// <summary>Ceiling for a single attempt, before the pipeline retries it.</summary>
-    public TimeSpan AttemptTimeout { get; set; } = TimeSpan.FromSeconds(8);
-
-    /// <summary>Retries after the first attempt.</summary>
-    [Range(0, 10)]
-    public int MaxRetries { get; set; } = 3;
-
     /// <summary>All three, or there is no relay to talk to.</summary>
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(Host)

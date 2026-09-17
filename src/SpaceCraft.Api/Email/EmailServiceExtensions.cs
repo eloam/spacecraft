@@ -45,14 +45,17 @@ public static class EmailServiceExtensions
             // Same shape as the resilience handler the HTTP clients get, expressed directly
             // because there is no HttpClient to hang it off: retry with jittered backoff so a
             // recovering relay is not stampeded by the whole queue at once, and a per-attempt
-            // timeout so one hung socket does not hold the total.
+            // timeout so one hung socket does not hold the total. The budgets are constants,
+            // as they are for the jobs client: no environment has ever set them differently,
+            // and the one relation that matters — an attempt shorter than the total — is
+            // something a setting could break and a constant cannot.
             services.AddKeyedSingleton<ResiliencePipeline>(
                 SmtpEmailTransport.PipelineKey,
                 (_, _) => new ResiliencePipelineBuilder()
-                    .AddTimeout(new TimeoutStrategyOptions { Timeout = options.Timeout })
+                    .AddTimeout(new TimeoutStrategyOptions { Timeout = SmtpEmailTransport.TotalTimeout })
                     .AddRetry(new RetryStrategyOptions
                     {
-                        MaxRetryAttempts = options.MaxRetries,
+                        MaxRetryAttempts = SmtpEmailTransport.MaxRetries,
                         BackoffType = DelayBackoffType.Exponential,
                         UseJitter = true,
                         // A rejected recipient or a refused password will be rejected again;
@@ -63,7 +66,7 @@ public static class EmailServiceExtensions
                             .Handle<TimeoutRejectedException>()
                             .Handle<SmtpCommandException>(IsTransient),
                     })
-                    .AddTimeout(new TimeoutStrategyOptions { Timeout = options.AttemptTimeout })
+                    .AddTimeout(new TimeoutStrategyOptions { Timeout = SmtpEmailTransport.AttemptTimeout })
                     .Build());
 
             services.AddSingleton<IEmailTransport, SmtpEmailTransport>();

@@ -30,6 +30,15 @@ public sealed class SmtpEmailTransport(
     /// <summary>How the composition root and this transport agree on one pipeline.</summary>
     public const string PipelineKey = "email-smtp";
 
+    /// <summary>Ceiling for one delivery including every retry.</summary>
+    public static readonly TimeSpan TotalTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>Ceiling for a single attempt, before the pipeline retries it.</summary>
+    public static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(8);
+
+    /// <summary>Retries after the first attempt.</summary>
+    public const int MaxRetries = 3;
+
     private readonly SmtpEmailOptions _options = options.Value;
 
     // Non-null by construction: the composition root only registers this transport once the

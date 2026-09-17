@@ -427,7 +427,7 @@ public static class AuthEndpoints
         db.RefreshTokens.Add(new RefreshToken(
             user.Id,
             tokens.HashToken(pair.RefreshToken),
-            DateTimeOffset.UtcNow.Add(options.RefreshTokenLifetime),
+            DateTimeOffset.UtcNow.Add(JwtOptions.RefreshTokenLifetime),
             session));
 
         await db.SaveChangesAsync(ct);

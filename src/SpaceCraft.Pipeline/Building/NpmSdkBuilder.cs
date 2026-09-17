@@ -24,7 +24,7 @@ public sealed partial class NpmSdkBuilder(
         ArgumentNullException.ThrowIfNull(request);
 
         var log = new StringBuilder();
-        var deadline = _options.BuildTimeout;
+        var deadline = PipelineOptions.BuildTimeout;
 
         // Step 1 — dependency install. This is the only part of the build that needs egress.
         //

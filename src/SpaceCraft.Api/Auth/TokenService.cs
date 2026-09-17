@@ -31,7 +31,7 @@ public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
     {
         ArgumentNullException.ThrowIfNull(user);
 
-        var expiresAt = DateTimeOffset.UtcNow.Add(_options.AccessTokenLifetime);
+        var expiresAt = DateTimeOffset.UtcNow.Add(JwtOptions.AccessTokenLifetime);
 
         var claims = new List<Claim>
         {

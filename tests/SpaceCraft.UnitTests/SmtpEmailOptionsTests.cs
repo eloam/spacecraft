@@ -125,10 +125,8 @@ public class SmtpEmailOptionsTests
     [Fact]
     public void The_attempt_timeout_leaves_room_for_retries_inside_the_total()
     {
-        var options = new SmtpEmailOptions();
-
         // The pipeline nests a per-attempt timeout inside the total one; an attempt allowed
         // to outlast the whole send would make the retry count meaningless.
-        options.AttemptTimeout.ShouldBeLessThan(options.Timeout);
+        SmtpEmailTransport.AttemptTimeout.ShouldBeLessThan(SmtpEmailTransport.TotalTimeout);
     }
 }
