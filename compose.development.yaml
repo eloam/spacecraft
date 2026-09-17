@@ -67,7 +67,7 @@ services:
   # instead of being sent — and unlike the logging transport, this exercises the real
   # transport: MIME building, the SMTP conversation, the dispatcher behind the queue.
   #
-  # It speaks plaintext, having no certificate, which is why Email:Smtp:Security exists and
+  # It speaks plaintext, having no certificate, which is why Smtp:Security exists and
   # why "None" is refused outside development.
   mailpit:
     image: axllent/mailpit:latest

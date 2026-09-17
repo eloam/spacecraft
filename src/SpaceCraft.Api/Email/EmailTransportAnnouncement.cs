@@ -33,7 +33,7 @@ public sealed class EmailTransportAnnouncement(
                 // Loud, every start: the credentials and every message cross the network
                 // readable. Development is the only place this is a reasonable trade.
                 logger.LogWarning(
-                    "SMTP is unencrypted. Email:Smtp:Security is None, which is only meant "
+                    "SMTP is unencrypted. Smtp:Security is None, which is only meant "
                     + "for a relay on this machine.");
             }
         }
@@ -41,7 +41,7 @@ public sealed class EmailTransportAnnouncement(
         {
             logger.LogWarning(
                 "Email is written to the log rather than sent: {Transport} is the configured "
-                + "transport. Set Email:Smtp:Host, Username and Password to deliver.",
+                + "transport. Set Smtp:Host, Username and Password to deliver.",
                 transport.GetType().Name);
         }
 

@@ -12,7 +12,7 @@ namespace SpaceCraft.Api.Email;
 /// </summary>
 public sealed class SmtpEmailOptions : IValidatableObject
 {
-    public const string SectionName = "Email:Smtp";
+    public const string SectionName = "Smtp";
 
     /// <summary>
     /// Relay hostname — <c>smtp.tem.scaleway.com</c> for Scaleway Transactional Email. When
@@ -126,9 +126,9 @@ public sealed class SmtpEmailOptions : IValidatableObject
         {
             yield return new ValidationResult(
                 Security == SmtpSecurity.ImplicitTls
-                    ? $"Email:Smtp:Security is ImplicitTls, which belongs to port 465 or 2465, not {Port}. "
+                    ? $"Smtp:Security is ImplicitTls, which belongs to port 465 or 2465, not {Port}. "
                       + "Ports 25, 587 and 2587 upgrade with StartTls."
-                    : $"Email:Smtp:Port {Port} expects TLS from the first byte. "
+                    : $"Smtp:Port {Port} expects TLS from the first byte. "
                       + "Set Security to ImplicitTls, or use 587 to upgrade with StartTls.",
                 [nameof(Port), nameof(Security)]);
         }
@@ -136,7 +136,7 @@ public sealed class SmtpEmailOptions : IValidatableObject
         if (missing.Count is > 0 and < 3)
         {
             yield return new ValidationResult(
-                $"Email:Smtp is half configured: {string.Join(" and ", missing)} "
+                $"Smtp is half configured: {string.Join(" and ", missing)} "
                 + $"{(missing.Count == 1 ? "is" : "are")} missing. Supply all of "
                 + "Host, Username and Password, or none of them to log messages instead.",
                 names);

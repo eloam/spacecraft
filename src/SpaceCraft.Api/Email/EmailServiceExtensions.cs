@@ -35,7 +35,7 @@ public static class EmailServiceExtensions
             // running. A relay reached in the clear is a relay on this machine; anywhere else
             // the credentials and every reset link cross the network readable.
             throw new InvalidOperationException(
-                "Email:Smtp:Security is None, which sends the password and every message "
+                "Smtp:Security is None, which sends the password and every message "
                 + "unencrypted. That is only allowed in Development — use StartTls on port "
                 + "587 or ImplicitTls on 465.");
         }
@@ -78,7 +78,7 @@ public static class EmailServiceExtensions
             // reset links and waitlist confirmations would be written to the log store in
             // clear text, and nobody would receive them.
             throw new InvalidOperationException(
-                "No email transport is configured. Set Email:Smtp:Host, Username and Password, "
+                "No email transport is configured. Set Smtp:Host, Username and Password, "
                 + "or run in Development to log messages instead.");
         }
 

@@ -181,8 +181,8 @@ one NAT address exhausted it faster. Separate windows still stop spraying a sing
 
 SMTP, over MailKit. Two deployment prerequisites are not optional: the sending domain must be
 one the relay has been shown to own (SPF, DKIM and MX records) or every send is rejected, and
-`Email:Smtp:Host`/`Username`/`Password` must be set — outside Development startup fails
-without them rather than quietly writing reset links to the log. `Email:Smtp:Security` of
+`Smtp:Host`/`Username`/`Password` must be set — outside Development startup fails
+without them rather than quietly writing reset links to the log. `Smtp:Security` of
 `None` is refused outside Development for the same reason: a relay reached in the clear
 carries the password and every reset link with it.
 

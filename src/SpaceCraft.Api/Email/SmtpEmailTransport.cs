@@ -35,10 +35,10 @@ public sealed class SmtpEmailTransport(
     // Non-null by construction: the composition root only registers this transport once the
     // relay is configured. Read into fields so that a gap fails when the transport is
     // resolved rather than at the first password reset somebody is waiting on.
-    private readonly string _host = Required(options.Value.Host, "Email:Smtp:Host");
-    private readonly string _username = Required(options.Value.Username, "Email:Smtp:Username");
-    private readonly string _password = Required(options.Value.Password, "Email:Smtp:Password");
-    private readonly string _fromEmail = Required(options.Value.FromEmail, "Email:Smtp:FromEmail");
+    private readonly string _host = Required(options.Value.Host, "Smtp:Host");
+    private readonly string _username = Required(options.Value.Username, "Smtp:Username");
+    private readonly string _password = Required(options.Value.Password, "Smtp:Password");
+    private readonly string _fromEmail = Required(options.Value.FromEmail, "Smtp:FromEmail");
 
     private static string Required(string? value, string key) =>
         !string.IsNullOrWhiteSpace(value)
