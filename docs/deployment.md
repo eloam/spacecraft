@@ -258,8 +258,8 @@ ObjectStorage__ForcePathStyle=false
 # nothing below is derived from one. Scaleway's username is the id of the project the
 # sending domain belongs to.
 Smtp__Host=smtp.tem.scaleway.com
-Smtp__Port=587
-Smtp__Security=StartTls
+Smtp__Port=465
+Smtp__Security=ImplicitTls
 Smtp__Username=…
 Smtp__Password=…
 Smtp__FromEmail=noreply@yourdomain
