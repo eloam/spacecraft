@@ -164,7 +164,6 @@ services:
     environment:
       DOTNET_ENVIRONMENT: "Development"
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"
-      Database__MigrateOnStartup: "false"
       KeyProtection__Provider: "None"
     # The same trade the API makes above, for the same reason: the schema arrives when the API
     # applies it, and depends_on can only wait for a container to start, not for a migration to
@@ -198,7 +197,6 @@ services:
       Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__SecretKey: "spacecraft-e2e-secret"
       Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__ForcePathStyle: "true"
       Fake__Definitions__spacecraft-pipeline__Env__Pipeline__DependencyRegistry: "http://verdaccio:4873"
-      Fake__Definitions__spacecraft-pipeline__Env__Database__MigrateOnStartup: "false"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8098/health || exit 1"]
       interval: 5s

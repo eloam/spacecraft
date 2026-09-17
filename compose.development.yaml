@@ -162,7 +162,6 @@ services:
       # Where dependencies are resolved from, not where packages go: that is on the
       # credential now. Verdaccio proxies npmjs, so this also keeps builds off the wire.
       Pipeline__DependencyRegistry: "http://verdaccio:4873"
-      Database__MigrateOnStartup: "false"
     # One shot, then gone. This service no longer watches the queue: fake-scaleway-jobs starts
     # a container per run, the way the deployment starts a job per run. What it still does is
     # A run id that does not exist: the container boots the whole container — Postgres, storage,
@@ -204,7 +203,6 @@ services:
       Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__SecretKey: "spacecraft-dev-secret"
       Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__ForcePathStyle: "true"
       Fake__Definitions__spacecraft-pipeline__Env__Pipeline__DependencyRegistry: "http://verdaccio:4873"
-      Fake__Definitions__spacecraft-pipeline__Env__Database__MigrateOnStartup: "false"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8098/health || exit 1"]
       interval: 5s
