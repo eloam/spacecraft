@@ -279,7 +279,6 @@ Pipeline__DependencyRegistry=https://registry.npmjs.org
 # Public URLs and CORS
 PublicUrls__Api=https://api.yourdomain
 PublicUrls__App=https://app.yourdomain
-Cors__AllowedOrigins__0=https://app.yourdomain
 
 # Rate limits (optional; these are the defaults)
 RateLimits__GlobalPermitsPerMinute=300
