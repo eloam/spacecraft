@@ -338,7 +338,7 @@ These are known and deliberate, not oversights:
   `AddSpaceCraftDataProtection` calls `PersistKeysToDbContext` unconditionally, so it lives in
   the `spacecraft.data_protection_keys` table beside the registry tokens it encrypts — which
   is also why it has to be wrapped. Development points at the fake Key Manager in
-  `infra/SpaceCraft.FakeScalewayKms`; production has to set `KeyProtection:Kms:BaseUrl`,
+  `infra/SpaceCraft.FakeScalewayKms`; production has to set `KeyProtection:BaseUrl`,
   `Region`, `KeyId` and `SecretKey` against the real service. Outside Development, startup
   throws if the provider is unset, if any of those is missing or malformed, or if the URL is
   not `https` — rather than writing the ring in clear into the database it is meant to protect.

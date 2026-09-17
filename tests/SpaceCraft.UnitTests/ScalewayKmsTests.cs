@@ -55,7 +55,7 @@ public class ScalewayKmsTests
         var options = Options.Create(new KeyProtectionOptions
         {
             Provider = KeyProtectionProvider.ScalewayKms,
-            Kms = new ScalewayKmsOptions { Region = "fr-par", KeyId = KeyId, SecretKey = "secret" },
+            Region = "fr-par", KeyId = KeyId, SecretKey = "secret",
         });
 
         return (new ScalewayKmsClient(http, options), recorder);
@@ -117,7 +117,7 @@ public class ScalewayKmsTests
         var (client, _) = Build();
         var encryptor = new ScalewayKmsXmlEncryptor(client, Options.Create(new KeyProtectionOptions
         {
-            Kms = new ScalewayKmsOptions { Region = "fr-par", KeyId = KeyId },
+            Region = "fr-par", KeyId = KeyId,
         }));
 
         var result = encryptor.Encrypt(XElement.Parse("<masterKey>c2VjcmV0</masterKey>"));
@@ -135,7 +135,7 @@ public class ScalewayKmsTests
         var (client, _) = Build();
         var options = Options.Create(new KeyProtectionOptions
         {
-            Kms = new ScalewayKmsOptions { Region = "fr-par", KeyId = KeyId },
+            Region = "fr-par", KeyId = KeyId,
         });
 
         var encrypted = new ScalewayKmsXmlEncryptor(client, options)

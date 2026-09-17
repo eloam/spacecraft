@@ -71,7 +71,7 @@ public class RegistryEndpointsTests
 /// <c>${VAR}</c> in that file. A newline inside the address was therefore a config line of
 /// the caller's choosing, in a process that inherited the platform's own secrets — the whole
 /// chain being a credential whose URL named
-/// <c>//attacker/:_authToken=${KeyProtection__Kms__SecretKey}</c>.
+/// <c>//attacker/:_authToken=${KeyProtection__SecretKey}</c>.
 /// </remarks>
 public class RegistryUrlTests
 {

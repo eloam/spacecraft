@@ -237,10 +237,10 @@ Jwt__Audience=spacecraft-api
 # they share one key ring. SecretKey is the one secret that must not live in the database
 # it protects, so it comes from the deployment and nowhere else.
 KeyProtection__Provider=ScalewayKms
-KeyProtection__Kms__BaseUrl=https://api.scaleway.com
-KeyProtection__Kms__Region=fr-par
-KeyProtection__Kms__KeyId=…
-KeyProtection__Kms__SecretKey=…
+KeyProtection__BaseUrl=https://api.scaleway.com
+KeyProtection__Region=fr-par
+KeyProtection__KeyId=…
+KeyProtection__SecretKey=…
 
 # Scaleway account — shared by every service that talks to it
 
@@ -382,7 +382,7 @@ Manager. `scaleway_job_definition` takes a `secret_reference` block that mounts 
 
 Pipeline steps run in the runner's own process, so a customer's transitive npm dependency runs
 as the same user, in the same PID namespace. Everything in that process's environment —
-`KeyProtection__Kms__SecretKey`, the storage keys, the connection string — is readable from
+`KeyProtection__SecretKey`, the storage keys, the connection string — is readable from
 `/proc/self/environ` by anything the build executes. A file is not containment against the same
 uid, but it is no longer handed over by simply existing.
 

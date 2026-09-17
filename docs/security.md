@@ -66,7 +66,7 @@ without a filesystem between them, and **wrapped by a Scaleway Key Manager key**
 written. The wrapping is what makes the encryption mean anything: stored in clear, the ring
 sat in the same database as the credentials it protects, and a single dump carried both the
 ciphertext and the key that opens it. The only unwrapped secret now lives in the deployment —
-`KeyProtection:Kms:SecretKey` — where a database dump cannot reach it.
+`KeyProtection:SecretKey` — where a database dump cannot reach it.
 
 An `IXmlEncryptor` applies when a key is minted rather than retroactively, so a ring that
 predates Key Manager keeps its old keys in clear. That cannot happen on a deployment:

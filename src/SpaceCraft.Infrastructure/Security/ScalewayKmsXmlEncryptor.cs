@@ -25,7 +25,7 @@ public sealed class ScalewayKmsXmlEncryptor(
     {
         ArgumentNullException.ThrowIfNull(plaintextElement);
 
-        var kms = options.Value.Kms;
+        var kms = options.Value;
 
         // SaveOptions.DisableFormatting: the bytes are what gets authenticated, so they must
         // come back identical. Pretty-printing here would survive the round trip but adds
