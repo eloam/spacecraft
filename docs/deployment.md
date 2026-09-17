@@ -215,11 +215,13 @@ below are supplied as environment variables in the container and job definitions
 Nested keys use a double underscore: `ConnectionStrings__Postgres` maps to
 `ConnectionStrings:Postgres`.
 
-The tracked `appsettings.json` files carry no deployment value: every setting that depends on
-where this runs — bucket, region, endpoint, URLs, relay, sender — ships empty, so an
-environment that forgets one is refused at startup rather than started on production's value.
-That was the shape of the fallback this replaces: a deployment that forgot `PublicUrls__App`
-would have mailed its password-reset links to another site and reported healthy.
+The tracked `appsettings.json` files list every setting the code reads, so the file is the
+map of what can be configured. Tuning knobs — timeouts, batch sizes, retention — show their
+defaults. Every setting that depends on where this runs — bucket, region, endpoint, URLs,
+relay, sender — ships empty, so an environment that forgets one is refused at startup rather
+than started on production's value. That was the shape of the fallback this replaces: a
+deployment that forgot `PublicUrls__App` would have mailed its password-reset links to another
+site and reported healthy.
 
 ```
 # Database
