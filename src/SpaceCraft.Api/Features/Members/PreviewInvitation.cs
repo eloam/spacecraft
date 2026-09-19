@@ -33,11 +33,6 @@ public static class PreviewInvitation
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (string.IsNullOrWhiteSpace(request.Token))
-        {
-            return ApiResults.Invalid(nameof(request.Token), "An invitation token is required.");
-        }
-
         var now = DateTimeOffset.UtcNow;
         var invitation = await db.OrganizationInvitations
             .AsNoTracking()

@@ -46,19 +46,9 @@ public static class InviteMember
             return denied;
         }
 
-        var address = (request.Email ?? string.Empty).Trim().ToLowerInvariant();
-
-        if (address.Length == 0 || !address.Contains('@', StringComparison.Ordinal))
-        {
-            return ApiResults.Invalid(nameof(request.Email), "Enter a valid email address.");
-        }
-
-        if (!Enum.IsDefined(request.Role))
-        {
-            // An undefined value compares above every real role, so it would create a member
-            // nobody could demote.
-            return ApiResults.Invalid(nameof(request.Role), $"'{request.Role}' is not a role.");
-        }
+        // The address's shape is the request's Validator's business; this is the form it is
+        // stored in.
+        var address = request.Email.Trim().ToLowerInvariant();
 
         // Nobody grants a role they do not hold — the same cap the role-change endpoint
         // applies, checked here because the domain knows roles but not who is asking.

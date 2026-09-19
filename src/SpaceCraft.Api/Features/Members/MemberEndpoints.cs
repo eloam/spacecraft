@@ -36,6 +36,7 @@ public static class MemberEndpoints
             .WithTags("Members")
             .RequireAuthorization()
             .Produces<InvitationPreviewResponse>()
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Describes the organization an invitation is for, without spending it.");
 
@@ -43,6 +44,7 @@ public static class MemberEndpoints
             .WithTags("Members")
             .RequireAuthorization()
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Turns an invitation down, which puts its link out.");
 
@@ -50,6 +52,7 @@ public static class MemberEndpoints
             .WithTags("Members")
             .RequireAuthorization()
             .Produces<MemberResponse>()
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Joins the organization an invitation was sent for.");
@@ -61,6 +64,7 @@ public static class MemberEndpoints
 
         group.MapPatch("/{userId:guid}", ChangeMemberRole.HandleAsync)
             .Produces<MemberResponse>()
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Changes a member's role.");
 

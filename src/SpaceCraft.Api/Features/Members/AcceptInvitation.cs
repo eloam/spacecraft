@@ -30,11 +30,6 @@ public static class AcceptInvitation
         INotificationPublisher notifications,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.Token))
-        {
-            return ApiResults.Invalid(nameof(request.Token), "An invitation token is required.");
-        }
-
         var now = DateTimeOffset.UtcNow;
         var hash = MailedTokens.Hash(request.Token);
 
