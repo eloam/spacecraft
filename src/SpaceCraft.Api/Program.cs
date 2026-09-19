@@ -101,6 +101,8 @@ builder.Services.AddSpaceCraftDataProtection(
     builder.Configuration,
     builder.Environment.IsDevelopment());
 
+builder.Services.AddSingleton(TimeProvider.System);
+
 // Turns a queued run into a running one. Without it the API writes a row that nothing reads:
 // runs sit at Queued for ever, and no page or log says so. It lives here rather than in the
 // runner image because the key that starts jobs must never reach a process that executes a

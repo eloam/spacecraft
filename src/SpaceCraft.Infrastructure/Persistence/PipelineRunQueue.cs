@@ -311,15 +311,19 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
 
     public async Task<(int Count, TimeSpan OldestAge)> QueueDepthAsync(CancellationToken ct = default)
     {
-        var oldest = await db.PipelineRuns
+        // One aggregate over the queue's partial index, so the count and the age describe
+        // the same instant: read separately they could disagree about a run that was claimed
+        // between the two. Grouped on the status the filter fixes, which is one group when
+        // anything is queued and no row at all when nothing is.
+        var depth = await db.PipelineRuns
             .Where(r => r.Status == RunStatus.Queued)
-            .OrderBy(r => r.QueuedAt)
-            .Select(r => (DateTimeOffset?)r.QueuedAt)
+            .GroupBy(r => r.Status)
+            .Select(g => new { Count = g.Count(), Oldest = g.Min(r => r.QueuedAt) })
             .FirstOrDefaultAsync(ct);
 
-        var count = await db.PipelineRuns.CountAsync(r => r.Status == RunStatus.Queued, ct);
-
-        return (count, oldest is null ? TimeSpan.Zero : DateTimeOffset.UtcNow - oldest.Value);
+        return depth is null
+            ? (0, TimeSpan.Zero)
+            : (depth.Count, DateTimeOffset.UtcNow - depth.Oldest);
     }
 
 }
