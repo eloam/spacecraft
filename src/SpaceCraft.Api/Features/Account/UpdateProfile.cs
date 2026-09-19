@@ -25,14 +25,9 @@ public static class UpdateProfile
             return ApiResults.NotFound("The user");
         }
 
+        // The length is the request's Validator's business. Empty clears the name rather than
+        // storing whitespace.
         var name = request.DisplayName?.Trim();
-
-        if (name is { Length: > 100 })
-        {
-            return ApiResults.Invalid(nameof(request.DisplayName), "Use 100 characters or fewer.");
-        }
-
-        // Empty clears the name rather than storing whitespace.
         user.DisplayName = string.IsNullOrWhiteSpace(name) ? null : name;
         await userManager.UpdateAsync(user);
 
