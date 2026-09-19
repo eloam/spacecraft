@@ -183,6 +183,8 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
     {
         private readonly List<EmailMessage> _sent = [];
 
+        private readonly Dictionary<string, int> _refusals = new(StringComparer.OrdinalIgnoreCase);
+
         public IReadOnlyList<EmailMessage> Sent
         {
             get { lock (_sent) { return [.. _sent]; } }
@@ -191,6 +193,36 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
         public void Add(EmailMessage message)
         {
             lock (_sent) { _sent.Add(message); }
+        }
+
+        /// <summary>
+        /// Makes the next <paramref name="times"/> messages to an address fail the way a relay
+        /// does, so a test can see what the application does about it.
+        /// </summary>
+        public void RefuseNext(string to, int times)
+        {
+            lock (_sent) { _refusals[to] = times; }
+        }
+
+        /// <summary>How many refusals an address still has coming.</summary>
+        public int RefusalsLeft(string to)
+        {
+            lock (_sent) { return _refusals.GetValueOrDefault(to); }
+        }
+
+        /// <summary>Spends one refusal for the address, if any is left.</summary>
+        public bool TakeRefusal(string to)
+        {
+            lock (_sent)
+            {
+                if (!_refusals.TryGetValue(to, out var left) || left == 0)
+                {
+                    return false;
+                }
+
+                _refusals[to] = left - 1;
+                return true;
+            }
         }
 
         /// <summary>
@@ -229,6 +261,12 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
     {
         public Task SendAsync(EmailMessage message, CancellationToken ct = default)
         {
+            if (outbox.TakeRefusal(message.To))
+            {
+                // The exception the SMTP transport lets through once its own retries are spent.
+                throw new IOException("The test relay refused the message.");
+            }
+
             outbox.Add(message);
             return Task.CompletedTask;
         }

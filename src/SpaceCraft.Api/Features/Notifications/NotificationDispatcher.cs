@@ -27,10 +27,23 @@ namespace SpaceCraft.Api.Features.Notifications;
 /// between the claim and the send loses a message rather than sending it twice, which is the
 /// right way round for something that lands in somebody's inbox.
 /// </para>
+/// <para>
+/// The send itself is awaited, and a transport that throws hands the row back for the next
+/// sweep. This is the outbox shape of eShop's <c>IntegrationEventLogService</c>: mark in
+/// progress, publish, and on failure mark it so — except that here the in-progress mark and
+/// the published mark are the same stamp, because a message that reached the relay has no
+/// further state to record. What the stamp on its own cannot survive is the process dying
+/// mid-send. What the release costs is at-most-once: a transport that throws is not always
+/// a transport that said no — a relay that took the message and then hung up, or a timeout
+/// spent after the DATA was accepted, throws too — and that row is sent again. Delivery is
+/// therefore at-least-once when the transport fails and at-most-once when the process does,
+/// which is the trade the transport's own retries already make, and the one worth making for
+/// a message nobody would otherwise miss.
+/// </para>
 /// </remarks>
 public sealed class NotificationDispatcher(
     IServiceScopeFactory scopeFactory,
-    IEmailSender email,
+    IEmailTransport transport,
     IOptions<NotificationOptions> options,
     IOptions<PublicUrlsOptions> publicUrls,
     ILogger<NotificationDispatcher> logger) : BackgroundService
@@ -73,20 +86,46 @@ public sealed class NotificationDispatcher(
         await using var scope = scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
 
-        foreach (var delivery in await ClaimAsync(db, ct))
+        var claimed = await ClaimAsync(db, ct);
+        var offered = 0;
+
+        try
         {
-            try
+            for (; offered < claimed.Count; offered++)
             {
-                await DeliverAsync(db, delivery, ct);
+                var delivery = claimed[offered];
+
+                try
+                {
+                    await DeliverAsync(db, delivery, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // A transport failure is reported and settled in Deliver; what reaches
+                    // here is everything else — a message that could not be composed, whose
+                    // row was put back, or a database that went away while writing a
+                    // release, whose row was not. Without this one bad row ends the loop, and
+                    // everything claimed behind it stays claimed for ever: marked sent, never
+                    // sent.
+                    logger.LogError(
+                        ex, "Notification delivery {DeliveryId} failed outside the transport", delivery.Id);
+                }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+        }
+        catch (OperationCanceledException)
+        {
+            // A stop, not a crash — every rolling deploy is one, and with the sends awaited
+            // one after the other a batch takes long enough for a stop to land inside it. The
+            // rows behind the one in flight were never offered, so they go back for whoever
+            // sweeps next. The one in flight keeps its stamp: from here a send interrupted
+            // halfway looks the same as a crash, and it is lost rather than doubled.
+            foreach (var delivery in claimed.Skip(offered + 1))
             {
-                // Delivering already handles its own failures; this catches the failure of
-                // that handling — a database that went away while releasing a row, say.
-                // Without it one bad row ends the loop, and everything claimed behind it stays
-                // claimed for ever: marked sent, never sent.
-                logger.LogError(ex, "Notification delivery {DeliveryId} could not be settled", delivery.Id);
+                delivery.Release();
             }
+
+            await db.SaveChangesAsync(CancellationToken.None);
+            throw;
         }
     }
 
@@ -139,23 +178,85 @@ public sealed class NotificationDispatcher(
         });
     }
 
-    private async Task DeliverAsync(
+    /// <summary>
+    /// Composes one claimed delivery, settles it with the transport, and writes what became
+    /// of it.
+    /// </summary>
+    /// <remarks>
+    /// A message that cannot be built was never offered, so its row goes back the way a
+    /// refused one does, with the attempt counted; the failure itself is not the transport's
+    /// to report and is rethrown for the sweep to. Without that release the row would keep
+    /// the claim's stamp — marked sent, never sent — which is the defect awaiting the send was
+    /// meant to end.
+    /// <para>
+    /// Public so the release can be tested against a context with no database behind it; the
+    /// sweep is the only other caller.
+    /// </para>
+    /// </remarks>
+    public async Task DeliverAsync(
         SpaceCraftDbContext db, NotificationDelivery delivery, CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(db);
+        ArgumentNullException.ThrowIfNull(delivery);
+
+        EmailMessage? message;
+
         try
         {
-            var message = await ComposeAsync(db, delivery, ct);
-
-            if (message is not null)
-            {
-                await email.SendAsync(message, ct);
-            }
+            message = await ComposeAsync(db, delivery, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             delivery.Release();
             await db.SaveChangesAsync(ct);
+            throw;
+        }
 
+        if (message is not null)
+        {
+            await SettleAsync(delivery, message, ct);
+        }
+
+        // Writes the release when there was one, and nothing when the transport accepted the
+        // message: the claim already recorded that as sent, and a row with no change costs no
+        // round trip.
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Hands one claimed delivery to the transport, and takes the claim back if the transport
+    /// threw.
+    /// </summary>
+    /// <remarks>
+    /// The transport, not the queue the endpoints use. The queue accepts a message and returns
+    /// before anything is sent, and drops what it cannot hold — which suits a password reset,
+    /// where the person is at the keyboard and can ask again, and not this, where nobody asked
+    /// and so nobody notices a message that never came. Awaiting the send is what gives the
+    /// row's attempt count a meaning: a relay that refuses puts the row back for the next
+    /// sweep, and after <see cref="NotificationDelivery.MaxAttempts"/> refusals it is left
+    /// alone. A transport that threw after the relay had taken the message is put back all the
+    /// same; the class remarks say what that costs.
+    /// <para>
+    /// Public so the settlement can be tested without a database; the sweep is the only other
+    /// caller.
+    /// </para>
+    /// </remarks>
+    public async Task SettleAsync(
+        NotificationDelivery delivery, EmailMessage message, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+        ArgumentNullException.ThrowIfNull(message);
+
+        try
+        {
+            await transport.SendAsync(message, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            delivery.Release();
+
+            // The message's key beside the delivery's: the transport has just logged the
+            // failure under the former, and this is the line that says which row it was.
             if (delivery.IsAbandoned)
             {
                 // Said out loud, once. Otherwise a message that will never be sent leaves no
@@ -163,12 +264,14 @@ public sealed class NotificationDispatcher(
                 // was for is never told and never knows they were not.
                 logger.LogWarning(
                     ex,
-                    "Giving up on notification delivery {DeliveryId} after {Attempts} attempts",
-                    delivery.Id, delivery.Attempts);
+                    "Giving up on notification delivery {DeliveryId} after {Attempts} attempts; the last was email {MessageId}",
+                    delivery.Id, delivery.Attempts, message.Id);
             }
             else
             {
-                logger.LogError(ex, "Delivering notification {DeliveryId} failed", delivery.Id);
+                logger.LogError(
+                    ex, "Delivering notification {DeliveryId} as email {MessageId} failed",
+                    delivery.Id, message.Id);
             }
         }
     }

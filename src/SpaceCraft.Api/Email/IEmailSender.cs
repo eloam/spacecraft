@@ -15,7 +15,23 @@ public sealed record EmailMessage(
     string Subject,
     string TextBody,
     string? HtmlBody = null,
-    string? UnsubscribeUrl = null);
+    string? UnsubscribeUrl = null)
+{
+    /// <summary>
+    /// What a log line calls this message.
+    /// </summary>
+    /// <remarks>
+    /// Never the address, and not the subject either: a notification's title carries the
+    /// display name of whoever acted, which is their address when they set no name. Every
+    /// producer puts an address in here on the understanding that it does not reach the log
+    /// — the reset dispatcher and the queue both keep their own lines free of it — and the
+    /// transport's delivery report was the one place it did. A key minted here rather than
+    /// borrowed from the notification or the reset it carries, because the message does not
+    /// know which it is and a transport should not have to ask. The producer that does know
+    /// logs the same key beside its own, which is what makes the two lines one story.
+    /// </remarks>
+    public Guid Id { get; init; } = Guid.CreateVersion7();
+}
 
 /// <summary>
 /// What endpoints call to send mail. Implementations are expected to return promptly and

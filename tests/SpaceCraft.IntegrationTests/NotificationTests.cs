@@ -373,6 +373,38 @@ public sealed class NotificationTests(SpaceCraftApi api)
     }
 
     [Fact]
+    public async Task A_notification_the_relay_refuses_once_arrives_on_the_next_sweep()
+    {
+        var ownerEmail = Email();
+        var owner = await api.SignedInAsync(ownerEmail);
+        var organizationId = await OrganizationAsync(owner);
+
+        // The welcome message first, so the refusal is spent on the notification and not on
+        // whichever of the two the queue happens to deliver first.
+        await api.Mailbox.WaitForAsync(ownerEmail, "Welcome", TestContext.Current.CancellationToken);
+        api.Mailbox.RefuseNext(ownerEmail, times: 1);
+
+        var joinerEmail = Email();
+        var joiner = await api.SignedInAsync(joinerEmail);
+        await JoinByInvitationAsync(owner, joiner, organizationId, joinerEmail);
+
+        // The first sweep is refused and puts the row back; the second finds it again. Before
+        // the send was awaited, a refusal was swallowed on the way to the relay and the row
+        // stayed marked as sent — the message was simply gone.
+        var message = await api.Mailbox.WaitForAsync(
+            ownerEmail, "joined", TestContext.Current.CancellationToken);
+
+        message.Subject.ShouldContain(NameOf(joinerEmail));
+
+        // The refusal was spent on this message and not on some other, and the retry sent it
+        // once: otherwise the test proves arrival, which the transport gives for free.
+        api.Mailbox.RefusalsLeft(ownerEmail).ShouldBe(0);
+        api.Mailbox.Sent
+            .Count(m => m.To == ownerEmail && m.Subject.Contains("joined", StringComparison.OrdinalIgnoreCase))
+            .ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Reading_them_all_clears_the_count()
     {
         var owner = await api.SignedInAsync(Email());
