@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using SpaceCraft.Api.Email;
 using SpaceCraft.Infrastructure;
 using Shouldly;
 using Xunit;
@@ -19,8 +20,18 @@ namespace SpaceCraft.UnitTests;
 /// </summary>
 public class OptionsValidationTests
 {
+    private static Task<Exception?> StartWith(
+        Dictionary<string, string?> settings, bool isDevelopment = true) =>
+        StartWith(
+            (services, configuration) => services.AddSpaceCraftInfrastructure(configuration, isDevelopment),
+            settings);
+
+    /// <summary>
+    /// Starts a host with one registration — the same method the API or the runner calls —
+    /// and returns what stopped it, if anything.
+    /// </summary>
     private static async Task<Exception?> StartWith(
-        Dictionary<string, string?> settings, bool isDevelopment = true)
+        Action<IServiceCollection, IConfiguration> register, Dictionary<string, string?> settings)
     {
         var builder = Host.CreateApplicationBuilder();
 
@@ -33,9 +44,21 @@ public class OptionsValidationTests
 
         try
         {
-            // Inside the try: the connection-string guard throws at registration, before
-            // there is a host to start.
-            builder.Services.AddSpaceCraftInfrastructure(builder.Configuration, isDevelopment);
+            // Inside the try: some registrations refuse at the call — the connection-string
+            // guard, the pipeline's sandbox acknowledgement — before there is a host to start.
+            register(builder.Services, builder.Configuration);
+
+            // A section's registration brings the hosted services of its feature — dispatchers
+            // that sweep a database this host does not have. What is under test is whether
+            // the host may start, not what it does afterwards; the options validation is the
+            // framework's and stays.
+            foreach (var hosted in builder.Services
+                .Where(s => s.ServiceType == typeof(IHostedService)
+                    && s.ImplementationType?.Namespace?.StartsWith("SpaceCraft", StringComparison.Ordinal) == true)
+                .ToList())
+            {
+                builder.Services.Remove(hosted);
+            }
 
             using var host = builder.Build();
             await host.StartAsync(TestContext.Current.CancellationToken);
@@ -154,4 +177,34 @@ public class OptionsValidationTests
         error.ShouldBeOfType<OptionsValidationException>();
         error.Message.ShouldContain("ObjectStorage:ServiceUrl");
     }
+
+    private static Dictionary<string, string?> UnencryptedRelay() => new()
+    {
+        ["Smtp:Host"] = "mailpit",
+        ["Smtp:Port"] = "1025",
+        ["Smtp:Security"] = "None",
+        ["Smtp:Username"] = "user",
+        ["Smtp:Password"] = "secret",
+        ["Smtp:FromEmail"] = "noreply@example.test",
+    };
+
+    [Fact]
+    public async Task An_unencrypted_relay_is_refused_outside_Development()
+    {
+        // The class cannot say this itself: it does not know where it is running. Anywhere
+        // but a developer's machine, None sends the password and every reset link readable.
+        var error = await StartWith(
+            (services, configuration) => services.AddSpaceCraftEmail(configuration, isDevelopment: false),
+            UnencryptedRelay());
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("Smtp:Security");
+    }
+
+    [Fact]
+    public async Task An_unencrypted_relay_is_the_local_mail_catcher_and_is_allowed_in_Development() =>
+        (await StartWith(
+            (services, configuration) => services.AddSpaceCraftEmail(configuration, isDevelopment: true),
+            UnencryptedRelay()))
+            .ShouldBeNull();
 }
