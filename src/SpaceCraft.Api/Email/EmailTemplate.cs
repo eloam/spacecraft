@@ -33,10 +33,13 @@ public static class EmailTemplate
     /// <summary>
     /// Wraps content in the shared frame.
     /// </summary>
+    /// <param name="heading">The title at the top of the frame.</param>
     /// <param name="preheader">
     /// The snippet shown next to the subject in an inbox list. Left unset, clients grab the
     /// first words of the body, which is usually the greeting and tells the reader nothing.
     /// </param>
+    /// <param name="bodyHtml">The message itself, already escaped.</param>
+    /// <param name="assetBaseUrl">Where the logo is served from; no logo when unset.</param>
     public static string Render(string heading, string preheader, string bodyHtml, string? assetBaseUrl = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(heading);

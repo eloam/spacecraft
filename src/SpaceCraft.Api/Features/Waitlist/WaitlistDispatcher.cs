@@ -10,7 +10,7 @@ namespace SpaceCraft.Api.Features.Waitlist;
 /// <summary>
 /// Records a waitlist signup and sends its confirmation link, off the request thread.
 /// <para>
-/// Same reasoning as <see cref="PasswordResetDispatcher"/>: the endpoint used to return
+/// Same reasoning as <see cref="Auth.PasswordResetDispatcher"/>: the endpoint used to return
 /// immediately for an already-confirmed address while writing to the database for a new one,
 /// which was measurable — 3.5 ms against 7.5 ms — and told a caller whether an address had
 /// already signed up, despite the identical response the code was careful to return.

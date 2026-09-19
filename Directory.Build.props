@@ -7,7 +7,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!--
+      On for two reasons: the compiler only checks a /// comment — a <param> that names no
+      parameter, a cref that resolves to nothing — when it writes the file, and
+      Microsoft.AspNetCore.OpenApi reads the API's file to put those comments in the OpenAPI
+      document, which is what the web client's schema.d.ts is generated from.
+    -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!--
       Left off deliberately. With invariant globalization, string.Normalize(FormD) does not
       decompose accented characters, so slug generation silently mangled non-ASCII names
@@ -43,8 +49,10 @@
       VSTHRD200 "Async" suffix on async methods: not a rule this repository chose. The analyser
               arrives transitively through Kiota.Builder and would fire on every test method
               returning Task.
+      CS1591  Missing XML comment on a public member: comments explain a decision, not every
+              member, and this would demand one on each handler, record and test.
     -->
-    <NoWarn>$(NoWarn);CA1848;CA1873;CA2007;CA1711;VSTHRD200</NoWarn>
+    <NoWarn>$(NoWarn);CA1848;CA1873;CA2007;CA1711;VSTHRD200;CS1591</NoWarn>
   </PropertyGroup>
 
 </Project>

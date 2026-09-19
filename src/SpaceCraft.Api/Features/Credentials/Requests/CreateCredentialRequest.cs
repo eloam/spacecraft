@@ -4,18 +4,22 @@ using SpaceCraft.Domain.Registries;
 
 namespace SpaceCraft.Api.Features.Credentials.Requests;
 
+/// <param name="Registry">The kind of registry the token is for.</param>
+/// <param name="Label">How the credential is told apart from the others.</param>
+/// <param name="Token">The secret itself, stored encrypted and never returned.</param>
+/// <param name="Username">
+/// Half of the credential wherever a registry wants one — Maven, Nexus, Artifactory, and
+/// PyPI where it is the literal "__token__". Absent for npm and NuGet, which authenticate
+/// with the token alone.
+/// </param>
+/// <param name="ExpiresAt">When the registry will stop accepting the token, if known.</param>
+/// <param name="RegistryUrl">Where this token publishes. Empty means the public registry for its kind.</param>
 public sealed record CreateCredentialRequest(
     RegistryKind Registry,
     string Label,
     string Token,
-    /// <summary>
-    /// Half of the credential wherever a registry wants one — Maven, Nexus, Artifactory, and
-    /// PyPI where it is the literal "__token__". Absent for npm and NuGet, which authenticate
-    /// with the token alone.
-    /// </summary>
     string? Username,
     DateTimeOffset? ExpiresAt,
-    /// <summary>Where this token publishes. Empty means the public registry for its kind.</summary>
     string? RegistryUrl = null)
 {
     public sealed class Validator : AbstractValidator<CreateCredentialRequest>

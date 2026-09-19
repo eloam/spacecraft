@@ -116,9 +116,6 @@ public sealed partial class OpenApiSpecValidator(ILogger<OpenApiSpecValidator> l
     }
 
     /// <summary>
-    /// Checks that go beyond "is this valid OpenAPI" and into "can we emit a usable SDK from it".
-    /// </summary>
-    /// <summary>
     /// Reports a version some registries will refuse, naming which.
     /// </summary>
     /// <remarks>

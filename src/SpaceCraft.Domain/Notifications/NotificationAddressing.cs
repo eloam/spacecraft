@@ -27,6 +27,8 @@ public static class NotificationAddressing
     /// The person's own preference rows. Those for other kinds and channels are ignored, so
     /// the caller may pass everything it has for them.
     /// </param>
+    /// <param name="kind">The kind of notification.</param>
+    /// <param name="channel">The channel it would go out on.</param>
     public static bool IsEnabled(
         IEnumerable<NotificationPreference> stated, NotificationKind kind, NotificationChannel channel)
     {
@@ -45,6 +47,9 @@ public static class NotificationAddressing
     /// Nothing here names a channel. A new one in the enum starts being honoured the day it is
     /// added, for anybody who has not said otherwise.
     /// </remarks>
+    /// <param name="content">What the notification says.</param>
+    /// <param name="recipient">The person it is for.</param>
+    /// <param name="organizationId">The organization it concerns.</param>
     /// <param name="stated">The person's own preference rows, as for <see cref="IsEnabled"/>.</param>
     public static Notification? Address(
         NotificationContent content,

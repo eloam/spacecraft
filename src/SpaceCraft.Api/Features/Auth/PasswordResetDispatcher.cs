@@ -12,8 +12,8 @@ namespace SpaceCraft.Api.Features.Auth;
 
 /// <summary>
 /// Does the actual work of a password reset request, off the request thread: finds the
-/// account, issues a token, and sends the link. See <see cref="PasswordResetRequests"/> for
-/// why none of this happens inline.
+/// account, issues a token, and sends the link. See <see cref="ForgotPassword"/> for why
+/// none of this happens inline.
 /// </summary>
 public sealed class PasswordResetDispatcher(
     BackgroundWorkQueue<PasswordResetRequest> requests,
