@@ -38,15 +38,18 @@ public static class GetSpecContent
             return ApiResults.NotFound("The specification version");
         }
 
-        if (!await storage.ExistsAsync(storageKey, ct))
+        try
+        {
+            var content = await storage.GetTextAsync(storageKey, ct);
+            return TypedResults.Ok(new SpecContentResponse(content, StorageKeys.FormatOf(storageKey)));
+        }
+        catch (ObjectNotFoundException)
         {
             // The row outlived its object — a bucket wiped between environments, say. Saying
             // so beats handing back an empty document that reads as a spec with no content.
+            // Caught rather than checked first, as GetArtifact and GetStepLog do: one storage
+            // call instead of two, and no window between them for the object to go missing.
             return ApiResults.NotFound("The stored document");
         }
-
-        var content = await storage.GetTextAsync(storageKey, ct);
-
-        return TypedResults.Ok(new SpecContentResponse(content, StorageKeys.FormatOf(storageKey)));
     }
 }

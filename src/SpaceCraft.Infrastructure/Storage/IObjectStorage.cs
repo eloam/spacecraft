@@ -10,7 +10,11 @@ public interface IObjectStorage
 
     Task PutTextAsync(string key, string content, string contentType, CancellationToken ct = default);
 
-    /// <summary>Opens the object for reading. Caller owns the returned stream.</summary>
+    /// <summary>
+    /// Opens the object for reading. Caller owns the returned stream. Throws
+    /// <see cref="ObjectNotFoundException"/> when the object is absent; readers catch that
+    /// rather than ask first, so a row whose object is gone costs one call, not two.
+    /// </summary>
     Task<Stream> GetAsync(string key, CancellationToken ct = default);
 
     Task<string> GetTextAsync(string key, CancellationToken ct = default);
