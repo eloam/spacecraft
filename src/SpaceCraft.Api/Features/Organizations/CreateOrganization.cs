@@ -5,6 +5,7 @@ using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Organizations.Responses;
 using SpaceCraft.Api.Features.Organizations.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +13,7 @@ namespace SpaceCraft.Api.Features.Organizations;
 
 public static class CreateOrganization
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Created<OrganizationResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         [FromBody] CreateOrganizationRequest request,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,

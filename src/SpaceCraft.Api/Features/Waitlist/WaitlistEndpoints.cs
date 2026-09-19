@@ -1,5 +1,4 @@
 using SpaceCraft.Api.Extensions;
-using SpaceCraft.Api.Features.Waitlist.Responses;
 
 namespace SpaceCraft.Api.Features.Waitlist;
 
@@ -14,12 +13,9 @@ public static class WaitlistEndpoints
 
         group.MapPost("/", JoinWaitlist.Handle)
             .RequireRateLimiting(ApiServiceExtensions.StrictLimiter)
-            .Produces<WaitlistSignupResponse>()
-            .ProducesValidationProblem()
             .WithSummary("Registers an email for launch notifications.");
 
         group.MapGet("/confirm", ConfirmSignup.HandleAsync)
-            .Produces<WaitlistSignupResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .WithSummary("Confirms a waitlist signup from the emailed link.");
 

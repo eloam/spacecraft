@@ -1,13 +1,14 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Account;
 
 public static class RevokeSession
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ProblemHttpResult>> HandleAsync(
         Guid sessionId,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,

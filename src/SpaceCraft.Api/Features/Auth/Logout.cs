@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Features.Auth.Requests;
@@ -9,7 +10,7 @@ namespace SpaceCraft.Api.Features.Auth;
 
 public static class Logout
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ValidationProblem>> HandleAsync(
         [FromBody] RefreshRequest request,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,

@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
@@ -27,7 +26,7 @@ public class OrganizationAccessGuardTests
     private static async Task<ProblemDetails?> DenialFor(OrganizationRole? held, OrganizationRole required)
     {
         var result = await new Membership(held).DenyUnlessAsync(Org, User, required, TestContext.Current.CancellationToken);
-        return (result as ProblemHttpResult)?.ProblemDetails;
+        return result?.ProblemDetails;
     }
 
     [Fact]
@@ -85,7 +84,7 @@ public class OrganizationAccessGuardTests
         var check = await new Membership(OrganizationRole.Member)
             .CheckAsync(Org, User, OrganizationRole.Admin, TestContext.Current.CancellationToken);
 
-        check.Denied.ShouldBeOfType<ProblemHttpResult>().ProblemDetails.Status.ShouldBe(StatusCodes.Status403Forbidden);
+        check.Denied.ShouldNotBeNull().ProblemDetails.Status.ShouldBe(StatusCodes.Status403Forbidden);
         check.Role.ShouldBe(OrganizationRole.Member);
     }
 
@@ -95,7 +94,7 @@ public class OrganizationAccessGuardTests
         var check = await new Membership(null)
             .CheckAsync(Org, User, OrganizationRole.Viewer, TestContext.Current.CancellationToken);
 
-        check.Denied.ShouldBeOfType<ProblemHttpResult>().ProblemDetails.Status.ShouldBe(StatusCodes.Status404NotFound);
+        check.Denied.ShouldNotBeNull().ProblemDetails.Status.ShouldBe(StatusCodes.Status404NotFound);
         check.Role.ShouldBeNull();
     }
 

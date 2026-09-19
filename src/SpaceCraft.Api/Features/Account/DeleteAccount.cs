@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Account.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,7 +11,7 @@ namespace SpaceCraft.Api.Features.Account;
 
 public static class DeleteAccount
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ProblemHttpResult, ValidationProblem>> HandleAsync(
         [FromBody] DeleteAccountRequest request,
         ClaimsPrincipal principal,
         UserManager<SpaceCraftUser> userManager,

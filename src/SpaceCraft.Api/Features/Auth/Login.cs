@@ -3,6 +3,7 @@ using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Auth.Responses;
 using SpaceCraft.Api.Features.Auth.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,7 @@ namespace SpaceCraft.Api.Features.Auth;
 
 public static class Login
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<AuthResponse>, ProblemHttpResult>> HandleAsync(
         [FromBody] LoginRequest request,
         UserManager<SpaceCraftUser> userManager,
         SpaceCraftDbContext db,

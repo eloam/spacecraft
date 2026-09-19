@@ -2,13 +2,14 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Organizations.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Organizations;
 
 public static class ListOrganizations
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Ok<List<OrganizationResponse>>> HandleAsync(
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         CancellationToken ct)

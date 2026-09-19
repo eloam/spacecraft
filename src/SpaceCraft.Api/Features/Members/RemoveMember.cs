@@ -4,13 +4,14 @@ using SpaceCraft.Domain.Notifications;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Notifications;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Members;
 
 public static class RemoveMember
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         Guid userId,
         ClaimsPrincipal principal,

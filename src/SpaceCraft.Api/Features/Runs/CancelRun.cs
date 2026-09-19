@@ -3,13 +3,14 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Runs.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Runs;
 
 public static class CancelRun
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<RunResponse>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         Guid runId,
         ClaimsPrincipal principal,

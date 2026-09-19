@@ -3,13 +3,14 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Credentials.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Credentials;
 
 public static class ListCredentials
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<List<CredentialResponse>>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,

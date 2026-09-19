@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Account.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +11,7 @@ namespace SpaceCraft.Api.Features.Account;
 
 public static class GetAccount
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<AccountResponse>, ProblemHttpResult>> HandleAsync(
         ClaimsPrincipal principal,
         UserManager<SpaceCraftUser> userManager,
         SpaceCraftDbContext db,

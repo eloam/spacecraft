@@ -6,6 +6,7 @@ using SpaceCraft.Domain.Projects;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Projects.Responses;
 using SpaceCraft.Api.Features.Projects.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,7 +14,7 @@ namespace SpaceCraft.Api.Features.Projects;
 
 public static class CreateProject
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Created<ProjectResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         Guid organizationId,
         [FromBody] CreateProjectRequest request,
         ClaimsPrincipal principal,

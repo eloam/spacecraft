@@ -8,7 +8,7 @@
 
 ## Architecture
 - `SpaceCraft.Api` is vertical slices: `Features/<Name>/` owns everything about a feature.
-  - `<UseCase>.cs` — `public static class RemoveMember { HandleAsync(...) }` plus the private helpers only it uses. One file per use case.
+  - `<UseCase>.cs` — `public static class RemoveMember { HandleAsync(...) }` plus the private helpers only it uses. One file per use case. Handlers return `TypedResults` — the concrete type when there is one answer, `Results<…>` otherwise, never `IResult` — so the framework reads the 200/201/202/204 and the validation 400 off the signature.
   - `<Name>Endpoints.cs` — the route group and `Map*` calls, nothing else.
   - `Requests/<Name>Request.cs`, `Responses/<Name>Response.cs` — one record per file, namespace = folder.
   - What several use cases share lives beside them under a name for what it is (`Sessions`, `MemberQueries`, `OrganizationDeleter`). `Common/` is cross-feature only; `Email/` is mail infrastructure only.
@@ -20,7 +20,8 @@
 - Every request's shape rules live in a nested `public sealed class Validator : AbstractValidator<T>` inside the record (FluentValidation). `RuleLevelCascadeMode = CascadeMode.Stop` first; every rule has `.WithMessage(...)` with our own text — no library default reaches a client.
 - Validators are found by `AddValidatorsFromAssemblyContaining<Program>()` and run by `Common/ValidationFilterFactory` on the `/api/v1` group. A record with no shape rule has no `Validator`.
 - Error keys are the property names (PascalCase); the web client reads `errors.Email` case-sensitively. Never `OverridePropertyName`.
-- Judge the value as the handler stores it (trimmed). A route that can answer 400 declares `.ProducesValidationProblem()`.
+- Judge the value as the handler stores it (trimmed). A handler whose request has a `Validator`, or that answers `ApiResults.Invalid` itself, carries `ValidationProblem` in its `Results<…>` union.
+- `ProblemHttpResult` declares nothing, so each problem status a handler can answer (401, 403, 404, 409, 423) is one `.ProducesProblem(status)` on its route in the Endpoints file; organization groups declare the guard's 404 once, and a route that asks for more than Viewer declares its 403. A text or file result keeps a typed `.Produces<T>(200, contentType)`.
 - Record names are OpenAPI schema ids the web client is generated from — never rename them. After a contract change: `npm run gen:api` in `src/web` (needs the API running).
 - Options classes keep DataAnnotations + `ValidateDataAnnotations().ValidateOnStart()`.
 

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
@@ -8,7 +9,7 @@ namespace SpaceCraft.Api.Features.Notifications;
 
 public static class GetPreferences
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Ok<List<NotificationPreferenceState>>> HandleAsync(
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         CancellationToken ct)

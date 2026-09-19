@@ -1,6 +1,7 @@
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Projects;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Projects;
@@ -11,7 +12,7 @@ internal static class TargetCredential
     /// Refuses a credential a target could not publish with: one the organization does not
     /// have, one for another registry, or one that has been revoked.
     /// </summary>
-    public static async Task<IResult?> RejectUnusableAsync(
+    public static async Task<ValidationProblem?> RejectUnusableAsync(
         Guid organizationId,
         RegistryKind registry,
         Guid? credentialId,

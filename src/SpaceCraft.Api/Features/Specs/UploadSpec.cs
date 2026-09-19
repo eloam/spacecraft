@@ -8,6 +8,7 @@ using SpaceCraft.Infrastructure.OpenApi;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Storage;
 using SpaceCraft.Api.Features.Specs.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Specs;
@@ -20,7 +21,7 @@ public static class UploadSpec
     /// </summary>
     private const long MaxUploadBytes = SpecLimits.MaxSizeInBytes;
 
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Created<SpecUploadResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         Guid organizationId,
         Guid projectId,
         IFormFile file,

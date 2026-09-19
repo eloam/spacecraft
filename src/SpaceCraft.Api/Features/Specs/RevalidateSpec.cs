@@ -6,6 +6,7 @@ using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Storage;
 using SpaceCraft.Api.Features.Specs.Responses;
 using SpaceCraft.Api.Features.Specs.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,7 +26,7 @@ namespace SpaceCraft.Api.Features.Specs;
 /// </summary>
 public static class RevalidateSpec
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<SpecUploadResponse>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         Guid projectId,
         Guid specVersionId,

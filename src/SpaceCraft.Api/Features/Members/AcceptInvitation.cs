@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
+using SpaceCraft.Api.Features.Members.Responses;
 using SpaceCraft.Domain.Notifications;
 using SpaceCraft.Infrastructure.Notifications;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Features.Members.Requests;
@@ -22,7 +24,7 @@ namespace SpaceCraft.Api.Features.Members;
 /// </remarks>
 public static class AcceptInvitation
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<MemberResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         [FromBody] AcceptInvitationRequest request,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,

@@ -2,13 +2,14 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Organizations.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Organizations;
 
 public static class GetOrganization
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<OrganizationResponse>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,

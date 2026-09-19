@@ -1,13 +1,14 @@
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Features.Auth.Responses;
 using SpaceCraft.Api.Features.Auth.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SpaceCraft.Api.Features.Auth;
 
 public static class ForgotPassword
 {
-    public static IResult Handle(
+    public static Results<Accepted<AcknowledgementResponse>, ValidationProblem> Handle(
         [FromBody] ForgotPasswordRequest request,
         BackgroundWorkQueue<PasswordResetRequest> resetRequests)
     {

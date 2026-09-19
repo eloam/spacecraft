@@ -2,6 +2,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Notifications;
 using SpaceCraft.Infrastructure.Notifications;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Features.Members.Requests;
@@ -18,7 +19,7 @@ namespace SpaceCraft.Api.Features.Members;
 /// </remarks>
 public static class DeclineInvitation
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ProblemHttpResult, ValidationProblem>> HandleAsync(
         [FromBody] AcceptInvitationRequest request,
         SpaceCraftDbContext db,
         INotificationPublisher notifications,
