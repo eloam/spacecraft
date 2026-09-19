@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Domain.Projects;
@@ -31,21 +32,42 @@ public sealed class DispatchClaimTests(SpaceCraftApi api)
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(2);
 
     [Fact]
-    public async Task Concurrent_sweeps_never_hand_out_the_same_run()
+    public async Task A_sweep_walks_past_a_row_another_sweep_is_holding()
     {
+        var ct = TestContext.Current.CancellationToken;
         var runIds = await SeedQueuedRunsAsync(6);
 
-        // Two sweeps at once, each willing to take the whole backlog. Without SKIP LOCKED one
-        // blocks on the other's row locks and then returns the same ids.
-        var sweeps = await Task.WhenAll(
-            ClaimAsync(batchSize: 6),
-            ClaimAsync(batchSize: 6));
+        // Another sweep, mid-claim: its transaction holds the first row under FOR UPDATE and
+        // has not committed. Held from a raw connection rather than a DbContext, because the
+        // context's retrying execution strategy refuses a transaction it cannot replay — and
+        // because the lock is the whole point, not anything EF would do with it.
+        //
+        // Two sweeps started with Task.WhenAll used to stand in for this, and proved nothing:
+        // nothing guaranteed they overlapped, and when they did, a claim without SKIP LOCKED
+        // would block on the winner's lock, re-evaluate its WHERE once the winner committed —
+        // READ COMMITTED does that — find the rows dispatched, and return nothing. The same
+        // "no duplicates" either way.
+        await using var holder = new NpgsqlConnection(await ConnectionStringAsync());
+        await holder.OpenAsync(ct);
+        await using var held = await holder.BeginTransactionAsync(ct);
 
-        var handed = sweeps.SelectMany(s => s).ToList();
+        await using (var lockRow = new NpgsqlCommand(
+            "SELECT id FROM spacecraft.pipeline_runs WHERE id = @id FOR UPDATE", holder, held))
+        {
+            lockRow.Parameters.AddWithValue("id", runIds[0]);
+            await lockRow.ExecuteNonQueryAsync(ct);
+        }
 
-        handed.ShouldBeUnique();
-        handed.Count.ShouldBe(6);
-        handed.Order().ShouldBe(runIds.Order());
+        // Under plain FOR UPDATE this waits for the holder, which is not going to finish
+        // inside the timeout. Under SKIP LOCKED it returns the other five at once, in order.
+        var claimed = await ClaimAsync(batchSize: 6).WaitAsync(TimeSpan.FromSeconds(10), ct);
+        claimed.ShouldBe(runIds.Skip(1).ToList());
+
+        await held.RollbackAsync(ct);
+
+        // Released, the held row is an ordinary queued run again and the next sweep takes it;
+        // the five already handed out are inside their window and left alone.
+        (await ClaimAsync(batchSize: 6)).ShouldBe([runIds[0]]);
     }
 
     [Fact]
@@ -158,6 +180,13 @@ public sealed class DispatchClaimTests(SpaceCraftApi api)
             run.Status.ShouldBe(RunStatus.Failed);
             run.FailureReason.ShouldNotBeNull().ShouldContain("gave up after 3 attempts");
         }
+    }
+
+    private async Task<string> ConnectionStringAsync()
+    {
+        await using var scope = api.Services.CreateAsyncScope();
+        return scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>().Database.GetConnectionString()
+            ?? throw new InvalidOperationException("The test host has no connection string.");
     }
 
     private async Task<IReadOnlyList<Guid>> ClaimAsync(int batchSize)

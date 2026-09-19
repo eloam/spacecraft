@@ -286,7 +286,12 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
     public async Task<bool> RecordDispatchRefusalAsync(
         Guid runId, string reason, CancellationToken ct = default)
     {
-        var run = await db.PipelineRuns.FirstOrDefaultAsync(r => r.Id == runId, ct);
+        // With its steps: the refusal that reaches the limit fails the run, and Fail settles
+        // the steps still Pending. Loaded without them it would settle nothing, and the run
+        // would end Failed over four steps that never resolve.
+        var run = await db.PipelineRuns
+            .Include(r => r.Steps)
+            .FirstOrDefaultAsync(r => r.Id == runId, ct);
 
         if (run is null || run.Status != RunStatus.Queued)
         {

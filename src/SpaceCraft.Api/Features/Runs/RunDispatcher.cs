@@ -62,7 +62,12 @@ public sealed class RunDispatcher(
         }
     }
 
-    private async Task SweepAsync(CancellationToken ct)
+    /// <summary>
+    /// One pass: claim a batch, ask the platform for a job per run, and settle whatever was not
+    /// started. Internal so the composition — started, deferred, rejected, released — is tested
+    /// without a timer or a database.
+    /// </summary>
+    internal async Task SweepAsync(CancellationToken ct)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var queue = scope.ServiceProvider.GetRequiredService<IPipelineRunQueue>();

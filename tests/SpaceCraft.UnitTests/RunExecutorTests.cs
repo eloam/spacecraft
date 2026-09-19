@@ -23,7 +23,8 @@ namespace SpaceCraft.UnitTests;
 /// — and until now it was asserted nowhere.
 /// <para>
 /// No database here. The claim itself is Postgres's and is tested against a real one in
-/// <c>DispatchClaimTests</c>; what is tested here is what the runner makes of the answer.
+/// <c>RunClaimTests</c> — two workers for one run, a run no longer queued, the refusals that
+/// fail it; what is tested here is what the runner makes of the answer.
 /// </para>
 /// </remarks>
 public class RunExecutorTests

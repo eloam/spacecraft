@@ -24,4 +24,9 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
   </ItemGroup>
+  <!-- Internal helpers are unit-tested directly rather than being made public
+       just to satisfy the test project. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="SpaceCraft.UnitTests" />
+  </ItemGroup>
 </Project>
