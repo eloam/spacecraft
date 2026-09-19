@@ -32,8 +32,7 @@ public sealed class ProjectDeleter(
             .Select(s => s.StorageKey)
             .ToListAsync(ct);
 
-        await storage.TryDeleteAsync(specKeys, logger, ct);
-        await runs.PurgeAsync(r => r.ApiProjectId == projectId, ct);
+        var runKeys = await runs.RemoveAsync(r => r.ApiProjectId == projectId, ct);
 
         var targetIds = await db.SdkTargets
             .Where(t => t.ApiProjectId == projectId)
@@ -49,7 +48,11 @@ public sealed class ProjectDeleter(
             db.ApiProjects.Remove(project);
         }
 
+        // The rows first, as one transaction; the objects only once it has landed, so a save
+        // that fails leaves the documents, artifacts and logs where their rows still point.
         await db.SaveChangesAsync(ct);
+
+        await storage.TryDeleteAsync(specKeys.Concat(runKeys), logger);
         return null;
     }
 
@@ -60,7 +63,7 @@ public sealed class ProjectDeleter(
             return refusal;
         }
 
-        await runs.PurgeAsync(r => r.SdkTargetId == targetId, ct);
+        var runKeys = await runs.RemoveAsync(r => r.SdkTargetId == targetId, ct);
 
         db.Publications.RemoveRange(
             await db.Publications.Where(p => p.SdkTargetId == targetId).ToListAsync(ct));
@@ -72,6 +75,8 @@ public sealed class ProjectDeleter(
         }
 
         await db.SaveChangesAsync(ct);
+
+        await storage.TryDeleteAsync(runKeys, logger);
         return null;
     }
 }

@@ -35,8 +35,7 @@ public sealed class OrganizationDeleter(
             .Select(s => s.StorageKey)
             .ToListAsync(ct);
 
-        await storage.TryDeleteAsync(specKeys, logger, ct);
-        await runs.PurgeAsync(r => r.OrganizationId == organizationId, ct);
+        var runKeys = await runs.RemoveAsync(r => r.OrganizationId == organizationId, ct);
 
         // No foreign key covers these two, so nothing would remove them for us.
         db.RegistryCredentials.RemoveRange(
@@ -55,7 +54,12 @@ public sealed class OrganizationDeleter(
             db.Organizations.Remove(organization);
         }
 
+        // The rows first, as one transaction; the objects only once it has landed. Removed
+        // before the save, a save that failed or a request that was cancelled left rows
+        // whose documents, artifacts and logs were already gone.
         await db.SaveChangesAsync(ct);
+
+        await storage.TryDeleteAsync(specKeys.Concat(runKeys), logger);
 
         logger.LogWarning("Organization {OrganizationId} deleted with {Projects} project(s)",
             organizationId, projects);

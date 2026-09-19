@@ -44,16 +44,19 @@ public sealed class SpecDeleter(
         db.Publications.RemoveRange(
             await db.Publications.Where(p => runIds.Contains(p.PipelineRunId)).ToListAsync(ct));
 
-        await runs.PurgeAsync(r => r.SpecVersionId == specVersionId, ct);
+        var runKeys = await runs.RemoveAsync(r => r.SpecVersionId == specVersionId, ct);
 
         var spec = await db.SpecVersions.FirstOrDefaultAsync(s => s.Id == specVersionId, ct);
         if (spec is not null)
         {
-            await storage.TryDeleteAsync([spec.StorageKey], logger, ct);
             db.SpecVersions.Remove(spec);
         }
 
+        // The rows first, as one transaction; the document and the runs' objects only once
+        // it has landed, so a save that fails leaves them where their rows still point.
         await db.SaveChangesAsync(ct);
+
+        await storage.TryDeleteAsync(runKeys.Append(spec?.StorageKey), logger);
         return null;
     }
 
