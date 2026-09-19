@@ -41,8 +41,7 @@ public sealed class RunDispatcher(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var interval = TimeSpan.FromSeconds(Math.Clamp(_options.SweepSeconds, 1, 300));
-        using var timer = new PeriodicTimer(interval);
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(_options.SweepSeconds));
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -74,8 +73,8 @@ public sealed class RunDispatcher(
         // same table, and SKIP LOCKED is what makes them share the work instead of each
         // starting a job for the same run — three executions spent against a ceiling of ten.
         var claimed = await queue.ClaimForDispatchAsync(
-            Math.Clamp(_options.BatchSize, 1, 100),
-            TimeSpan.FromSeconds(Math.Clamp(_options.RedispatchAfterSeconds, 10, 3600)),
+            _options.BatchSize,
+            TimeSpan.FromSeconds(_options.RedispatchAfterSeconds),
             ct);
 
         if (claimed.Count == 0)
