@@ -51,14 +51,9 @@ public static class UpdateTarget
             return refusal;
         }
 
-        if (request.AutoPublish && request.RegistryCredentialId is null)
-        {
-            return ApiResults.Invalid(
-                "autoPublish",
-                "A target that publishes nowhere cannot publish automatically. Choose a "
-                + "credential, or leave automatic publishing off.");
-        }
-
+        // Whether automatic publishing has a credential to publish with is the request's
+        // Validator's business. The package name is judged below, against the stored target's
+        // registry, which the Validator cannot see.
         var packageName = request.PackageName?.Trim() ?? string.Empty;
 
         if (!string.Equals(packageName, target.PackageName, StringComparison.Ordinal))

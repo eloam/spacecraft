@@ -26,15 +26,6 @@ public static class AddTarget
             return denied;
         }
 
-        // The domain models six languages; only the ones with a working generator, builder
-        // and publisher are accepted, so a user cannot queue a run that can never succeed.
-        if (!request.Language.IsSupported())
-        {
-            return ApiResults.Invalid(
-                nameof(request.Language),
-                $"{request.Language} is not available yet. TypeScript is currently supported.");
-        }
-
         var project = await db.ApiProjects
             .Include(p => p.Targets)
             .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
@@ -44,20 +35,9 @@ public static class AddTarget
             return ApiResults.NotFound("The project");
         }
 
+        // The language, its registry and the package name's shape are the request's
+        // Validator's business, so a registry the caller named is already the language's own.
         var registry = request.Registry ?? request.Language.DefaultRegistry();
-
-        // A caller may name the registry, and nothing checked it belonged to the language.
-        // A Java target with Registry=Npm resolved both seams successfully — the Java
-        // generator built a .jar and the npm publisher was handed it — so the pairing is
-        // refused here rather than discovered at the last step of a run.
-        if (registry != request.Language.DefaultRegistry())
-        {
-            return ApiResults.Invalid(
-                nameof(request.Registry),
-                $"{request.Language} publishes to {request.Language.DefaultRegistry()}, not to "
-                + $"{registry}. Point the credential at your own {request.Language.DefaultRegistry()} "
-                + "server if it is not the public one.");
-        }
 
         // The uniqueness the database used to enforce across every tenant, narrowed to the
         // organization it actually belongs in. A registry decides who owns a name and says so
@@ -82,14 +62,6 @@ public static class AddTarget
             return refusal;
         }
 
-        if (request.AutoPublish && request.RegistryCredentialId is null)
-        {
-            return ApiResults.Invalid(
-                "autoPublish",
-                "A target that publishes nowhere cannot publish automatically. Choose a "
-                + "credential, or leave automatic publishing off.");
-        }
-
         SdkTarget target;
         try
         {
@@ -97,6 +69,7 @@ public static class AddTarget
         }
         catch (ArgumentException ex)
         {
+            // A backstop: the Validator has already judged the package name against this registry.
             return ApiResults.Invalid(nameof(request.PackageName), ex.Message);
         }
         catch (InvalidOperationException ex)

@@ -18,27 +18,9 @@ public static class CreateOrganization
         SpaceCraftDbContext db,
         CancellationToken ct)
     {
-        if (!ResourceName.IsValid(request.Name))
-        {
-            return ApiResults.Invalid(nameof(request.Name), ResourceName.Rule);
-        }
-
-        string slug;
-        try
-        {
-            slug = string.IsNullOrWhiteSpace(request.Slug) ? Slug.From(request.Name) : request.Slug.Trim();
-        }
-        catch (ArgumentException)
-        {
-            return ApiResults.Invalid(nameof(request.Slug), "Provide a slug: the name contains no usable characters.");
-        }
-
-        if (!Slug.IsValid(slug))
-        {
-            return ApiResults.Invalid(
-                nameof(request.Slug),
-                "A slug may contain lowercase letters, digits and single hyphens only.");
-        }
+        // The shape of the name and slug is the request's Validator's business. A valid name
+        // starts with a letter or digit, so Slug.From cannot throw here.
+        var slug = string.IsNullOrWhiteSpace(request.Slug) ? Slug.From(request.Name) : request.Slug.Trim();
 
         if (await db.Organizations.AnyAsync(o => o.Slug == slug, ct))
         {

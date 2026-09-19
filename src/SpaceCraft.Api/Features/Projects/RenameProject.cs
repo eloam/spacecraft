@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
-using SpaceCraft.Domain.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Projects.Responses;
@@ -27,12 +26,8 @@ public static class RenameProject
             return denied;
         }
 
+        // Well-formed, and so non-null: the shape is the request's Validator's business.
         var name = request.Name?.Trim();
-
-        if (!ResourceName.IsValid(name))
-        {
-            return ApiResults.Invalid(nameof(request.Name), ResourceName.Rule);
-        }
 
         var organization = await db.Organizations
             .Include(o => o.Projects)
