@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Publications.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +11,7 @@ namespace SpaceCraft.Api.Features.Publications;
 
 public static class ListPublications
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<List<PublicationResponse>>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,

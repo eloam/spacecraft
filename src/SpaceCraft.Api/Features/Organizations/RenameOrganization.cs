@@ -4,6 +4,7 @@ using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Organizations.Responses;
 using SpaceCraft.Api.Features.Organizations.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,7 +12,7 @@ namespace SpaceCraft.Api.Features.Organizations;
 
 public static class RenameOrganization
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<OrganizationResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         Guid organizationId,
         [FromBody] RenameRequest request,
         ClaimsPrincipal principal,

@@ -5,6 +5,7 @@ using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Runs.Responses;
 using SpaceCraft.Api.Features.Runs.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +13,7 @@ namespace SpaceCraft.Api.Features.Runs;
 
 public static class CreateRun
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Created<RunResponse>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         [FromBody] CreateRunRequest request,
         ClaimsPrincipal principal,

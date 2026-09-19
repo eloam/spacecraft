@@ -6,6 +6,7 @@ using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Security;
 using SpaceCraft.Api.Features.Credentials.Responses;
 using SpaceCraft.Api.Features.Credentials.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,7 +14,7 @@ namespace SpaceCraft.Api.Features.Credentials;
 
 public static class CreateCredential
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Created<CredentialResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         Guid organizationId,
         [FromBody] CreateCredentialRequest request,
         ClaimsPrincipal principal,

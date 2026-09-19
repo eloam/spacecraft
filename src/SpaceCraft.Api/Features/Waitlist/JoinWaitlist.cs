@@ -2,13 +2,14 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Features.Waitlist.Responses;
 using SpaceCraft.Api.Features.Waitlist.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SpaceCraft.Api.Features.Waitlist;
 
 public static class JoinWaitlist
 {
-    public static IResult Handle(
+    public static Results<Ok<WaitlistSignupResponse>, ValidationProblem> Handle(
         [FromBody] WaitlistSignupRequest request,
         HttpContext http,
         BackgroundWorkQueue<WaitlistSignup> signups)

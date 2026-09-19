@@ -7,8 +7,8 @@ namespace SpaceCraft.Api.Common;
 /// <summary>
 /// Answers 409 when a save found the row changed by someone else since the handler read it.
 ///
-/// Rows with a concurrency token — runs, organizations — are read, judged and written by a
-/// handler in three steps, and a second request can land between the first and the last: a
+/// Rows with a concurrency token — runs, organizations, the Identity user — are read, judged
+/// and written by a handler in three steps, and a second request can land between the first and the last: a
 /// worker renewing a lease while a member cancels the run, two owners leaving at the same
 /// instant. The database then refuses the second write with
 /// <see cref="DbUpdateConcurrencyException"/>, which is right, and the default handler would

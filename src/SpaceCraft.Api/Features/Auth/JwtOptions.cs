@@ -22,11 +22,11 @@ public sealed class JwtOptions
     public string SigningKey { get; set; } = string.Empty;
 
     /// <summary>Short by design: refresh tokens carry the long-lived session.</summary>
-    /// <summary>
+    /// <remarks>
     /// Session policy, not deployment configuration: no environment has ever wanted different
     /// lifetimes, and a value that varied per environment would be a security property that
     /// changed between staging and production without a code review seeing it.
-    /// </summary>
+    /// </remarks>
     public static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(15);
 
     public static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(14);

@@ -3,6 +3,7 @@ using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Auth.Responses;
 using SpaceCraft.Api.Features.Auth.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,7 @@ namespace SpaceCraft.Api.Features.Auth;
 
 public static class ResetPassword
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<AcknowledgementResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         [FromBody] ResetPasswordRequest request,
         UserManager<SpaceCraftUser> userManager,
         SpaceCraftDbContext db,

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Common;
@@ -15,7 +16,7 @@ public static class ListNotifications
 
     private const int MaxLimit = 100;
 
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Ok<NotificationFeedResponse>> HandleAsync(
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         CancellationToken ct,

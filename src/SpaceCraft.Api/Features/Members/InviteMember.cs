@@ -2,6 +2,7 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Email;
@@ -28,7 +29,7 @@ namespace SpaceCraft.Api.Features.Members;
 /// </remarks>
 public static class InviteMember
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Accepted<InvitationResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         Guid organizationId,
         [FromBody] AddMemberRequest request,
         ClaimsPrincipal principal,

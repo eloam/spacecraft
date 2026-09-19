@@ -95,7 +95,6 @@ public sealed class Organization : Entity
         return member;
     }
 
-    /// <summary>Refuses to strip the last owner, which would orphan the organization.</summary>
     /// <summary>
     /// Changes a member's role, refusing to leave the organization without an owner.
     /// <para>

@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.OpenApi;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Specs;
@@ -14,7 +15,7 @@ namespace SpaceCraft.Api.Features.Specs;
 /// </summary>
 public static class GetSpecDiagnostics
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<List<SpecDiagnostic>>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         Guid projectId,
         Guid specVersionId,

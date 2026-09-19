@@ -2,13 +2,14 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Credentials;
 
 public static class RevokeCredential
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         Guid credentialId,
         ClaimsPrincipal principal,

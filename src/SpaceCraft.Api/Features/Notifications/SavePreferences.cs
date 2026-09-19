@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Common;
@@ -19,7 +20,7 @@ namespace SpaceCraft.Api.Features.Notifications;
 /// </remarks>
 public static class SavePreferences
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<List<NotificationPreferenceState>>, ValidationProblem>> HandleAsync(
         [FromBody] NotificationPreferencesRequest request,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,

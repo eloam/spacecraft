@@ -6,7 +6,7 @@ namespace SpaceCraft.Pipeline.Generation;
 /// <summary>
 /// Maps SpaceCraft's languages onto Kiota's.
 /// <para>
-/// It lives here rather than beside <see cref="SdkLanguageExtensions.KiotaName"/> in the domain
+/// It lives here rather than beside <see cref="SdkLanguageInfo.KiotaName"/> in the domain
 /// because <c>GenerationLanguage</c> is Kiota's type, and the domain does not know Kiota exists.
 /// That was true when generation shelled out to a CLI and stays true now that it does not.
 /// </para>

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,7 @@ namespace SpaceCraft.Api.Features.Auth;
 
 public static class RefreshSession
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<AuthResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         [FromBody] RefreshRequest request,
         SpaceCraftDbContext db,
         UserManager<SpaceCraftUser> userManager,

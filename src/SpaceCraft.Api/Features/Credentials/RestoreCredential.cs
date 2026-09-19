@@ -4,13 +4,14 @@ using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Registries;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Credentials.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Credentials;
 
 public static class RestoreCredential
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<CredentialResponse>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         Guid credentialId,
         ClaimsPrincipal principal,

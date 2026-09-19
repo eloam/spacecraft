@@ -4,6 +4,7 @@ using SpaceCraft.Api.Features.Auth;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Account.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,7 @@ namespace SpaceCraft.Api.Features.Account;
 
 public static class ChangePassword
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ProblemHttpResult, ValidationProblem>> HandleAsync(
         [FromBody] ChangePasswordRequest request,
         ClaimsPrincipal principal,
         UserManager<SpaceCraftUser> userManager,

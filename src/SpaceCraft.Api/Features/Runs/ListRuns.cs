@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Runs.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +11,7 @@ namespace SpaceCraft.Api.Features.Runs;
 
 public static class ListRuns
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<List<RunResponse>>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,

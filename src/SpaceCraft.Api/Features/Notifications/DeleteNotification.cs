@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
@@ -16,7 +17,7 @@ namespace SpaceCraft.Api.Features.Notifications;
 /// </remarks>
 public static class DeleteNotification
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ProblemHttpResult>> HandleAsync(
         Guid notificationId,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
@@ -30,6 +31,11 @@ public static class DeleteNotification
             .Where(n => n.Id == notificationId && n.UserId == userId)
             .ExecuteDeleteAsync(ct);
 
-        return removed == 0 ? ApiResults.NotFound("The notification") : TypedResults.NoContent();
+        if (removed == 0)
+        {
+            return ApiResults.NotFound("The notification");
+        }
+
+        return TypedResults.NoContent();
     }
 }

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
@@ -7,7 +8,7 @@ namespace SpaceCraft.Api.Features.Notifications;
 
 public static class MarkRead
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ProblemHttpResult>> HandleAsync(
         Guid notificationId,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,

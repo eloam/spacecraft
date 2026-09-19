@@ -2,13 +2,14 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Members;
 
 public static class RevokeInvitation
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         Guid invitationId,
         ClaimsPrincipal principal,

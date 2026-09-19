@@ -8,14 +8,6 @@ namespace SpaceCraft.Api.Features.Notifications;
 public static class NotificationEmails
 {
     /// <summary>
-    /// The invitation to join an organization. The link carries the whole grant.
-    /// </summary>
-    /// <remarks>
-    /// Addressed to a mailbox rather than to an account, deliberately: this message is what
-    /// proves the address belongs to whoever accepts. Membership was previously handed to
-    /// whatever account already used the address, which nothing had ever verified.
-    /// </remarks>
-    /// <summary>
     /// A notification, sent by mail.
     /// </summary>
     /// <remarks>

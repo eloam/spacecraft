@@ -5,6 +5,7 @@ using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Projects.Responses;
 using SpaceCraft.Api.Features.Projects.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,7 @@ namespace SpaceCraft.Api.Features.Projects;
 /// </summary>
 public static class UpdateTarget
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<TargetResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         Guid organizationId,
         Guid projectId,
         Guid targetId,

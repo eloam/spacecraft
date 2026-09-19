@@ -1,5 +1,6 @@
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Common;
@@ -25,12 +26,17 @@ public interface IOrganizationAccess
 /// <summary>
 /// What the guard found: the refusal to return, or the role the caller holds.
 /// </summary>
-/// <param name="Denied">The response to return, or null when the caller may proceed.</param>
+/// <param name="Denied">
+/// The response to return, or null when the caller may proceed. A problem in both cases —
+/// the 404 and the 403 are one result type — so a handler can carry it in its
+/// <see cref="Results{TResult1, TResult2}"/> union and the endpoint's contract is read
+/// off the handler.
+/// </param>
 /// <param name="Role">
 /// The caller's role, null for a non-member. Handed back so that a handler which goes on to
 /// compare roles — who may grant which, who may remove whom — reads the membership once.
 /// </param>
-public sealed record OrganizationAccessCheck(IResult? Denied, OrganizationRole? Role);
+public sealed record OrganizationAccessCheck(ProblemHttpResult? Denied, OrganizationRole? Role);
 
 /// <summary>
 /// The guard every organization-scoped endpoint opens with.
@@ -48,7 +54,7 @@ public static class OrganizationAccessGuard
     /// does not exist contradicts the page they are standing on.
     /// </para>
     /// </summary>
-    public static async Task<IResult?> DenyUnlessAsync(
+    public static async Task<ProblemHttpResult?> DenyUnlessAsync(
         this IOrganizationAccess access,
         Guid organizationId,
         Guid userId,

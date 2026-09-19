@@ -1,6 +1,7 @@
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Waitlist.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,7 +9,7 @@ namespace SpaceCraft.Api.Features.Waitlist;
 
 public static class ConfirmSignup
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<WaitlistSignupResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         [FromQuery] string token,
         SpaceCraftDbContext db,
         CancellationToken ct)

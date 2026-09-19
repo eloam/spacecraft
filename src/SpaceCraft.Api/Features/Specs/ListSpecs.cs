@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Specs.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Specs;
@@ -13,7 +14,7 @@ public static class ListSpecs
     /// past this knows it is seeing a slice.</summary>
     private const int ListLimit = 100;
 
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<SpecListResponse>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         Guid projectId,
         ClaimsPrincipal principal,

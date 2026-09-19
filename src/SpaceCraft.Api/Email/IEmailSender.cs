@@ -5,6 +5,10 @@ namespace SpaceCraft.Api.Email;
 /// part is what plain-text readers, screen readers and spam filters see. Sending HTML alone
 /// is a reliable way to score badly with the latter.
 /// </summary>
+/// <param name="To">The recipient's address.</param>
+/// <param name="Subject">The subject line.</param>
+/// <param name="TextBody">The plain-text part.</param>
+/// <param name="HtmlBody">The HTML part, when there is one.</param>
 /// <param name="UnsubscribeUrl">
 /// Where the reader turns this kind of message off, published as <c>List-Unsubscribe</c>.
 /// Set it on anything somebody chose to receive and can stop; leave it unset on a password

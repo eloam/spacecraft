@@ -3,13 +3,14 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Projects.Responses;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Projects;
 
 public static class GetProject
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<ProjectResponse>, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         Guid projectId,
         ClaimsPrincipal principal,

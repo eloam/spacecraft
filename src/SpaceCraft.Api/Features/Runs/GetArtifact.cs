@@ -3,13 +3,14 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Storage;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Runs;
 
 public static class GetArtifact
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<FileStreamHttpResult, ProblemHttpResult>> HandleAsync(
         Guid organizationId,
         Guid runId,
         ClaimsPrincipal principal,

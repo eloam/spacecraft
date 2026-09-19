@@ -4,6 +4,7 @@ using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Account.Responses;
 using SpaceCraft.Api.Features.Account.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,7 @@ namespace SpaceCraft.Api.Features.Account;
 
 public static class UpdateProfile
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<Ok<AccountResponse>, ProblemHttpResult, ValidationProblem>> HandleAsync(
         [FromBody] UpdateProfileRequest request,
         ClaimsPrincipal principal,
         UserManager<SpaceCraftUser> userManager,

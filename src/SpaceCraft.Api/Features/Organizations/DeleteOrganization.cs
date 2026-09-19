@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Organizations.Requests;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +11,7 @@ namespace SpaceCraft.Api.Features.Organizations;
 
 public static class DeleteOrganization
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<NoContent, ProblemHttpResult, ValidationProblem>> HandleAsync(
         Guid organizationId,
         [FromBody] DeleteOrganizationRequest request,
         ClaimsPrincipal principal,

@@ -4,13 +4,14 @@ using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Storage;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Runs;
 
 public static class GetStepLog
 {
-    public static async Task<IResult> HandleAsync(
+    public static async Task<Results<ContentHttpResult, ProblemHttpResult, ValidationProblem>> HandleAsync(
         Guid organizationId,
         Guid runId,
         string step,
