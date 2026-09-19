@@ -16,10 +16,10 @@ namespace SpaceCraft.Pipeline.Sandbox;
 /// isolation the design relies on is the job's, not this class's.
 /// </para>
 /// <para>
-/// Which is why the registration itself is the gate. Outside Development,
-/// <c>AddSpaceCraftPipeline</c> throws unless <c>Pipeline:AllowUnsandboxedExecution</c> is
-/// true, so running this way in production is a decision someone wrote down rather than a
-/// default nobody read.
+/// Which is why the registration itself is the gate. Outside Development, the host refuses to
+/// start unless <c>Pipeline:AllowUnsandboxedExecution</c> is true — a rule
+/// <c>AddSpaceCraftPipeline</c> puts on the options builder — so running this way in
+/// production is a decision someone wrote down rather than a default nobody read.
 /// </para>
 /// </summary>
 public sealed class LocalCommandRunner(ILogger<LocalCommandRunner> logger) : ICommandRunner
