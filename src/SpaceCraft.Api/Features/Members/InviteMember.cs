@@ -79,13 +79,13 @@ public static class InviteMember
             previous.Revoke(now);
         }
 
-        var raw = MailedTokens.Generate();
+        var raw = OpaqueTokens.Generate();
         var invitation = new OrganizationInvitation(
             organizationId,
             address,
             request.Role,
             caller,
-            MailedTokens.Hash(raw),
+            OpaqueTokens.Hash(raw),
             now.Add(InvitationDispatcher.Lifetime));
 
         db.OrganizationInvitations.Add(invitation);

@@ -49,7 +49,7 @@ public sealed class WaitlistDispatcher(
         var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
 
         var address = signup.EmailAddress;
-        var token = MailedTokens.Generate();
+        var token = OpaqueTokens.Generate();
 
         var existing = await db.WaitlistEntries.FirstOrDefaultAsync(w => w.Email == address, ct);
 
@@ -62,13 +62,13 @@ public sealed class WaitlistDispatcher(
                 return;
             }
 
-            existing.ReissueToken(MailedTokens.Hash(token));
+            existing.ReissueToken(OpaqueTokens.Hash(token));
         }
         else
         {
             db.WaitlistEntries.Add(new WaitlistEntry(
                 address,
-                MailedTokens.Hash(token),
+                OpaqueTokens.Hash(token),
                 signup.Source,
                 signup.HashedIp));
         }

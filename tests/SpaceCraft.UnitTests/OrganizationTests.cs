@@ -157,6 +157,43 @@ public class OrganizationTests
     public void An_invalid_slug_is_rejected_at_construction() =>
         Should.Throw<ArgumentException>(() => new Organization("Acme", "Not A Slug", Guid.CreateVersion7()));
 
+    [Fact]
+    public void A_name_that_would_not_slug_cleanly_is_refused_at_construction_too()
+    {
+        // The same rule Rename applies, from the start: the constructor used to accept any
+        // non-blank name, so an aggregate could hold a name whose address it could never
+        // derive, and only find out on the first rename.
+        Should.Throw<ArgumentException>(() => new Organization("Café/Ürün", "cafe", Guid.CreateVersion7()));
+        Should.Throw<ArgumentException>(() => NewOrg(out _).AddProject("Café/Ürün", "cafe"));
+    }
+
+    [Fact]
+    public void The_name_is_stored_trimmed()
+    {
+        var org = new Organization("  Acme Corp  ", "acme-corp", Guid.CreateVersion7());
+
+        org.Name.ShouldBe("Acme Corp");
+    }
+
+    [Fact]
+    public void A_slug_chosen_explicitly_is_kept_until_the_first_rename()
+    {
+        // Accepted as given: a caller may choose an address that is not the derived one.
+        var org = new Organization("Acme Corp", "acme", Guid.CreateVersion7());
+        var project = org.AddProject("Billing API", "bill");
+
+        org.Slug.ShouldBe("acme");
+        project.Slug.ShouldBe("bill");
+
+        // And re-derived by a rename, as the settings page says it will be. One rule for the
+        // slug rather than a second one for slugs somebody once typed.
+        org.Rename("Acme Corporation");
+        org.RenameProject(project.Id, "Billing");
+
+        org.Slug.ShouldBe("acme-corporation");
+        project.Slug.ShouldBe("billing");
+    }
+
     [Theory]
     [InlineData(OrganizationRole.Viewer, OrganizationRole.Member, false)]
     [InlineData(OrganizationRole.Admin, OrganizationRole.Member, true)]

@@ -4,8 +4,6 @@ using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Domain.Identity;
@@ -57,7 +55,6 @@ public sealed class PasswordResetDispatcher(
 
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<SpaceCraftUser>>();
         var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
-        var tokens = scope.ServiceProvider.GetRequiredService<ITokenFactory>();
 
         var user = await userManager.FindByEmailAsync(address);
         if (user is null)
@@ -68,18 +65,11 @@ public sealed class PasswordResetDispatcher(
         var now = DateTimeOffset.UtcNow;
 
         // Supersede anything still outstanding, so only the newest link works.
-        var outstanding = await db.PasswordResetTokens
-            .Where(t => t.UserId == user.Id && t.UsedAt == null && t.InvalidatedAt == null)
-            .ToListAsync(ct);
+        await PasswordResets.InvalidateAsync(db, user.Id, now, ct);
 
-        foreach (var token in outstanding)
-        {
-            token.Invalidate(now);
-        }
-
-        var raw = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
+        var raw = OpaqueTokens.Generate();
         db.PasswordResetTokens.Add(
-            new PasswordResetToken(user.Id, tokens.HashToken(raw), now.Add(TokenLifetime)));
+            new PasswordResetToken(user.Id, OpaqueTokens.Hash(raw), now.Add(TokenLifetime)));
 
         await db.SaveChangesAsync(ct);
 

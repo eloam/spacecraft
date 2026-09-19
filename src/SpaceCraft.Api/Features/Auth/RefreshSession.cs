@@ -23,7 +23,7 @@ public static class RefreshSession
     {
         // That a token is present is the request's Validator's business; whether it is
         // recognised, live and unspent is decided here.
-        var hash = tokenFactory.HashToken(request.RefreshToken);
+        var hash = OpaqueTokens.Hash(request.RefreshToken);
         var now = DateTimeOffset.UtcNow;
 
         // Claimed by the database, in one statement, rather than read and then written.

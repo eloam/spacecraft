@@ -13,11 +13,10 @@ public static class Logout
         [FromBody] RefreshRequest request,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
-        ITokenFactory tokenFactory,
         CancellationToken ct)
     {
         var userId = principal.Id();
-        var hash = tokenFactory.HashToken(request.RefreshToken);
+        var hash = OpaqueTokens.Hash(request.RefreshToken);
 
         var stored = await db.RefreshTokens
             .FirstOrDefaultAsync(t => t.TokenHash == hash && t.UserId == userId, ct);

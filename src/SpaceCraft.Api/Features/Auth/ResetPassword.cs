@@ -15,7 +15,6 @@ public static class ResetPassword
         [FromBody] ResetPasswordRequest request,
         UserManager<SpaceCraftUser> userManager,
         SpaceCraftDbContext db,
-        ITokenFactory tokenFactory,
         CancellationToken ct)
     {
         // That a token and a new password are present is the request's Validator's business.
@@ -28,7 +27,7 @@ public static class ResetPassword
             StatusCodes.Status400BadRequest);
 
         var now = DateTimeOffset.UtcNow;
-        var hash = tokenFactory.HashToken(request.Token);
+        var hash = OpaqueTokens.Hash(request.Token);
 
         var stored = await db.PasswordResetTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
         if (stored is null || !stored.IsRedeemable(now))
@@ -59,17 +58,10 @@ public static class ResetPassword
         stored.MarkUsed(now);
 
         // Whoever knew the old password may still hold a refresh token. Resetting is exactly
-        // the moment to end every existing session rather than leave one open.
-        var sessions = await db.RefreshTokens
-            .Where(t => t.UserId == user.Id && t.RevokedAt == null)
-            .ToListAsync(ct);
-
-        foreach (var session in sessions)
-        {
-            session.Revoke(now);
-        }
-
-        await db.SaveChangesAsync(ct);
+        // the moment to end every existing session rather than leave one open — every one,
+        // since nobody is signed in on the page that posts a reset. The save inside RevokeAsync
+        // carries the used mark with it.
+        await Sessions.RevokeAsync(db, user.Id, except: null, ct);
 
         return TypedResults.Ok(
             new AcknowledgementResponse("Your password has been changed. Sign in with it now."));
