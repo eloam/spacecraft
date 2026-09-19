@@ -14,7 +14,6 @@ public sealed class PipelineRun : Entity
     /// <summary>Matches the failure_reason column; longer values are cut rather than refused.</summary>
     private const int ReasonLimit = 2000;
 
-    /// <summary>How long a claim stays valid before another worker may steal the run.</summary>
     /// <summary>
     /// How long a claim holds before the reaper may give the run to somebody else.
     /// </summary>
@@ -26,6 +25,12 @@ public sealed class PipelineRun : Entity
     /// second worker. Two builds of one package, and whichever finished last wrote the result.
     /// npm never came close, which is why it never happened; a cold Gradle or Maven resolve
     /// would reach it routinely.
+    /// <para>
+    /// "Step" is the whole step, from its renewal to its end. The build step runs three
+    /// commands, and when each had the step's budget to itself the step could take three
+    /// times what the lease covered while every command stayed within its limit. They share
+    /// one budget now, so a step's timeout is the most the step can take.
+    /// </para>
     /// <para>
     /// PipelineTimeoutTests pins the margin, so raising a step's timeout past this fails the
     /// build rather than reintroducing the race.
