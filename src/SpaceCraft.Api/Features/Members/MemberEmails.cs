@@ -1,4 +1,5 @@
 using SpaceCraft.Api.Email;
+using SpaceCraft.Domain.Organizations;
 
 namespace SpaceCraft.Api.Features.Members;
 

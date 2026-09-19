@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.Extensions.Options;
 using SpaceCraft.Api.Email;
+using SpaceCraft.Domain.Organizations;
 
 namespace SpaceCraft.Api.Features.Members;
 

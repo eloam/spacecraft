@@ -1,6 +1,6 @@
 using SpaceCraft.Domain.Common;
 
-namespace SpaceCraft.Infrastructure.Identity;
+namespace SpaceCraft.Domain.Identity;
 
 /// <summary>
 /// A single-use, short-lived grant to choose a new password, stored hashed.

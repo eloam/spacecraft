@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using SpaceCraft.Api.Email;
+using SpaceCraft.Domain.Identity;
 
 namespace SpaceCraft.Api.Features.Auth;
 

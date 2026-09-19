@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using SpaceCraft.Domain.Identity;
 
 namespace SpaceCraft.Api.Features.Auth;
 

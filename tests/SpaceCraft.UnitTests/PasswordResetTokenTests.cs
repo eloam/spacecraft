@@ -1,6 +1,6 @@
-using SpaceCraft.Infrastructure.Identity;
 using Shouldly;
 using Xunit;
+using SpaceCraft.Domain.Identity;
 
 namespace SpaceCraft.UnitTests;
 

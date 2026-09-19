@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using SpaceCraft.Infrastructure.Identity;
+using SpaceCraft.Domain.Organizations;
 
 namespace SpaceCraft.Infrastructure.Persistence.Configurations;
 

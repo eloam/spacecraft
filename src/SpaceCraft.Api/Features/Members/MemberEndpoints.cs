@@ -2,7 +2,6 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Notifications;
 using SpaceCraft.Domain.Organizations;
-using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Notifications;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;

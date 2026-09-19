@@ -1,5 +1,4 @@
 using SpaceCraft.Domain.Organizations;
-using SpaceCraft.Infrastructure.Identity;
 using Shouldly;
 using Xunit;
 

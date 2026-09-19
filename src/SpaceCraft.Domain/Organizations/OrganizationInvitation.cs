@@ -1,8 +1,9 @@
 using System.Linq.Expressions;
 using SpaceCraft.Domain.Common;
 using SpaceCraft.Domain.Organizations;
+using SpaceCraft.Domain.Identity;
 
-namespace SpaceCraft.Infrastructure.Identity;
+namespace SpaceCraft.Domain.Organizations;
 
 /// <summary>
 /// A grant to join an organization, sent to an address and redeemed by whoever reads it.

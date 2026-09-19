@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Shouldly;
 using Xunit;
+using SpaceCraft.Domain.Identity;
 
 namespace SpaceCraft.IntegrationTests;
 

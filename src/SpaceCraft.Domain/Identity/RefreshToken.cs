@@ -1,6 +1,6 @@
 using SpaceCraft.Domain.Common;
 
-namespace SpaceCraft.Infrastructure.Identity;
+namespace SpaceCraft.Domain.Identity;
 
 /// <summary>
 /// A long-lived session token, stored hashed.
