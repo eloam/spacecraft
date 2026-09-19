@@ -83,44 +83,67 @@ public sealed class RunDispatcher(
             return;
         }
 
-        var unstarted = new List<Guid>();
+        // Everything from this index on was claimed and never started. Released in a finally,
+        // because a trigger or a refusal record that throws mid-batch would otherwise leave the
+        // rest stamped for the whole redispatch window, waiting on jobs that never existed.
+        var reached = 0;
+        Exception? failure = null;
 
-        for (var i = 0; i < claimed.Count; i++)
+        try
         {
-            var runId = claimed[i];
-            var result = await trigger.StartAsync(runId, ct);
-
-            if (result.Outcome is JobStartOutcome.Started)
+            for (; reached < claimed.Count; reached++)
             {
-                metrics.JobsStarted.Add(1);
-                logger.LogInformation("Started job {JobRunId} for run {RunId}", result.JobRunId, runId);
-                continue;
+                var runId = claimed[reached];
+                var result = await trigger.StartAsync(runId, ct);
+
+                if (result.Outcome is JobStartOutcome.Started)
+                {
+                    metrics.JobsStarted.Add(1);
+                    logger.LogInformation("Started job {JobRunId} for run {RunId}", result.JobRunId, runId);
+                    continue;
+                }
+
+                if (result.Outcome is JobStartOutcome.Deferred)
+                {
+                    // The parallel-run ceiling, or the platform being unreachable. Both apply to
+                    // the rest of the batch too, so stop asking; this run and those behind it
+                    // are released below.
+                    metrics.JobsDeferred.Add(1);
+                    logger.LogDebug("Deferred run {RunId}: {Detail}", runId, result.Detail);
+                    break;
+                }
+
+                // A deployment fault — an unknown job definition, a key that is not accepted.
+                // Recoverable the moment somebody fixes the setting, so it is retried; but not
+                // for ever, because a run nobody can start has to say so rather than spin in
+                // silence. The refusal itself clears the stamp, so the loop moves past it.
+                metrics.JobsRefused.Add(1);
+                logger.LogError("Could not start a job for run {RunId}: {Detail}", runId, result.Detail);
+                await queue.RecordDispatchRefusalAsync(runId, result.Detail ?? "No detail.", ct);
             }
-
-            // Nothing was started, so the stamp has to come off or the run would wait out the
-            // whole redispatch window for a job that never existed.
-            unstarted.Add(runId);
-
-            if (result.Outcome is JobStartOutcome.Deferred)
-            {
-                // The parallel-run ceiling, or the platform being unreachable. Both apply to
-                // the rest of the batch too, so stop asking and release what is left.
-                metrics.JobsDeferred.Add(1);
-                logger.LogDebug("Deferred run {RunId}: {Detail}", runId, result.Detail);
-                unstarted.AddRange(claimed.Skip(i + 1));
-                break;
-            }
-
-            // A deployment fault — an unknown job definition, a key that is not accepted.
-            // Recoverable the moment somebody fixes the setting, so it is retried; but not for
-            // ever, because a run nobody can start has to say so rather than spin in silence.
-            // Counted here rather than released above: the refusal itself clears the stamp.
-            metrics.JobsRefused.Add(1);
-            unstarted.Remove(runId);
-            logger.LogError("Could not start a job for run {RunId}: {Detail}", runId, result.Detail);
-            await queue.RecordDispatchRefusalAsync(runId, result.Detail ?? "No detail.", ct);
         }
-
-        await queue.ReleaseDispatchAsync(unstarted, ct);
+        catch (Exception ex)
+        {
+            failure = ex;
+            throw;
+        }
+        finally
+        {
+            // Nothing was started for these, so the stamp has to come off or each would wait
+            // out the whole redispatch window. Under the sweep's own token: a release that a
+            // shutdown cuts short only costs those runs that window, which is what it is for.
+            try
+            {
+                await queue.ReleaseDispatchAsync(claimed.Skip(reached).ToList(), ct);
+            }
+            catch (Exception ex) when (failure is not null && ex is not OperationCanceledException)
+            {
+                // Logged here rather than thrown: thrown from a finally it would replace the
+                // exception already on its way out, and that one — the trigger or the refusal
+                // record — is what stopped the batch. A release that fails the same way, on
+                // the same scoped context, would otherwise be the only thing in the log.
+                logger.LogError(ex, "Could not release {Count} claimed runs after the sweep failed", claimed.Count - reached);
+            }
+        }
     }
 }

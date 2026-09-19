@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 
 namespace SpaceCraft.Api.Features.Runs;
 
@@ -92,9 +94,17 @@ public sealed class ScalewayJobTrigger(
                 null,
                 $"{(int)response.StatusCode} {response.ReasonPhrase}. {Shorten(body)}");
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+        catch (Exception ex) when (
+            ex is HttpRequestException
+                or TaskCanceledException
+                or TimeoutRejectedException
+                or BrokenCircuitException
+            && !ct.IsCancellationRequested)
         {
-            // Unreachable is the same shape as a 5xx: leave it queued, try again shortly.
+            // Unreachable is the same shape as a 5xx: leave it queued, try again shortly. The
+            // last two are what the standard resilience handler throws when its total timeout
+            // expires or its circuit is open — the pipeline's own words for "not now", and
+            // letting them escape would abort the sweep instead of deferring the run.
             logger.LogWarning(ex, "Could not reach the jobs API to start run {RunId}", runId);
             return new JobStartResult(JobStartOutcome.Deferred, null, ex.Message);
         }
