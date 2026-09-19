@@ -1,7 +1,18 @@
+using FluentValidation;
+using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Extensions;
-using SpaceCraft.Api.Features;
-using SpaceCraft.Api.Jobs;
+using SpaceCraft.Api.Features.Account;
+using SpaceCraft.Api.Features.Auth;
+using SpaceCraft.Api.Features.Credentials;
+using SpaceCraft.Api.Features.Members;
+using SpaceCraft.Api.Features.Notifications;
+using SpaceCraft.Api.Features.Organizations;
+using SpaceCraft.Api.Features.Projects;
+using SpaceCraft.Api.Features.Publications;
+using SpaceCraft.Api.Features.Runs;
+using SpaceCraft.Api.Features.Specs;
+using SpaceCraft.Api.Features.Waitlist;
 using SpaceCraft.Infrastructure;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http.Features;
@@ -10,8 +21,6 @@ using Scalar.AspNetCore;
 using Serilog;
 using SpaceCraft.Infrastructure.Security;
 using Microsoft.AspNetCore.HttpOverrides;
-using System.Net;
-using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 // Secrets arrive as files, not as environment variables. The deployment mounts each one at
@@ -28,15 +37,25 @@ var builder = WebApplication.CreateBuilder(args);
 // shadow it would quietly restore the thing being avoided.
 builder.Configuration.AddKeyPerFile("/run/secrets", optional: true);
 
-// Serverless container platforms inject the port to listen on and route to it. Binding to
-// 0.0.0.0 rather than localhost is not optional there: the startup probe connects from
-// outside the container, and a loopback-only listener fails it and the deploy with it.
-// ASPNETCORE_URLS still wins when set, so local runs and launch profiles are unaffected.
-if (Environment.GetEnvironmentVariable("PORT") is { Length: > 0 } port
-    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
+// Behind a gateway, Connection.RemoteIpAddress is the gateway — one address for every caller
+// in the world, which is what the credential endpoints partition their rate limit on. Reading
+// the forwarded address restores that partition.
+//
+// Only from proxies named in configuration, and off by default. Trusting the header from
+// anyone is worse than not reading it: X-Forwarded-For is caller-supplied, so an attacker
+// would mint a fresh login budget per request by varying it. KnownNetworks must name the
+// gateway; see docs/deployment.md.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-}
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+
+    foreach (var network in builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
+    {
+        options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+    }
+});
 
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
@@ -52,12 +71,27 @@ builder.Services.AddSpaceCraftCors();
 builder.Services.AddSpaceCraftPublicUrls(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddSpaceCraftRateLimiting(builder.Configuration);
 
-builder.Services.AddScoped<SpaceCraft.Api.Features.Deletion.ResourceDeleter>();
+builder.Services.AddScoped<RunDeleter>();
+builder.Services.AddScoped<OrganizationDeleter>();
+builder.Services.AddScoped<ProjectDeleter>();
+builder.Services.AddScoped<SpecDeleter>();
 builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.IsDevelopment());
 
 // Bounds the notification history. The count beside the bell is the most frequent query
 // in the application, and it stays cheap only while there is a limit on what it counts.
-builder.Services.AddHostedService<SpaceCraft.Api.Common.NotificationRetention>();
+// The background half of each feature, listed here rather than inside the email
+// registration where four of them used to hide: what runs in this process is a decision
+// of the composition root, and a reader looking for "who sends invitations" finds it
+// beside the feature's name.
+builder.Services.AddHostedService<PasswordResetDispatcher>();
+builder.Services.AddHostedService<InvitationDispatcher>();
+builder.Services.AddHostedService<WaitlistDispatcher>();
+builder.Services.AddOptions<NotificationOptions>()
+    .Bind(builder.Configuration.GetSection(NotificationOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddHostedService<NotificationDispatcher>();
+builder.Services.AddHostedService<NotificationRetention>();
 
 // Data Protection encrypts registry tokens at rest. The default key ring is per-machine and
 // ephemeral in a container, which would make every stored token unreadable after a restart —
@@ -77,7 +111,10 @@ builder.Services.AddSpaceCraftJobs(builder.Configuration, builder.Environment.Is
 
 builder.Services.AddProblemDetails();
 // Runs before the default handler, which would answer 500 to a request the caller malformed.
-builder.Services.AddExceptionHandler<SpaceCraft.Api.Common.BadRequestExceptionHandler>();
+builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
+// Every request record's nested Validator, found by scanning this assembly. They run from the
+// filter on the API group below, before the handler sees the request.
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddRequestTimeouts();
 builder.Services.AddOpenApi(options => options.AddSchemaTransformer<NumericSchemaTransformer>());
 
@@ -99,6 +136,14 @@ app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
+// First, before anything reads the scheme or the address: HSTS and the HTTPS redirect below
+// decide on Request.Scheme, and with a TLS-terminating gateway in front that scheme is http
+// until this middleware has rewritten it from X-Forwarded-Proto. Running it later meant every
+// request behind the gateway looked like plain HTTP to the redirect. With no known network
+// configured the middleware trusts nothing and rewrites nothing, so it is safe to run
+// unconditionally.
+app.UseForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -110,49 +155,15 @@ else
     app.UseHttpsRedirection();
 }
 
-app.UseRequestTimeouts();
 // Serves the email logo. Mail clients fetch images over plain HTTP from the recipient's
 // machine, with no session and no ability to follow a redirect to a login page, so these
 // assets have to be anonymous and static — which is all wwwroot contains.
 app.UseStaticFiles();
 
-// Ahead of routing, which the bearer scheme has no need of — it reads a header. What it must
-// be ahead of is the rate limiter, for the reason set out where that is added.
-app.UseAuthentication();
-
-// Behind a gateway, Connection.RemoteIpAddress is the gateway — one address for every caller
-// in the world, which is what the credential endpoints partition their rate limit on. Reading
-// the forwarded address restores that partition.
-//
-// Only from proxies named in configuration, and off by default. Trusting the header from
-// anyone is worse than not reading it: X-Forwarded-For is caller-supplied, so an attacker
-// would mint a fresh login budget per request by varying it. KnownProxies or KnownNetworks
-// must name the gateway; see docs/deployment.md.
-var forwardedFrom = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [];
-if (forwardedFrom.Length > 0)
-{
-    var forwarded = new ForwardedHeadersOptions
-    {
-        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-    };
-
-    forwarded.KnownIPNetworks.Clear();
-    forwarded.KnownProxies.Clear();
-
-    foreach (var network in forwardedFrom)
-    {
-        var parts = network.Split('/', 2);
-        forwarded.KnownIPNetworks.Add(new System.Net.IPNetwork(
-            IPAddress.Parse(parts[0]),
-            parts.Length == 2 ? int.Parse(parts[1], CultureInfo.InvariantCulture) : 32));
-    }
-
-    app.UseForwardedHeaders(forwarded);
-}
-
 app.UseRouting();
-
+app.UseRequestTimeouts();
 app.UseCors(ApiServiceExtensions.SpaCorsPolicy);
+app.UseAuthentication();
 app.UseAuthorization();
 
 // After authentication, not before it. The global limiter partitions on the caller's user id
@@ -167,7 +178,8 @@ app.UseRateLimiter();
 
 app.MapHealthChecks("/health").AllowAnonymous();
 
-var api = app.MapGroup("/api/v1");
+var api = app.MapGroup("/api/v1")
+    .AddEndpointFilterFactory(ValidationFilterFactory.Create);
 
 api.MapAuthEndpoints()
    .MapWaitlistEndpoints()

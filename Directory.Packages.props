@@ -32,6 +32,10 @@
     <PackageVersion Include="Microsoft.OpenApi.Kiota.Builder" Version="$(KiotaVersion)" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.17.1" />
   </ItemGroup>
+  <ItemGroup Label="Validation">
+    <PackageVersion Include="FluentValidation" Version="12.1.1" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+  </ItemGroup>
   <ItemGroup Label="Email">
     <PackageVersion Include="MailKit" Version="4.17.0" />
     <PackageVersion Include="Polly.Core" Version="8.7.0" />

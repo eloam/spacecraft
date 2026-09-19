@@ -8,6 +8,7 @@ using SpaceCraft.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using SpaceCraft.Domain.Identity;
 
 namespace SpaceCraft.Infrastructure.Persistence;
 

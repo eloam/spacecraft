@@ -186,4 +186,16 @@ public static class EmailTemplate
 
         return (text.ToString().TrimEnd(), Render(heading, preheader, html.ToString(), assetBaseUrl));
     }
+
+    /// <summary>
+    /// "an hour", "45 minutes" — not "1 hour(s)". A parenthesised plural in a message a
+    /// customer reads is the kind of detail that makes software look unfinished.
+    /// </summary>
+    public static string Duration(TimeSpan value) => value switch
+    {
+        { TotalHours: 1 } => "an hour",
+        { TotalHours: >= 1 } => $"{value.TotalHours:0} hours",
+        { TotalMinutes: 1 } => "a minute",
+        _ => $"{value.TotalMinutes:0} minutes",
+    };
 }

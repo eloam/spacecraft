@@ -35,8 +35,12 @@ pin both have to be revisited then.
 
 ## The API container
 
-The platform injects `PORT` and routes to it. `Program.cs` binds `0.0.0.0` on that port —
-binding loopback instead makes the startup probe fail, and with it the deployment.
+The image listens on **8080**, on every interface, because the `mcr.microsoft.com/dotnet/aspnet`
+base image sets `ASPNETCORE_HTTP_PORTS=8080` — the .NET convention since .NET 8. `Program.cs`
+reads no port of its own. The container definition must therefore declare `port = 8080`; a
+deployment that routes to another port sets `ASPNETCORE_HTTP_PORTS` to that port in the
+container's environment, and the two numbers have to agree. Scaleway also injects `PORT` with
+the declared value; nothing here reads it.
 
 **The API must not scale to zero.** It holds no state between requests and the queues it
 writes to live in Postgres, so nothing about a request needs it — but `RunDispatcher` is a
@@ -449,7 +453,7 @@ PipelineJobs__SecretKey=…            # IAM key allowed to start this job defin
 That key is the platform's only control-plane credential, and it belongs to the API alone —
 never to a job definition. Everything else the deployment holds reads or decrypts data; this
 one starts compute, and a build running a customer's transitive npm dependencies must not be
-able to reach it. It is why the code lives under `SpaceCraft.Api/Jobs` rather than in the
+able to reach it. It is why the code lives under `SpaceCraft.Api/Features/Runs` rather than in the
 shared project.
 
 `dispatched_at` on the run records that a job was asked for. It is a column rather than

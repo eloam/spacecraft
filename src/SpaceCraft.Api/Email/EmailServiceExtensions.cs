@@ -2,7 +2,6 @@ using MailKit.Net.Smtp;
 using Polly;
 using Polly.Retry;
 using Polly.Timeout;
-using SpaceCraft.Api.Common;
 
 namespace SpaceCraft.Api.Email;
 
@@ -85,20 +84,15 @@ public static class EmailServiceExtensions
                 + "or run in Development to log messages instead.");
         }
 
-        // One queue type, three uses. Each endpoint enqueues unconditionally and a
-        // dispatcher does the work, so response time never depends on what was found.
+        // One open generic, so a feature can queue its own request type without this
+        // registration knowing it exists. The dispatchers that drain those queues belong to
+        // their features and are registered in Program.cs, beside them; what is registered
+        // here is only the mail itself — the queue, the announcement, the sender.
         services.AddSingleton(typeof(BackgroundWorkQueue<>));
 
         services.AddHostedService<EmailTransportAnnouncement>();
         services.AddSingleton<IEmailSender, QueuedEmailSender>();
         services.AddHostedService<EmailDispatcher>();
-        services.AddHostedService<PasswordResetDispatcher>();
-        services.AddHostedService<InvitationDispatcher>();
-        services.AddHostedService<WaitlistDispatcher>();
-
-        // Not fed by a queue like the others: its producer is the runner, in another
-        // process, so it sweeps the table both of them write to.
-        services.AddHostedService<NotificationDispatcher>();
 
         return services;
     }

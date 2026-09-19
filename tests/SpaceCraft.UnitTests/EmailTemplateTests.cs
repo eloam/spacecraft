@@ -1,6 +1,8 @@
 using SpaceCraft.Api.Email;
 using Shouldly;
 using Xunit;
+using SpaceCraft.Api.Features.Auth;
+using SpaceCraft.Api.Features.Waitlist;
 
 namespace SpaceCraft.UnitTests;
 
@@ -16,9 +18,9 @@ public class EmailTemplateTests
         // filters; text alone throws away the design.
         var messages = new[]
         {
-            Emails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1)),
-            Emails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann"),
-            Emails.WaitlistConfirmation("you@example.com", "https://api.spacecraft.sh/confirm?token=x"),
+            AuthEmails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1)),
+            AuthEmails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann"),
+            WaitlistEmails.WaitlistConfirmation("you@example.com", "https://api.spacecraft.sh/confirm?token=x"),
         };
 
         foreach (var message in messages)
@@ -32,7 +34,7 @@ public class EmailTemplateTests
     [Fact]
     public void The_action_url_appears_in_both_bodies()
     {
-        var message = Emails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1));
+        var message = AuthEmails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1));
 
         // A reader on either side must be able to reach the link.
         message.TextBody.ShouldContain(Link);
@@ -42,7 +44,7 @@ public class EmailTemplateTests
     [Fact]
     public void Html_uses_tables_and_inline_styles_rather_than_modern_layout()
     {
-        var html = Emails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann").HtmlBody!;
+        var html = AuthEmails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann").HtmlBody!;
 
         html.ShouldContain("<table");
         html.ShouldContain("style=\"");
@@ -61,7 +63,7 @@ public class EmailTemplateTests
         // called it a match, and it went on passing after the application's palette was
         // retuned toward mauve while these stayed neutral. An email beside the product looked
         // like somebody else's. Changing a token there means changing it here.
-        var html = Emails.Welcome("you@example.com", "https://app.spacecraft.sh", null).HtmlBody!;
+        var html = AuthEmails.Welcome("you@example.com", "https://app.spacecraft.sh", null).HtmlBody!;
 
         html.ShouldContain("#f3f1f3");  // --page, the ground the whole app sits on
         html.ShouldContain("#ffffff");  // --card
@@ -74,7 +76,7 @@ public class EmailTemplateTests
     [Fact]
     public void A_missing_display_name_still_produces_a_sensible_greeting()
     {
-        var message = Emails.Welcome("you@example.com", "https://app.spacecraft.sh", null);
+        var message = AuthEmails.Welcome("you@example.com", "https://app.spacecraft.sh", null);
 
         message.TextBody.ShouldNotContain("Welcome, ");
         message.TextBody.ShouldContain("account is ready");
@@ -82,7 +84,7 @@ public class EmailTemplateTests
 
     [Fact]
     public void A_display_name_is_used_when_present() =>
-        Emails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann")
+        AuthEmails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann")
             .TextBody.ShouldContain("Yohann");
 
     [Fact]
@@ -90,7 +92,7 @@ public class EmailTemplateTests
     {
         // A display name is user-supplied and reaches the greeting; unencoded it would be
         // markup in someone else's inbox.
-        var message = Emails.Welcome("you@example.com", "https://app.spacecraft.sh", "<script>alert(1)</script>");
+        var message = AuthEmails.Welcome("you@example.com", "https://app.spacecraft.sh", "<script>alert(1)</script>");
 
         message.HtmlBody.ShouldNotBeNull().ShouldNotContain("<script>");
         message.HtmlBody.ShouldContain("&lt;script&gt;");
@@ -101,13 +103,13 @@ public class EmailTemplateTests
     [InlineData(2, "2 hours")]
     public void Durations_read_as_prose_not_as_placeholders(int hours, string expected) =>
         // "expires in 1 hour(s)" is the sort of detail that makes software look unfinished.
-        Emails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(hours))
+        AuthEmails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(hours))
             .TextBody.ShouldContain(expected);
 
     [Fact]
     public void The_logo_is_an_absolute_url_with_an_empty_alt()
     {
-        var html = Emails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann", Assets).HtmlBody!;
+        var html = AuthEmails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann", Assets).HtmlBody!;
 
         // Absolute, because a mail client resolves it from the reader's machine with no
         // notion of the site it came from.
@@ -123,7 +125,7 @@ public class EmailTemplateTests
     {
         // The wordmark carries the identity, so a message composed without assets — or read
         // with images blocked, which is the default in most clients — still looks deliberate.
-        var html = Emails.Welcome("you@example.com", "https://app.spacecraft.sh", null).HtmlBody!;
+        var html = AuthEmails.Welcome("you@example.com", "https://app.spacecraft.sh", null).HtmlBody!;
 
         html.ShouldNotContain("<img");
         html.ShouldContain("SpaceCraft");
@@ -132,7 +134,7 @@ public class EmailTemplateTests
     [Fact]
     public void A_preheader_is_present_so_inboxes_do_not_show_the_first_sentence()
     {
-        var html = Emails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1)).HtmlBody!;
+        var html = AuthEmails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1)).HtmlBody!;
 
         html.ShouldContain("max-height:0");
     }
@@ -145,11 +147,11 @@ public class EmailTemplateTests
         var outDir = Path.Combine(Path.GetTempPath(), "email-preview");
         Directory.CreateDirectory(outDir);
 
-        var samples = new (string Name, SpaceCraft.Api.Common.EmailMessage Message)[]
+        var samples = new (string Name, SpaceCraft.Api.Email.EmailMessage Message)[]
         {
-            ("reset", Emails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1), Assets)),
-            ("welcome", Emails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann", Assets)),
-            ("waitlist", Emails.WaitlistConfirmation("you@example.com", "https://api.spacecraft.sh/confirm?token=x", Assets)),
+            ("reset", AuthEmails.PasswordReset("you@example.com", Link, TimeSpan.FromHours(1), Assets)),
+            ("welcome", AuthEmails.Welcome("you@example.com", "https://app.spacecraft.sh", "Yohann", Assets)),
+            ("waitlist", WaitlistEmails.WaitlistConfirmation("you@example.com", "https://api.spacecraft.sh/confirm?token=x", Assets)),
         };
 
         foreach (var (name, message) in samples)
