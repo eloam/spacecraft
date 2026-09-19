@@ -32,19 +32,11 @@ public static class SavePreferences
         // reached the caller as a 500 on a request that was merely repetitive.
         var parsed = new Dictionary<(NotificationKind Kind, NotificationChannel Channel), bool>();
 
+        // Whether each name is one we know is the request's Validator's business; here they parse.
         foreach (var state in request.Preferences ?? [])
         {
-            if (!Enum.TryParse<NotificationKind>(state.Kind, ignoreCase: true, out var kind)
-                || !NotificationDefaults.Kinds.Contains(kind))
-            {
-                return ApiResults.Invalid(nameof(state.Kind), $"'{state.Kind}' is not a notification we send.");
-            }
-
-            if (!Enum.TryParse<NotificationChannel>(state.Channel, ignoreCase: true, out var channel)
-                || !NotificationDefaults.Channels.Contains(channel))
-            {
-                return ApiResults.Invalid(nameof(state.Channel), $"'{state.Channel}' is not a channel we deliver on.");
-            }
+            var kind = Enum.Parse<NotificationKind>(state.Kind, ignoreCase: true);
+            var channel = Enum.Parse<NotificationChannel>(state.Channel, ignoreCase: true);
 
             parsed[(kind, channel)] = state.Enabled;
         }
