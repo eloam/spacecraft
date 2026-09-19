@@ -1,469 +1,95 @@
 # Deploying on Scaleway
 
-Scaleway Serverless **Functions** support Python, Node, Go, PHP and Rust — not .NET. Every
-component here is therefore a **Serverless Container** (for anything serving HTTP) or a
-**Serverless Job** (for anything that runs and exits). That is not a workaround: containers
-and jobs take any OCI image, and jobs allow up to 24 hours per execution, against the 15
-minutes a function-style platform typically permits.
+Scaleway Functions have no .NET runtime, so the API runs as a Serverless Container and the
+pipeline runner as a Serverless Job — any OCI image, executions up to 24 hours.
 
 ## What runs where
 
 | Component | Scaleway product | Image | Invocation |
 |---|---|---|---|
 | API | Serverless Container | `src/SpaceCraft.Api/Dockerfile` | HTTP, minimum one instance |
-| Pipeline runner | Serverless Job | `src/SpaceCraft.Runner/Dockerfile` | `--run <id>`, started by the API, one execution per run |
-| Migrations | Migration bundle | built in CI | applied from the release pipeline, once per release |
+| Pipeline runner | Serverless Job | `src/SpaceCraft.Runner/Dockerfile` | `--run <id>` (or `SPACECRAFT_RUN_ID`), started by the API, one execution per run |
 | Database | Managed Database for PostgreSQL | — | — |
 | Specs, artifacts, logs | Object Storage | — | S3-compatible; MinIO in development |
-| Email | Transactional Email | — | SMTP |
+| Email | Transactional Email | — | SMTP relay |
 
-The runner image serves one purpose and takes one argument. Recovering a run whose worker died
-used to be a second job on a cron; it is now a predicate in the dispatcher's claim, so there is
-no schedule to create and a dead executor costs seconds rather than a cron interval.
+Both images build on the `11.0-preview` .NET tag (`global.json` pins the SDK) until .NET 11
+goes GA on 10 November 2026; the tag and the pin have to be revisited then.
 
-Mail leaves over SMTP, not over Scaleway's REST API. `SmtpEmailTransport` opens a MailKit
-connection to the relay named in `Smtp:Host`; there is no HTTP client, no route and no
-token on that path. Scaleway happens to be the relay, and everything the application knows
-about it is a hostname, a port and a password.
-
-**Both deployed images are built on a preview tag.** The API and runner Dockerfiles take
-`ARG DOTNET_VERSION=11.0-preview`, `Directory.Build.props` targets `net11.0`, and `global.json`
-pins the SDK to `11.0.100-preview.7.26381.103`. There is no plain `11.0` tag on mcr until .NET
-11 goes GA on 10 November 2026, and the `-preview` tags stop being updated the same day — so an
-image built on them after that date is one that no longer receives patches, and the tag and the
-pin both have to be revisited then.
+Cloud resources — the database and its roles, the buckets, the IAM keys, the Key Manager key,
+the API container and the `spacecraft-pipeline` job definition — are created outside this
+repository.
 
 ## The API container
 
-The image listens on **8080**, on every interface, because the `mcr.microsoft.com/dotnet/aspnet`
-base image sets `ASPNETCORE_HTTP_PORTS=8080` — the .NET convention since .NET 8. `Program.cs`
-reads no port of its own. The container definition must therefore declare `port = 8080`; a
-deployment that routes to another port sets `ASPNETCORE_HTTP_PORTS` to that port in the
-container's environment, and the two numbers have to agree. Scaleway also injects `PORT` with
-the declared value; nothing here reads it.
+- The image listens on **8080** (`ASPNETCORE_HTTP_PORTS` from the aspnet base image).
+  Declare port 8080, or set `ASPNETCORE_HTTP_PORTS` to whatever you declare. Nothing reads `PORT`.
+- **Minimum one instance.** `RunDispatcher` runs inside the API and is the only thing that
+  starts jobs; scaled to zero, queued runs wait until somebody loads a page. Several instances
+  are safe: the queue is claimed in Postgres.
+- Put the gateway's CIDR in `ForwardedHeaders:KnownNetworks`, or every client shares the
+  gateway's address in the rate limiter.
 
-**The API must not scale to zero.** It holds no state between requests and the queues it
-writes to live in Postgres, so nothing about a request needs it — but `RunDispatcher` is a
-background service inside it, and it is the only thing that starts a pipeline job. Scaled to
-zero there is no dispatcher, so a run queued while nobody is browsing is not started until
-somebody loads a page. That is the missing-trigger failure again, intermittently, and no test
-would report it.
+## The runner job
 
-Set a minimum of one instance. The dispatcher is safe to run in several at once — it claims
-its batch the same way the runner claims a run — so scaling up costs nothing but the sweep's
-own queries.
+- Allocate **1 GiB** of memory: `/tmp` is tmpfs and the build (`npm install` + `tsc`) writes
+  there. The failure mode of too little is an OOM kill mid-build.
+- One execution per run. The API starts it with `POST …/serverless-jobs/v1alpha2/regions/{region}/job-definitions/{id}/start`
+  and `args: ["--run", "<guid>"]`. `PipelineJobs:SecretKey` is the only credential that
+  starts compute: give it to the API container, never to the job definition.
 
-The mail dispatchers are the second reason, and they are weaker but real: they drain an
-in-memory channel, so an instance that goes away takes whatever it was holding with it. A
-minimum of one does not make that safe, only rarer — "min 1" is not "the same one", and a
-redeploy still replaces the process.
+## Releasing
 
-## Sizing the runner job
+`release.yml` runs on a `v*` tag: build, unit tests, `dotnet ef migrations has-pending-model-changes`,
+then both images pushed to the registry. What follows is manual, in this order:
 
-`/tmp` is backed by memory in the container sandbox, and the build step writes there. Measured
-on the Keycloak Admin API — 382 KB of spec, 11,000 lines of generated models:
+1. Apply the migration bundle.
+2. Point the container and the job definition at the new image.
 
-```
-178 MiB   peak process (npm install + tsc)
- 28 MB    node_modules, in RAM because /tmp is tmpfs
-  3 MB    compiled output
-```
+Startup migration exists only in Development; outside it the setting is ignored.
 
-Allocate **1 GiB** for the runner job. 512 MiB fits the measurement but leaves nothing for a
-larger spec, and the failure mode is an OOM kill mid-build rather than a clear error.
+### Migrations
 
-Pipeline steps run in the runner's own process. Generation is no longer one of those steps:
-Kiota is a `PackageReference` of `SpaceCraft.Pipeline` and the builder is called in process, so
-the image carries Node and nothing else, and `npm` — install, pack, publish — is the only name
-the pipeline resolves off `PATH`. The isolation is the job's: one execution per container, torn
-down afterwards — which holds only while a job runs a single run, so the API starts one
-execution per run with `--run <id>`. That is the only thing the runner can do with a queue:
-the mode that drained several runs through one process was removed, along with the setting
-that was supposed to hold it at one. The image also carries no `CMD`, so a definition created
-without an explicit command fails loudly rather than falling back to something.
-See [security.md](security.md) for what that gives up, and for why it becomes a real decision
-the day a language whose build system executes code (Gradle, Maven, `setup.py`) is added.
-
-### One image per language, not one image with every language
-
-Decided before the second language rather than during it, because the answer shapes the
-image, the triggers and the isolation together.
-
-A single image carrying every toolchain is the cheaper thing to build and the wrong thing to
-run. A JDK and Maven are around 400 MB that every TypeScript run would pull and never touch,
-and the image would be rebuilt for a Java advisory that cannot reach a TypeScript build. The
-weightier objection is the one security.md already makes: Gradle, Maven and `setup.py`
-execute code from the package being built. Putting them beside each other means the blast
-radius of one hostile spec is every toolchain in the image, rather than the one its own
-language needs.
-
-So: a shared base stage carrying .NET and the runner — Kiota travels inside it as a library
-rather than as a tool — and one thin image per language on top of it. Nothing new is needed
-to route to them — a run records its target's language
-when it is queued (`PipelineRun.TargetLanguage`), and the API already starts one job per run
-with `--run <id>`, so the dispatcher would pick the definition the same way it picks the id. The cost
-is N images to keep current, which the shared base bounds.
-
-Nothing about the claim needs a language filter: the dispatcher reads the run's recorded
-language and starts the definition that matches, so an image is only ever handed a run it can
-build. That was not true of a queue that drained whatever it found, which is one more thing
-removing that mode bought.
-
-## Who creates what
-
-Two tools, and the split is not a matter of taste: one converges a declared state, the other
-performs an ordered sequence, and each is bad at the other's job.
-
-**Terraform owns the cloud resources.** Managed Postgres and its two roles, the Object Storage
-buckets, the IAM applications and keys, the Key Manager key, the API container, and every job
-definition — today that is `spacecraft-pipeline` and nothing else. `scaleway_job_definition` carries `image_uri`, `startup_command`, `args`, `env`,
-`cpu_limit`, `memory_limit`, `local_storage_capacity`, `timeout`, `cron` and
-`secret_reference`, which is the whole surface this deployment needs.
-
-This is not tidiness. The run trigger assumes a job definition exists, and the API assumes an
-IAM key allowed to start jobs exists. Nothing in the repository
-creates any of them, and what nobody declares, nobody recreates.
-
-**GitHub Actions owns the release.** Build the images, build the migration bundle, apply it,
-then move the container and job definitions to the new image. That is an ordered sequence with
-a dependency on the application version — Terraform has no primitive for "run this, wait for
-exit 0, then update that", and `null_resource` with `local-exec` is not one either.
-
-`image_uri` lives on the job definition and `StartJobDefinition` cannot override it — only the
-command, the arguments and the environment. So a release must update the definition, which
-means the pipeline passes the new tag to Terraform rather than Terraform being run by hand.
-The alternative, a mutable tag repushed each release, keeps Terraform out of the deploy path
-at the cost of a definition that no longer says which image it runs.
-
-## Order of operations for a release
-
-1. Verify: build, test, and `dotnet ef migrations has-pending-model-changes`. On EF Core 9 and
-   later a model that has drifted from the last migration makes the bundle throw, and this is
-   the difference between finding that on a pull request and finding it mid-deployment.
-2. Build and push both images.
-3. Generate the migration bundle and apply it to completion.
-4. Move the API container and the job definitions to the new images.
-
-Steps 3 and 4 are separate jobs with a `needs:` between them, which is the point: the ordering
-was documented and manual before, and a deployment that skipped the migration produced an API
-that started cleanly, reported healthy, and threw `column does not exist` on the first request
-that touched a new column.
-
-`Database:MigrateOnStartup` stays `false` outside Development, so nothing migrates implicitly.
-
-## Migrations
-
-The schema is applied by a **migration bundle** — a single-file executable produced by
-`dotnet ef migrations bundle`, generated in CI and run from the deployment pipeline. It needs
-neither the .NET SDK, nor the EF tools, nor the project's source code at execution.
+Schema changes ship as an EF migration bundle, run with a role that may change the schema —
+the API and the runner should not hold one:
 
 ```bash
-ASPNETCORE_ENVIRONMENT=Production \
-    dotnet ef migrations bundle --self-contained --target-runtime linux-x64 \
-    --output artifacts/efbundle
-
-ASPNETCORE_ENVIRONMENT=Production \
-    ./artifacts/efbundle --connection "$MIGRATION_CONNECTION"
+dotnet ef migrations bundle --self-contained --target-runtime linux-x64 \
+  --project src/SpaceCraft.Infrastructure --startup-project src/SpaceCraft.Api \
+  --output artifacts/efbundle
+./artifacts/efbundle --connection "$MIGRATION_CONNECTION"
 ```
 
-The environment is set at **both** steps deliberately: EF's design-time tooling defaults to
-`Development`, which would have the bundle read development user secrets.
+Rolling back is the same executable with a target — `./efbundle <PreviousMigration>` runs
+`Down` and can lose data. To review first: `dotnet ef migrations script --idempotent`.
 
-Rolling back is the same executable with a target: `./efbundle <PreviousMigration>`, or `0` to
-revert everything. It runs the `Down` of every migration newer than the target, so it can lose
-data — review before using it on production data.
-
-A bundle cannot show the SQL it will run. When a change needs review before it is applied,
-generate a script instead — `dotnet ef migrations script --idempotent` — read it, and keep it
-as the release artifact.
-
-**The migration identity is not the application identity.** Postgres carries two roles: one
-that can change the schema, used only by the bundle, and one that can only read and write
-rows, used by the API container and every job definition. This is the one objection to
-runtime migration that no tooling choice removes on its own, and it is stated three times in
-EF Core's own guidance. Without it the credential that serves the internet — and the one
-inside which a customer's transitive npm dependencies execute — can drop a table.
-
-That is also why the runner image cannot apply migrations at all: the mode was removed with
-the decision above. Development applies them at API startup through
-`Database:MigrateOnStartup`, and everywhere else it is the bundle. Nothing that runs a
-customer's build has ever needed schema rights, and now nothing that runs it can ask for
-them.
-
-### Reaching the database from CI
-
-Serverless Jobs cannot join a Private Network — Scaleway's own FAQ says so plainly: *"Scaleway
-Serverless Jobs does not currently support Scaleway VPC or Private Networks, though this
-feature is under development."* The database therefore already answers on a public endpoint,
-firewalled to Scaleway's published IP prefixes, which is every Scaleway customer.
-
-Running the bundle from a GitHub runner widens that allow-list to GitHub's ranges. It does not
-open a boundary that was closed — there is no private path to widen — but it is a real
-extension, and the migration job belongs behind a GitHub Environment with required reviewers
-for that reason. A self-hosted runner inside the project is the alternative when that is not
-acceptable.
-
-### What is not automated yet
-
-`release.yml` builds, tests and pushes the two images, and stops. The bundle, its application
-and the Terraform apply are described above and not yet written; until they are, steps 3 and 4
-are manual and their ordering rests on whoever runs them.
+If the bundle ever runs from a GitHub-hosted runner, the database allow-list has to admit
+GitHub's ranges; put that job behind an environment with required reviewers.
 
 ## Configuration
 
-.NET reads configuration from `appsettings.json`, `appsettings.{Environment}.json`, user
-secrets (Development only) and **environment variables** — in that order, each overriding the
-last. It does *not* read `.env` files, and neither does anything else here, so the settings
-below are supplied as environment variables in the container and job definitions.
+.NET reads `appsettings.json`, `appsettings.{Environment}.json`, user secrets (Development)
+and environment variables, in that order. Nested keys use `__`: `ConnectionStrings__Postgres`.
 
-Nested keys use a double underscore: `ConnectionStrings__Postgres` maps to
-`ConnectionStrings:Postgres`.
+The required keys are the `"//"` line at the top of each section in
+`src/SpaceCraft.Api/appsettings.json` and `src/SpaceCraft.Runner/appsettings.json`. Anything
+required and blank is refused at startup with the key named; `KeyProtection` additionally
+does one encrypt/decrypt round trip against Key Manager and refuses to start if it fails.
 
-The tracked `appsettings.json` files list every setting the code reads, so the file is the
-map of what can be configured. Tuning knobs — timeouts, batch sizes, retention — show their
-defaults. Every setting that depends on where this runs — bucket, region, endpoint, URLs,
-relay, sender — ships empty, so an environment that forgets one is refused at startup rather
-than started on production's value. That was the shape of the fallback this replaces: a
-deployment that forgot `PublicUrls__App` would have mailed its password-reset links to another
-site and reported healthy.
+| Section | Read by |
+|---|---|
+| `ConnectionStrings`, `ObjectStorage`, `KeyProtection` | API and runner — identical `KeyProtection` on both: they share one key ring |
+| `Jwt`, `PipelineJobs`, `PublicUrls`, `Smtp`, `RateLimits`, `Notifications`, `ForwardedHeaders` | API |
+| `Pipeline` (`AllowUnsandboxedExecution=true` is required) | runner |
 
-```
-# Database
-ConnectionStrings__Postgres=Host=…;Port=5432;Database=spacecraft;Username=…;Password=…
-
-# Auth — validated at startup, at least 32 characters
-Jwt__SigningKey=…
-Jwt__Issuer=spacecraft
-Jwt__Audience=spacecraft-api
-
-# Key protection — startup fails without these outside Development, and the API and the
-# runner must agree: the API encrypts registry credentials, the runner decrypts them, and
-# they share one key ring. SecretKey is the one secret that must not live in the database
-# it protects, so it comes from the deployment and nowhere else.
-KeyProtection__Provider=ScalewayKms
-KeyProtection__BaseUrl=https://api.scaleway.com
-KeyProtection__Region=fr-par
-KeyProtection__KeyId=…
-KeyProtection__SecretKey=…
-
-# Scaleway account — shared by every service that talks to it
-
-# Object storage — its own IAM key, distinct from the email one
-ObjectStorage__BucketName=openapi-bucket
-ObjectStorage__ServiceUrl=https://s3.fr-par.scw.cloud
-ObjectStorage__Region=fr-par
-ObjectStorage__AccessKey=…
-ObjectStorage__SecretKey=…
-# Optional; false is the default and is right for Scaleway and AWS. MinIO needs true.
-ObjectStorage__ForcePathStyle=false
-
-# Email — startup fails without these outside Development; FromEmail is required everywhere
-# SMTP rather than a provider API: the relay is swappable without touching code, and
-# nothing below is derived from one. Scaleway's username is the id of the project the
-# sending domain belongs to.
-Smtp__Host=smtp.tem.scaleway.com
-Smtp__Port=465
-Smtp__Security=ImplicitTls
-Smtp__Username=…
-Smtp__Password=…
-Smtp__FromEmail=noreply@yourdomain
-Smtp__FromName=SpaceCraft
-
-# Pipeline — steps run in the worker's own process, with no sandbox between a tenant's
-# build and the host. Startup refuses without this outside Development, so that it is a
-# decision written down rather than a default nobody read. There is no companion setting
-# that turns a sandbox on — none exists. This acknowledges the absence; it selects nothing.
-Pipeline__AllowUnsandboxedExecution=true
-
-# Pipeline — the runner image sets this as an ENV, override only to move it
-Pipeline__WorkspaceRoot=/tmp/spacecraft-workspaces
-# Where dependencies are resolved from. Publishing goes wherever each credential says.
-Pipeline__DependencyRegistry=https://registry.npmjs.org
-
-# Public URLs and CORS
-PublicUrls__Api=https://api.yourdomain
-PublicUrls__App=https://app.yourdomain
-
-# Rate limits (optional; these are the defaults)
-RateLimits__GlobalPermitsPerMinute=300
-RateLimits__CredentialPermitsPerWindow=10
-RateLimits__CredentialWindow=00:15:00
-```
-
-Startup fails fast rather than running degraded, and it names the setting. Every required
-setting is listed in the `"//"` key at the top of its section in `appsettings.json`; a missing or blank
-one is refused before any hosted service runs. For the sections validated by annotations every
-failing key of the section is reported together; the hand-written checks (connection string,
-key protection, email's relay rules) stop at the first, and the first section that fails stops
-startup. Among them: a blank connection string, a signing key missing or shorter than 32
-characters, a bucket name or region left out, `PublicUrls:App` or `PublicUrls:Api` missing or
-not https outside Development, a sender address missing or malformed, mail that is
-unconfigured or half configured outside Development,
-`Smtp:Security=None` there, a port and a handshake that contradict each other, storage
-keys left blank outside Development, `KeyProtection:Provider` left at `None` there, and
-`Pipeline:AllowUnsandboxedExecution` not being `true` there.
-
-A setting that depends on the deployment — a bucket, a region, a URL, a sender — has no
-default in code, because a default that is wrong does not fail: it sends links to the wrong
-site, or addresses the wrong region with a valid-looking name, and nothing says so.
-
-Key protection goes one step further and proves itself before anything is served. A hosted
-service runs one real encrypt-and-decrypt against Key Manager on boot and refuses to start
-unless the same bytes come back, because Data Protection does not fail the way one would hope:
-a decryptor that throws is retried, then the key is dropped and a fresh one minted, and the
-process serves traffic normally while every stored registry credential has quietly become
-unreadable.
-
-Nothing is checked about the generator, because there is nothing to check at runtime: which
-generator runs is not configurable at all. Kiota is a compile-time dependency pinned by
-`KiotaVersion` in `Directory.Packages.props`. What generation does read from configuration is
-`Pipeline:WorkspaceRoot`, which cannot select a different generator or a different version of
-one; its time budget is a constant beside the lease it has to fit under.
-
-The relay's certificate is validated in full. Revocation is always requested; what
-`Smtp__RequireCertificateRevocation` decides is what happens when no answer comes back,
-which on macOS and in a container with no route to an OCSP responder is every time.
-
-It is **on** for a deployment: a host that cannot get an answer about its relay's certificate
-should say so rather than shrug. `appsettings.Development.json` turns it off, because .NET on
-macOS never completes the check and a valid certificate is rejected — turn it off in a
-container too if it has no route to a responder, and know what that buys you.
-
-Nothing else moves either way: an expired certificate, an untrusted root, a mismatched name
-and a revocation that comes back positive are refused in both modes.
-
-`Smtp:Security` is `StartTls`, `ImplicitTls` or `None`. `None` sends the password and
-every message in the clear and is **refused outside Development**, where it exists for a relay
-on the same machine with no certificate. It has to be written down — no missing setting can
-ever mean plaintext, and MailKit's opportunistic `Auto` is deliberately not offered, since it
-fails open on exactly the connection that matters.
-
-`Smtp:Port` and `Security` have to agree — 465 and 2465 expect TLS from the first
-byte, 25, 587 and 2587 upgrade with STARTTLS. Crossed, neither side reports an error: the
-client waits for a greeting the server will not send until it sees TLS, and the send ends as
-a timeout several retries later with nothing naming the cause.
-
-Mail is checked the same way from the other side: `Smtp` wants Host, Username and
-Password **together, or none of them**. All three blank is the state of a machine with no
-relay, and selects the transport that writes to the log. One or two of them is somebody who
-started configuring a relay and stopped, and reading that as "no relay" would swallow every
-message the application sends.
-
-**In local development** none of this is needed: `appsettings.Development.json` covers it, and
-anything genuinely secret goes in user secrets:
-
-```bash
-dotnet user-secrets set "Smtp:Password" "<secret key>" --project src/SpaceCraft.Api
-```
-
-**Two API keys, one project.** Transactional Email and Object Storage each get their own IAM
-application, so a key that can send mail cannot read the bucket and vice versa. Both belong to
-the same Scaleway project, but nothing here needs to know its id: the mail relay takes it as
-an SMTP username like any other credential, and the bucket authenticates with its own key pair.
-
-**A bucket per environment.** Development and production use separate buckets, created once in
-the console; nothing creates them at startup. Scope the development key to the development
-bucket, so a wrong `BucketName` there fails instead of writing into production.
-
-Objects are laid out by ownership:
-
-```
-orgs/{org}/projects/{project}/specs/{name}-{spec}.yaml
-orgs/{org}/projects/{project}/runs/{run}/artifact/{fileName}
-orgs/{org}/projects/{project}/runs/{run}/logs/{step}.log
-```
-
-One prefix per project is what makes a per-project lifecycle rule or bulk delete possible.
-Changing the layout later means moving what is already stored, and nothing in the repository
-does that — decide the shape before there is anything in a production bucket.
-
-### Secrets belong in files, not in the environment
-
-With no Private Network available, Scaleway's own recommendation for Serverless Jobs is Secret
-Manager. `scaleway_job_definition` takes a `secret_reference` block that mounts a secret as a
-**file** rather than as an environment variable, and that difference is worth taking.
-
-Pipeline steps run in the runner's own process, so a customer's transitive npm dependency runs
-as the same user, in the same PID namespace. Everything in that process's environment —
-`KeyProtection__SecretKey`, the storage keys, the connection string — is readable from
-`/proc/self/environ` by anything the build executes. A file is not containment against the same
-uid, but it is no longer handed over by simply existing.
-
-It costs one block per secret in the job definition and one line of code, and the line is not
-optional. The .NET default host reads `appsettings`, the environment and the command line —
-nothing else. A file mounted at a path it was never told about is not configuration, so both
-hosts call:
-
-```csharp
-builder.Configuration.AddKeyPerFile("/run/secrets", optional: true);
-```
-
-The file name is the configuration key with the same double underscores the environment uses, so
-`/run/secrets/ConnectionStrings__Postgres` becomes `ConnectionStrings:Postgres` and the settings
-block below transposes to file names unchanged. `optional: true` keeps development and the test
-hosts working, where the directory does not exist.
-
-Remove that line and the job does not run on stale values — it fails its startup validation
-naming the key it could not find, which is the right way for this to break.
-
-The API's secrets stay environment variables. The argument for files is that a customer's build
-runs inside the runner's process; nothing runs inside the API but the API.
-
-Two prerequisites are not configuration and cannot be worked around:
-
-- **The sending domain must be verified** in the Scaleway console (SPF, DKIM, MX) or every
-  email is rejected.
-- **The Data Protection key ring lives in Postgres**, shared by the API that encrypts
-  registry tokens and the runner that decrypts them to publish. A ring local to each
-  container meant the runner could not read what the API wrote, which surfaced as "the key
-  was not found in the key ring" in the middle of a publish, after a build had succeeded.
-  It is **wrapped at rest**: `KeyProtection:Provider=ScalewayKms` installs
-  `ScalewayKmsXmlEncryptor` as Data Protection's `XmlEncryptor`, so each key reaches Postgres
-  already encrypted under a Key Manager key the database does not hold. Leaving the provider
-  at `None` outside Development is refused at startup rather than tolerated.
-
-  Wrapping applies to keys minted after it is switched on, not retroactively — which sounds
-  like a gap and is not one here, because there is no way to reach production with an
-  unwrapped ring. Startup refuses outside Development unless a provider is configured, so the
-  very first key a deployed ring ever holds is already wrapped. The retroactive case only
-  arises on a development stack, where the ring protects nothing worth keeping.
-
-## Starting a run
-
-Nothing else reads the queue, so the API starts the job itself. `RunDispatcher` sweeps runs
-that are still queued, claims a batch with `FOR UPDATE SKIP LOCKED`, and calls
-`POST /serverless-jobs/v1alpha2/regions/{region}/job-definitions/{id}/start` with
-`args: ["--run", "<guid>"]`. Serverless Jobs offer a cron trigger and nothing else — no queue
-trigger, no event trigger — so this call is the only way.
-
-This is why the API cannot scale to zero: the sweep is what starts a job, so an instance has
-to be up for anything to run. See [The API container](#the-api-container).
-
-There is deliberately no call from the request handler. A start that fails inline leaves a run
-queued and never started, which is the same defect as having no trigger at all, only rarer and
-therefore harder to see. One sweep is one code path, and a refusal is retried by the next.
-
-```
-PipelineJobs__BaseUrl=https://api.scaleway.com
-PipelineJobs__Region=fr-par
-PipelineJobs__JobDefinitionId=…
-PipelineJobs__SecretKey=…            # IAM key allowed to start this job definition
-```
-
-That key is the platform's only control-plane credential, and it belongs to the API alone —
-never to a job definition. Everything else the deployment holds reads or decrypts data; this
-one starts compute, and a build running a customer's transitive npm dependencies must not be
-able to reach it. It is why the code lives under `SpaceCraft.Api/Features/Runs` rather than in the
-shared project.
-
-`dispatched_at` on the run records that a job was asked for. It is a column rather than
-memory because several API instances sweep the same table: without it each starts its own job
-for the same run, which claiming makes harmless and the parallel-run quota makes expensive.
-
-## Latency to expect
-
-Serverless Jobs are guaranteed to reach *Running* within ten minutes of being triggered.
-Typical start is far quicker, but the SLA is the number to design against: the UI must
-distinguish "queued" from "running", or a slow start looks like a failure. Anything needing an
-immediate answer — spec validation on upload — stays in the API, synchronously, where it
-already is.
+- **Secrets as files.** Both hosts read `/run/secrets` last: a file named
+  `/run/secrets/ConnectionStrings__Postgres` becomes `ConnectionStrings:Postgres` and wins over
+  an environment variable of the same name. Mount the runner's secrets as files, so a
+  customer's build cannot read them from `/proc/self/environ`.
+- **SMTP.** `Host`, `Username` and `Password` all set or all blank (blank is the logging
+  transport, Development only); `Security` is `StartTls`, `ImplicitTls` or `None` (`None`
+  refused outside Development); 465/2465 need `ImplicitTls`. Details on `SmtpEmailOptions`.
+  Verify the sending domain (SPF, DKIM, MX) with Scaleway before any mail leaves.
+- **Object storage.** One bucket per environment, created outside the application; scope
+  each environment's key to its bucket. Objects live under `orgs/{org}/projects/{project}/…`
+  (`StorageKeys.cs`); nothing migrates stored objects if that layout changes.
