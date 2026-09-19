@@ -5,6 +5,7 @@ using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Email;
+using SpaceCraft.Api.Features.Members.Responses;
 
 namespace SpaceCraft.Api.Features.Members;
 

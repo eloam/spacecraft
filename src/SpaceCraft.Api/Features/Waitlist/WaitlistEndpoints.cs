@@ -1,7 +1,11 @@
 using SpaceCraft.Api.Extensions;
+using SpaceCraft.Api.Features.Waitlist.Responses;
 
 namespace SpaceCraft.Api.Features.Waitlist;
 
+/// <summary>
+/// Backs the landing page's "Notify me" form while the product is pre-launch.
+/// </summary>
 public static class WaitlistEndpoints
 {
     public static RouteGroupBuilder MapWaitlistEndpoints(this RouteGroupBuilder api)

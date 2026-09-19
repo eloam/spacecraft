@@ -2,15 +2,10 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Specs.Responses;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Specs;
-
-/// <summary>
-/// A page of versions and how many exist. Without the total, a project past the cap would be
-/// shown its hundred most recent as though that were all of them.
-/// </summary>
-public sealed record SpecListResponse(IReadOnlyList<SpecVersionResponse> Items, int Total);
 
 public static class ListSpecs
 {

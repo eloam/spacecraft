@@ -1,16 +1,10 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Account.Responses;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Account;
-
-public sealed record SessionResponse(
-    Guid Id,
-    DateTimeOffset StartedAt,
-    DateTimeOffset LastUsedAt,
-    DateTimeOffset ExpiresAt,
-    bool IsCurrent);
 
 public static class ListSessions
 {

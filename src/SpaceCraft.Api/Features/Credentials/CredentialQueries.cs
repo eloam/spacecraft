@@ -1,5 +1,5 @@
-using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Credentials.Responses;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Credentials;

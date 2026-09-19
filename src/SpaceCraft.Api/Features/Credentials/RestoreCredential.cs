@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Registries;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Credentials.Responses;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Credentials;

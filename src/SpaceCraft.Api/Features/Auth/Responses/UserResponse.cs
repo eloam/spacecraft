@@ -1,5 +1,3 @@
-using SpaceCraft.Api.Common;
-
-namespace SpaceCraft.Api.Features.Auth;
+namespace SpaceCraft.Api.Features.Auth.Responses;
 
 public sealed record UserResponse(Guid Id, string Email, string? DisplayName);

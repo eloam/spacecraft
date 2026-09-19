@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
-using SpaceCraft.Domain.Common;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Organizations.Responses;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Organizations;

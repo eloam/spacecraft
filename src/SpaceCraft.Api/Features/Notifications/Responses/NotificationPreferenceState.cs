@@ -1,6 +1,6 @@
 using SpaceCraft.Domain.Notifications;
 
-namespace SpaceCraft.Api.Features.Notifications;
+namespace SpaceCraft.Api.Features.Notifications.Responses;
 
 /// <summary>One switch on the settings page: this kind, on this channel.</summary>
 public sealed record NotificationPreferenceState(string Kind, string Channel, bool Enabled)

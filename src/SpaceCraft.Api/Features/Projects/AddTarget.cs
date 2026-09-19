@@ -3,6 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Projects;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Projects.Responses;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

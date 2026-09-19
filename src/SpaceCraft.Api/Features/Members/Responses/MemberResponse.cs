@@ -1,7 +1,6 @@
-using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 
-namespace SpaceCraft.Api.Features.Members;
+namespace SpaceCraft.Api.Features.Members.Responses;
 
 public sealed record MemberResponse(
     Guid UserId,

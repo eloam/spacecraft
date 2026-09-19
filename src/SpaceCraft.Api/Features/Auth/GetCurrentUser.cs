@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Identity;
+using SpaceCraft.Api.Features.Auth.Responses;
 using Microsoft.AspNetCore.Identity;
 
 namespace SpaceCraft.Api.Features.Auth;

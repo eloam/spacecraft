@@ -1,6 +1,6 @@
 using SpaceCraft.Domain.Pipelines;
 
-namespace SpaceCraft.Api.Features.Runs;
+namespace SpaceCraft.Api.Features.Runs.Responses;
 
 public sealed record StepResponse(
     StepKind Kind,

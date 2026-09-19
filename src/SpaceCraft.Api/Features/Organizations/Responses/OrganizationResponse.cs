@@ -1,8 +1,6 @@
-using SpaceCraft.Api.Common;
-using SpaceCraft.Domain.Common;
 using SpaceCraft.Domain.Organizations;
 
-namespace SpaceCraft.Api.Features.Organizations;
+namespace SpaceCraft.Api.Features.Organizations.Responses;
 
 public sealed record OrganizationResponse(
     Guid Id,

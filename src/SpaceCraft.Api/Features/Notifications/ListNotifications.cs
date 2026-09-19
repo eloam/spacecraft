@@ -4,10 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Notifications;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Notifications.Responses;
 
 namespace SpaceCraft.Api.Features.Notifications;
-
-public sealed record NotificationFeedResponse(int UnreadCount, List<NotificationResponse> Items);
 
 public static class ListNotifications
 {

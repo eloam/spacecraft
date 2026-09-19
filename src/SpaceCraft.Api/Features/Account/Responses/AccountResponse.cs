@@ -1,6 +1,4 @@
-using SpaceCraft.Api.Common;
-
-namespace SpaceCraft.Api.Features.Account;
+namespace SpaceCraft.Api.Features.Account.Responses;
 
 public sealed record AccountResponse(
     Guid Id,

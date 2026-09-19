@@ -1,3 +1,5 @@
+using SpaceCraft.Api.Features.Notifications.Responses;
+
 namespace SpaceCraft.Api.Features.Notifications;
 
 public static class NotificationEndpoints

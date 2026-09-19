@@ -1,3 +1,5 @@
+using SpaceCraft.Api.Features.Credentials.Responses;
+
 namespace SpaceCraft.Api.Features.Credentials;
 
 public static class CredentialEndpoints

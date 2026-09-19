@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Notifications.Responses;
 
 namespace SpaceCraft.Api.Features.Notifications;
 

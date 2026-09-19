@@ -1,8 +1,7 @@
-using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Projects;
 using SpaceCraft.Infrastructure.Storage;
 
-namespace SpaceCraft.Api.Features.Specs;
+namespace SpaceCraft.Api.Features.Specs.Responses;
 
 public sealed record SpecVersionResponse(
     Guid Id,

@@ -1,8 +1,6 @@
-using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Identity;
-using SpaceCraft.Domain.Identity;
 
-namespace SpaceCraft.Api.Features.Auth;
+namespace SpaceCraft.Api.Features.Auth.Responses;
 
 public sealed record AuthResponse(
     string AccessToken,

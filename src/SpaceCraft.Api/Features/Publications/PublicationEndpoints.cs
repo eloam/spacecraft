@@ -1,3 +1,5 @@
+using SpaceCraft.Api.Features.Publications.Responses;
+
 namespace SpaceCraft.Api.Features.Publications;
 
 public static class PublicationEndpoints

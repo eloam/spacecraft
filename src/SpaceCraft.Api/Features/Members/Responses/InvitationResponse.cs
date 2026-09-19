@@ -1,7 +1,6 @@
-using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 
-namespace SpaceCraft.Api.Features.Members;
+namespace SpaceCraft.Api.Features.Members.Responses;
 
 /// <summary>What an outstanding invitation looks like to the admin who sent it.</summary>
 public sealed record InvitationResponse(

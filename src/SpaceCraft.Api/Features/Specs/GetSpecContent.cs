@@ -3,16 +3,10 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Storage;
+using SpaceCraft.Api.Features.Specs.Responses;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Specs;
-
-/// <summary>
-/// The document as uploaded, so findings can be shown against the source they came from.
-/// Served through the API rather than as a presigned URL: it saves a CORS policy on the
-/// bucket, and the upload cap already bounds what this can return.
-/// </summary>
-public sealed record SpecContentResponse(string Content, string Format);
 
 public static class GetSpecContent
 {

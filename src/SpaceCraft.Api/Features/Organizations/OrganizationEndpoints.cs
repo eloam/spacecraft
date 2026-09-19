@@ -1,3 +1,5 @@
+using SpaceCraft.Api.Features.Organizations.Responses;
+
 namespace SpaceCraft.Api.Features.Organizations;
 
 public static class OrganizationEndpoints

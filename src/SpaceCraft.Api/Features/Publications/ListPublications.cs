@@ -1,33 +1,12 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
-using SpaceCraft.Domain.Projects;
-using SpaceCraft.Domain.Registries;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Publications.Responses;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Publications;
-
-public sealed record PublicationResponse(
-    Guid Id,
-    Guid PipelineRunId,
-    /// <summary>
-    /// The document this package was generated from. Carried so a caller can say which spec
-    /// version is live without joining publications to runs itself.
-    /// </summary>
-    Guid? SpecVersionId,
-    Guid SdkTargetId,
-    Guid? ApiProjectId,
-    string? ProjectName,
-    RegistryKind Registry,
-    string PackageName,
-    string Version,
-    PublicationStatus Status,
-    string? RegistryUrl,
-    string? FailureReason,
-    DateTimeOffset CreatedAt,
-    DateTimeOffset? CompletedAt);
 
 public static class ListPublications
 {

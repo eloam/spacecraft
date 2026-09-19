@@ -1,4 +1,5 @@
 using SpaceCraft.Api.Extensions;
+using SpaceCraft.Api.Features.Auth.Responses;
 
 namespace SpaceCraft.Api.Features.Auth;
 

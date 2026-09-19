@@ -5,6 +5,7 @@ using SpaceCraft.Domain.Projects;
 using SpaceCraft.Domain.Registries;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Infrastructure.Security;
+using SpaceCraft.Api.Features.Credentials.Responses;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

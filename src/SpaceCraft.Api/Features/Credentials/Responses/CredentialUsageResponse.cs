@@ -1,6 +1,6 @@
 using SpaceCraft.Domain.Projects;
 
-namespace SpaceCraft.Api.Features.Credentials;
+namespace SpaceCraft.Api.Features.Credentials.Responses;
 
 /// <summary>One SDK target that publishes with a credential, and where it lives.</summary>
 public sealed record CredentialUsageResponse(

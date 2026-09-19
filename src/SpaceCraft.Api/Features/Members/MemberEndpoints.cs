@@ -1,3 +1,5 @@
+using SpaceCraft.Api.Features.Members.Responses;
+
 namespace SpaceCraft.Api.Features.Members;
 
 public static class MemberEndpoints

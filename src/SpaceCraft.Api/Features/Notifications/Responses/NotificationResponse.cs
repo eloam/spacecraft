@@ -1,6 +1,4 @@
-using SpaceCraft.Api.Common;
-
-namespace SpaceCraft.Api.Features.Notifications;
+namespace SpaceCraft.Api.Features.Notifications.Responses;
 
 /// <summary>One entry in the reader's list.</summary>
 /// <remarks>

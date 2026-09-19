@@ -1,8 +1,6 @@
-using SpaceCraft.Api.Common;
-using SpaceCraft.Domain.Common;
 using SpaceCraft.Domain.Projects;
 
-namespace SpaceCraft.Api.Features.Projects;
+namespace SpaceCraft.Api.Features.Projects.Responses;
 
 public sealed record ProjectResponse(
     Guid Id,

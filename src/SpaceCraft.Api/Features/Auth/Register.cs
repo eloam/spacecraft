@@ -2,6 +2,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Auth.Responses;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

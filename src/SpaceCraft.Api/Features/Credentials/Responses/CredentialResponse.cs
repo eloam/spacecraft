@@ -1,7 +1,6 @@
-using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Projects;
 
-namespace SpaceCraft.Api.Features.Credentials;
+namespace SpaceCraft.Api.Features.Credentials.Responses;
 
 /// <summary>
 /// Deliberately has no token field. There is no endpoint anywhere that returns a stored

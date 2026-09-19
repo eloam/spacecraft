@@ -1,4 +1,5 @@
 using SpaceCraft.Infrastructure.OpenApi;
+using SpaceCraft.Api.Features.Specs.Responses;
 
 namespace SpaceCraft.Api.Features.Specs;
 

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Account.Responses;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 

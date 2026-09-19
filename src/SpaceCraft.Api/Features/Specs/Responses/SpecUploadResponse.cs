@@ -1,7 +1,6 @@
-using SpaceCraft.Domain.Projects;
 using SpaceCraft.Infrastructure.OpenApi;
 
-namespace SpaceCraft.Api.Features.Specs;
+namespace SpaceCraft.Api.Features.Specs.Responses;
 
 /// <summary>
 /// <paramref name="Strict"/> reports the mode these findings were produced under, rather than

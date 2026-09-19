@@ -1,8 +1,7 @@
-using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Domain.Projects;
 
-namespace SpaceCraft.Api.Features.Runs;
+namespace SpaceCraft.Api.Features.Runs.Responses;
 
 public sealed record RunResponse(
     Guid Id,

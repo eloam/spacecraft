@@ -1,6 +1,7 @@
 using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Waitlist.Responses;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

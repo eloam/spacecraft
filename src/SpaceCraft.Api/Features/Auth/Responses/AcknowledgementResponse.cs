@@ -1,4 +1,4 @@
-namespace SpaceCraft.Api.Features.Auth;
+namespace SpaceCraft.Api.Features.Auth.Responses;
 
 /// <summary>
 /// Deliberately says nothing about whether the address is registered. The message is the
