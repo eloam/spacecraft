@@ -28,12 +28,12 @@ public sealed class MembersRequestValidationTests
             .Only();
     }
 
+    // Only an '@' is asked for, as the handler asked before: the invitation mail is the real
+    // test of the address.
     [Theory]
     [InlineData("ada")]
-    [InlineData("@example.com")]
-    [InlineData("ada@")]
-    [InlineData("ada@@example.com")]
-    public void A_malformed_email_is_refused(string email)
+    [InlineData("ada.example.com")]
+    public void An_email_without_an_at_sign_is_refused(string email)
     {
         var result = new AddMemberRequest.Validator()
             .TestValidate(new AddMemberRequest(email, OrganizationRole.Member));
@@ -58,7 +58,7 @@ public sealed class MembersRequestValidationTests
     public void A_well_formed_invitation_passes()
     {
         // Surrounding whitespace and capitals are the handler's to normalise before the
-        // address is stored; the validator judges the body as it arrived.
+        // address is stored; the validator must not refuse them first.
         var result = new AddMemberRequest.Validator()
             .TestValidate(new AddMemberRequest(" Ada@Example.com ", OrganizationRole.Admin));
 

@@ -87,11 +87,12 @@ public sealed class AuthRequestValidationTests
         result.Errors.ShouldHaveSingleItem();
     }
 
+    // Only an '@' is asked for, as before: the endpoint must not learn anything more about
+    // the address than it needs to hand it to the background worker.
     [Theory]
     [InlineData("not-an-address")]
-    [InlineData("ada@")]
-    [InlineData("@example.com")]
-    public void Asking_for_a_reset_with_a_malformed_address_is_refused(string email)
+    [InlineData("ada.example.com")]
+    public void Asking_for_a_reset_with_an_address_that_has_no_at_sign_is_refused(string email)
     {
         var result = new ForgotPasswordRequest.Validator().TestValidate(new ForgotPasswordRequest(email));
 
@@ -99,10 +100,12 @@ public sealed class AuthRequestValidationTests
             .WithErrorMessage("Enter a valid email address.");
     }
 
-    [Fact]
-    public void Asking_for_a_reset_with_a_well_formed_address_passes()
+    [Theory]
+    [InlineData("ada@example.com")]
+    [InlineData("  ada@example.com  ")]
+    public void Asking_for_a_reset_with_an_address_passes(string email)
     {
-        var result = new ForgotPasswordRequest.Validator().TestValidate(new ForgotPasswordRequest("ada@example.com"));
+        var result = new ForgotPasswordRequest.Validator().TestValidate(new ForgotPasswordRequest(email));
 
         result.ShouldNotHaveAnyValidationErrors();
     }

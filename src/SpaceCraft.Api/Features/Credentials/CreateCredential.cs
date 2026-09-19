@@ -27,7 +27,8 @@ public static class CreateCredential
             return denied;
         }
 
-        // The request's shape — registry, label, token, address — is the request's Validator's business.
+        // The request's shape — registry, label, token, address — is the request's Validator's
+        // business; what reaches this point is stored.
 
         // Encrypted here and never again held in plaintext outside the publish step. Stored
         // as a document rather than a bare token: a registry that wants a user with its
