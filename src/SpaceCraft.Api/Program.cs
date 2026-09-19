@@ -171,9 +171,12 @@ app.UseAuthorization();
 // UseAuthentication meant context.User was still the empty principal every time, so the
 // fallback was the only branch ever taken and the per-user isolation its comment promises
 // never existed: everyone behind one address shared a single budget. The cost of the new
-// order is that a token is validated before the limiter sees the request, which is signature
-// work, not database work; the credential endpoints that must refuse traffic before anything
-// expensive keep their own per-address policy and are unaffected.
+// order is that a token is validated before the limiter sees the request: the signature, and
+// one database read, since OnTokenValidated asks whether the stamp still matches and the
+// session is still alive. That read stays ahead of the limiter because it is part of
+// authentication, and authentication is what tells the limiter who is asking; a revoked
+// token has to be refused, not budgeted. The credential endpoints that must refuse traffic
+// before anything expensive keep their own per-address policy and are unaffected.
 app.UseRateLimiter();
 
 app.MapHealthChecks("/health").AllowAnonymous();

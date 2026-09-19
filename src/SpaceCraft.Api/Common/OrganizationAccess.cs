@@ -23,6 +23,16 @@ public interface IOrganizationAccess
 }
 
 /// <summary>
+/// What the guard found: the refusal to return, or the role the caller holds.
+/// </summary>
+/// <param name="Denied">The response to return, or null when the caller may proceed.</param>
+/// <param name="Role">
+/// The caller's role, null for a non-member. Handed back so that a handler which goes on to
+/// compare roles — who may grant which, who may remove whom — reads the membership once.
+/// </param>
+public sealed record OrganizationAccessCheck(IResult? Denied, OrganizationRole? Role);
+
+/// <summary>
 /// The guard every organization-scoped endpoint opens with.
 /// </summary>
 public static class OrganizationAccessGuard
@@ -43,6 +53,19 @@ public static class OrganizationAccessGuard
         Guid organizationId,
         Guid userId,
         OrganizationRole required,
+        CancellationToken ct = default) =>
+        (await access.CheckAsync(organizationId, userId, required, ct)).Denied;
+
+    /// <summary>
+    /// The same verdict as <see cref="DenyUnlessAsync"/>, with the role it was reached from.
+    /// For the handlers whose next question is about the caller's role, which used to ask
+    /// the database a second time for what the guard had just read.
+    /// </summary>
+    public static async Task<OrganizationAccessCheck> CheckAsync(
+        this IOrganizationAccess access,
+        Guid organizationId,
+        Guid userId,
+        OrganizationRole required,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(access);
@@ -51,10 +74,10 @@ public static class OrganizationAccessGuard
 
         if (role is null)
         {
-            return ApiResults.NotFoundOrForbidden();
+            return new OrganizationAccessCheck(ApiResults.NotFoundOrForbidden(), null);
         }
 
-        return role < required ? ApiResults.Forbidden(required) : null;
+        return new OrganizationAccessCheck(role < required ? ApiResults.Forbidden(required) : null, role);
     }
 }
 

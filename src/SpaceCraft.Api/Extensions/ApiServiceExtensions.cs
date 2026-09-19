@@ -83,34 +83,35 @@ public static class ApiServiceExtensions
 
                         var db = context.HttpContext.RequestServices.GetRequiredService<SpaceCraftDbContext>();
                         var userId = principal.Id();
+                        var sessionId = principal.SessionId();
 
-                        var stamp = await db.Users
+                        // One round trip for both questions, since this runs ahead of every
+                        // authenticated request: the user's stamp, and whether the session
+                        // the token names is still alive. A session is revoked by revoking
+                        // its refresh tokens, so a family with none left alive is a session
+                        // somebody ended; a token that names no session is not asked.
+                        var liveness = await db.Users
                             .AsNoTracking()
                             .Where(u => u.Id == userId)
-                            .Select(u => u.SecurityStamp)
+                            .Select(u => new
+                            {
+                                u.SecurityStamp,
+                                SessionAlive = sessionId == null
+                                    || db.RefreshTokens.Any(t => t.FamilyId == sessionId && t.RevokedAt == null),
+                            })
                             .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
 
-                        if (stamp is null
-                            || !string.Equals(stamp, principal.FindFirstValue("stamp"), StringComparison.Ordinal))
+                        if (liveness?.SecurityStamp is null
+                            || !string.Equals(
+                                liveness.SecurityStamp, principal.FindFirstValue("stamp"), StringComparison.Ordinal))
                         {
                             context.Fail("The security stamp has changed.");
                             return;
                         }
 
-                        // A session is revoked by revoking its refresh tokens, so a family
-                        // with none left alive is a session somebody ended.
-                        if (principal.SessionId() is { } sessionId)
+                        if (!liveness.SessionAlive)
                         {
-                            var alive = await db.RefreshTokens
-                                .AsNoTracking()
-                                .AnyAsync(
-                                    t => t.FamilyId == sessionId && t.RevokedAt == null,
-                                    context.HttpContext.RequestAborted);
-
-                            if (!alive)
-                            {
-                                context.Fail("This session was revoked.");
-                            }
+                            context.Fail("This session was revoked.");
                         }
                     },
                 };
