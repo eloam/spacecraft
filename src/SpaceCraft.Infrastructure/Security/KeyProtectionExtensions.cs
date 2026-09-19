@@ -27,13 +27,43 @@ public static class KeyProtectionExtensions
         ArgumentNullException.ThrowIfNull(configuration);
 
         var section = configuration.GetSection(KeyProtectionOptions.SectionName);
-        var options = section.Get<KeyProtectionOptions>() ?? new KeyProtectionOptions();
 
-        services.AddOptions<KeyProtectionOptions>().Bind(section);
+        services.AddOptions<KeyProtectionOptions>()
+            .Bind(section)
+            .ValidateDataAnnotations()
+            // The whole point of the fake is that it speaks the same API over plain HTTP on a
+            // private network. That is exactly what must never be reachable from production:
+            // an https endpoint is the line between the two, and it is cheaper to refuse here
+            // than to discover a wrapping key travelling in clear. A BaseUrl that does not
+            // parse is reported by the class itself, so it passes here.
+            .Validate(
+                options => options.Provider is not KeyProtectionProvider.ScalewayKms
+                    || isDevelopment
+                    || !Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var baseUrl)
+                    || baseUrl.Scheme == Uri.UriSchemeHttps,
+                "KeyProtection:BaseUrl must be https outside Development. "
+                + "The development fake in infra/SpaceCraft.FakeScalewayKms is not a key manager.")
+            // Checked rather than trusted: the fake accepts any region, so a typo would work
+            // all the way to production and fail there on the first credential. A blank
+            // region is reported by the class itself, so it passes here.
+            .Validate(
+                options => options.Provider is not KeyProtectionProvider.ScalewayKms
+                    || isDevelopment
+                    || string.IsNullOrWhiteSpace(options.Region)
+                    || KeyProtectionOptions.KnownRegions.Contains(options.Region, StringComparer.Ordinal),
+                "KeyProtection:Region is not one Key Manager serves "
+                + $"({string.Join(", ", KeyProtectionOptions.KnownRegions)}).")
+            .ValidateOnStart();
 
-        if (options.Provider is KeyProtectionProvider.ScalewayKms)
+        // Read eagerly, and only the key the branch turns on: which services exist depends on
+        // the provider, and a registration that branches on configuration may read it. Nothing
+        // below is built from this read — the client and the readiness check take the
+        // validated IOptions<KeyProtectionOptions>.
+        var provider = section.GetValue<KeyProtectionProvider>(nameof(KeyProtectionOptions.Provider));
+
+        if (provider is KeyProtectionProvider.ScalewayKms)
         {
-            AddScalewayKms(services, options, isDevelopment);
+            AddScalewayKms(services);
         }
         else if (isDevelopment)
         {
@@ -65,12 +95,14 @@ public static class KeyProtectionExtensions
         return services;
     }
 
-    private static void AddScalewayKms(IServiceCollection services, KeyProtectionOptions kms, bool isDevelopment)
+    private static void AddScalewayKms(IServiceCollection services)
     {
-        Validate(kms, isDevelopment);
-
-        services.AddHttpClient<ScalewayKmsClient>(client =>
+        services.AddHttpClient<ScalewayKmsClient>((provider, client) =>
         {
+            // Resolved here rather than read at registration, so the client sees the validated
+            // options and nothing has to be parsed twice.
+            var kms = provider.GetRequiredService<IOptions<KeyProtectionOptions>>().Value;
+
             // Trailing slash: routes are appended relative to this, and without it the last
             // path segment of the base address would be replaced instead of extended.
             client.BaseAddress = new Uri(kms.BaseUrl!.TrimEnd('/') + "/");
@@ -92,53 +124,5 @@ public static class KeyProtectionExtensions
                 keyManagement.XmlEncryptor = provider.GetRequiredService<ScalewayKmsXmlEncryptor>()));
 
         services.AddHostedService<KeyProtectionReadiness>();
-    }
-
-    private static void Validate(KeyProtectionOptions kms, bool isDevelopment)
-    {
-        if (!Uri.TryCreate(kms.BaseUrl, UriKind.Absolute, out var baseUrl))
-        {
-            throw new InvalidOperationException(
-                $"KeyProtection:BaseUrl must be an absolute URL; it was '{kms.BaseUrl}'.");
-        }
-
-        // The whole point of the fake is that it speaks the same API over plain HTTP on a
-        // private network. That is exactly what must never be reachable from production: an
-        // https endpoint is the line between the two, and it is cheaper to refuse here than
-        // to discover a wrapping key travelling in clear.
-        if (!isDevelopment && baseUrl.Scheme != Uri.UriSchemeHttps)
-        {
-            throw new InvalidOperationException(
-                $"KeyProtection:BaseUrl must be https outside Development; it was '{kms.BaseUrl}'. "
-                + "The development fake in infra/SpaceCraft.FakeScalewayKms is not a key manager.");
-        }
-
-        if (!Guid.TryParse(kms.KeyId, out _))
-        {
-            throw new InvalidOperationException(
-                $"KeyProtection:KeyId must be the key's UUID; it was '{kms.KeyId}'.");
-        }
-
-        if (string.IsNullOrWhiteSpace(kms.SecretKey))
-        {
-            throw new InvalidOperationException("KeyProtection:SecretKey is not configured.");
-        }
-
-        // Presence first. This had a default of fr-par, which is also a region the API serves —
-        // so a missing key passed the check below and a deployment in nl-ams would have called
-        // the wrong region with a valid-looking name.
-        if (string.IsNullOrWhiteSpace(kms.Region))
-        {
-            throw new InvalidOperationException("KeyProtection:Region is not configured.");
-        }
-
-        // Checked rather than trusted: the fake accepts any region, so a typo would work all
-        // the way to production and fail there on the first credential.
-        if (!isDevelopment && !KeyProtectionOptions.KnownRegions.Contains(kms.Region, StringComparer.Ordinal))
-        {
-            throw new InvalidOperationException(
-                $"KeyProtection:Region '{kms.Region}' is not one Key Manager serves "
-                + $"({string.Join(", ", KeyProtectionOptions.KnownRegions)}).");
-        }
     }
 }
