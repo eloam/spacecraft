@@ -67,7 +67,11 @@ public sealed class NpmSdkPublisher(
                 Environment = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["SPACECRAFT_NPM_TOKEN"] = request.Token,
-                    ["npm_config_userconfig"] = $"/workspace/{request.ArtifactDirectory}/.npmrc",
+                    // The path the file was written to above. This once named the file's
+                    // bind-mount path in a sandbox that no longer exists; npm still found it,
+                    // but only as the project config of the directory it happens to run in.
+                    // Named outright, the credential does not depend on the working directory.
+                    ["npm_config_userconfig"] = npmrcPath,
                     ["npm_config_cache"] = "/tmp/npm-cache",
                     ["npm_config_update_notifier"] = "false",
                     ["HOME"] = "/tmp",
