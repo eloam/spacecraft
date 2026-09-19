@@ -23,10 +23,12 @@ FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION} AS final
 WORKDIR /app
 COPY --from=build /app .
 
-# The platform injects PORT and routes to it; Program.cs binds 0.0.0.0 on that port. The
-# default matches Scaleway's so the image also runs unchanged with plain `docker run`.
-ENV PORT=8080 \
-    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+# The base image listens on 8080, on every interface, through ASPNETCORE_HTTP_PORTS — the
+# .NET 8+ convention, and all a startup probe connecting from outside the container needs.
+# There is no PORT variable to read: a deployment that routes to a different port sets
+# ASPNETCORE_HTTP_PORTS to that port, and the platform's own port declaration has to say the
+# same number. See docs/deployment.md.
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1
 EXPOSE 8080
 

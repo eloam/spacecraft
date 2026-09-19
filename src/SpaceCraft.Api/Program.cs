@@ -35,16 +35,6 @@ var builder = WebApplication.CreateBuilder(args);
 // shadow it would quietly restore the thing being avoided.
 builder.Configuration.AddKeyPerFile("/run/secrets", optional: true);
 
-// Serverless container platforms inject the port to listen on and route to it. Binding to
-// 0.0.0.0 rather than localhost is not optional there: the startup probe connects from
-// outside the container, and a loopback-only listener fails it and the deploy with it.
-// ASPNETCORE_URLS still wins when set, so local runs and launch profiles are unaffected.
-if (Environment.GetEnvironmentVariable("PORT") is { Length: > 0 } port
-    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
-{
-    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-}
-
 // Behind a gateway, Connection.RemoteIpAddress is the gateway — one address for every caller
 // in the world, which is what the credential endpoints partition their rate limit on. Reading
 // the forwarded address restores that partition.

@@ -35,8 +35,12 @@ pin both have to be revisited then.
 
 ## The API container
 
-The platform injects `PORT` and routes to it. `Program.cs` binds `0.0.0.0` on that port —
-binding loopback instead makes the startup probe fail, and with it the deployment.
+The image listens on **8080**, on every interface, because the `mcr.microsoft.com/dotnet/aspnet`
+base image sets `ASPNETCORE_HTTP_PORTS=8080` — the .NET convention since .NET 8. `Program.cs`
+reads no port of its own. The container definition must therefore declare `port = 8080`; a
+deployment that routes to another port sets `ASPNETCORE_HTTP_PORTS` to that port in the
+container's environment, and the two numbers have to agree. Scaleway also injects `PORT` with
+the declared value; nothing here reads it.
 
 **The API must not scale to zero.** It holds no state between requests and the queues it
 writes to live in Postgres, so nothing about a request needs it — but `RunDispatcher` is a
