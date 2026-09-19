@@ -1,4 +1,3 @@
-using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Features.Auth.Responses;
 using SpaceCraft.Api.Features.Auth.Requests;
@@ -12,12 +11,8 @@ public static class ForgotPassword
         [FromBody] ForgotPasswordRequest request,
         BackgroundWorkQueue<PasswordResetRequest> resetRequests)
     {
-        var address = (request.Email ?? string.Empty).Trim();
-
-        if (address.Length == 0 || !address.Contains('@', StringComparison.Ordinal))
-        {
-            return ApiResults.Invalid(nameof(request.Email), "Enter a valid email address.");
-        }
+        // That this is an email address is the request's Validator's business.
+        var address = request.Email.Trim();
 
         // Everything past this point — looking the account up, issuing a token, sending the
         // mail — happens on a background worker. The handler must not branch on whether the

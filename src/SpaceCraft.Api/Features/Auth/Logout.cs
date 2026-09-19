@@ -17,7 +17,7 @@ public static class Logout
         CancellationToken ct)
     {
         var userId = principal.Id();
-        var hash = tokenFactory.HashToken(request.RefreshToken ?? string.Empty);
+        var hash = tokenFactory.HashToken(request.RefreshToken);
 
         var stored = await db.RefreshTokens
             .FirstOrDefaultAsync(t => t.TokenHash == hash && t.UserId == userId, ct);
@@ -34,7 +34,8 @@ public static class Logout
             await db.SaveChangesAsync(ct);
         }
 
-        // Always 204: whether the token existed is not the caller's business.
+        // An absent token is a 400 from the request's Validator, never from here. A present
+        // one gets 204 whether it existed or not: that is not the caller's business.
         return TypedResults.NoContent();
     }
 }

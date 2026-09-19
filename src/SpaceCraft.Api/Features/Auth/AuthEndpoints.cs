@@ -31,6 +31,7 @@ public static class AuthEndpoints
             .AllowAnonymous()
             .Produces<AuthResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem()
             .WithSummary("Rotates a refresh token for a new token pair.");
 
         group.MapPost("/forgot-password", ForgotPassword.Handle)
@@ -51,6 +52,7 @@ public static class AuthEndpoints
         group.MapPost("/logout", Logout.HandleAsync)
             .RequireAuthorization()
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
             .WithSummary("Revokes the caller's refresh token family.");
 
         group.MapGet("/me", GetCurrentUser.HandleAsync)

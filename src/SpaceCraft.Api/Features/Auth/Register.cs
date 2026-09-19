@@ -23,11 +23,8 @@ public static class Register
         IOptions<PublicUrlsOptions> publicUrls,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.Email))
-        {
-            return ApiResults.Invalid(nameof(request.Email), "An email address is required.");
-        }
-
+        // That an email address and a password are present is the request's Validator's
+        // business; whether Identity accepts them is decided below.
         var user = new SpaceCraftUser
         {
             UserName = request.Email.Trim().ToLowerInvariant(),

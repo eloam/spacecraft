@@ -18,16 +18,8 @@ public static class ResetPassword
         ITokenFactory tokenFactory,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.Token))
-        {
-            return ApiResults.Invalid(nameof(request.Token), "The reset link is incomplete.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.NewPassword))
-        {
-            return ApiResults.Invalid(nameof(request.NewPassword), "Choose a new password.");
-        }
-
+        // That a token and a new password are present is the request's Validator's business.
+        //
         // One message for every way a token can be unusable — unknown, expired, already
         // spent, superseded. Distinguishing them tells an attacker which guesses were close.
         var rejected = ApiResults.Problem(
