@@ -55,7 +55,7 @@ public sealed class PasswordResetDispatcher(
 
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<SpaceCraftUser>>();
         var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
-        var tokens = scope.ServiceProvider.GetRequiredService<ITokenService>();
+        var tokens = scope.ServiceProvider.GetRequiredService<ITokenFactory>();
 
         var user = await userManager.FindByEmailAsync(address);
         if (user is null)

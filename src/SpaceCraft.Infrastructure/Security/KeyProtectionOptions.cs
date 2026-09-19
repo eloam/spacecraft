@@ -24,17 +24,11 @@ public enum KeyProtectionProvider
     ScalewayKms = 1,
 }
 
-public sealed class KeyProtectionOptions
-{
-    public const string SectionName = "KeyProtection";
-
-    public KeyProtectionProvider Provider { get; set; } = KeyProtectionProvider.None;
-
-    public ScalewayKmsOptions Kms { get; set; } = new();
-}
-
 /// <summary>
-/// Scaleway Key Manager, addressed over its documented HTTP API.
+/// The provider, and the Key Manager it names. One flat section: there is one real provider,
+/// and a Kms sub-object beneath it only made every key longer — KeyProtection:KeyId said
+/// nothing KeyProtection:KeyId does not. The enum stays because both its values are used:
+/// None is written explicitly by the e2e and integration hosts to switch the wrapper off.
 /// <para>
 /// <see cref="BaseUrl"/> exists for the same reason <c>ObjectStorage:ServiceUrl</c> does:
 /// production points at Scaleway and development points at the fake in
@@ -43,8 +37,12 @@ public sealed class KeyProtectionOptions
 /// in production is the path exercised on every developer machine.
 /// </para>
 /// </summary>
-public sealed class ScalewayKmsOptions
+public sealed class KeyProtectionOptions
 {
+    public const string SectionName = "KeyProtection";
+
+    public KeyProtectionProvider Provider { get; set; } = KeyProtectionProvider.None;
+
     /// <summary>
     /// Origin only, no path: <c>https://api.scaleway.com</c> in production. The route below
     /// it is fixed by Scaleway's API and is not configurable.

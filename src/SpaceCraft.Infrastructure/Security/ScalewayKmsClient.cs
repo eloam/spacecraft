@@ -31,7 +31,7 @@ public sealed class ScalewayKmsClient(HttpClient http, IOptions<KeyProtectionOpt
     /// </summary>
     private const int MaxPlaintextBytes = 65535;
 
-    private ScalewayKmsOptions Kms => options.Value.Kms;
+    private KeyProtectionOptions Kms => options.Value;
 
     public async Task<string> EncryptAsync(byte[] plaintext, CancellationToken ct = default)
     {
@@ -65,7 +65,7 @@ public sealed class ScalewayKmsClient(HttpClient http, IOptions<KeyProtectionOpt
     private async Task<KmsResponse> PostAsync(string verb, object body, CancellationToken ct)
     {
         var keyId = Kms.KeyId
-            ?? throw new InvalidOperationException("KeyProtection:Kms:KeyId is not configured.");
+            ?? throw new InvalidOperationException("KeyProtection:KeyId is not configured.");
 
         var route = $"{ApiPrefix}/regions/{Kms.Region}/keys/{keyId}/{verb}";
         using var response = await http.PostAsJsonAsync(route, body, ct);

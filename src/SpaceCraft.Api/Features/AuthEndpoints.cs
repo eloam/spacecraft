@@ -101,7 +101,7 @@ public static class AuthEndpoints
         [FromBody] RegisterRequest request,
         UserManager<SpaceCraftUser> userManager,
         SpaceCraftDbContext db,
-        ITokenService tokens,
+        ITokenFactory tokenFactory,
         IOptions<JwtOptions> jwtOptions,
         IEmailSender email,
         IOptions<PublicUrlsOptions> publicUrls,
@@ -132,7 +132,7 @@ public static class AuthEndpoints
         var urls = publicUrls.Value;
         await email.SendAsync(Emails.Welcome(user.Email!, urls.AppRoot(), user.DisplayName, urls.ApiRoot()), ct);
 
-        var pair = await IssueAndStoreAsync(user, db, tokens, jwtOptions.Value, familyId: null, ct);
+        var pair = await IssueAndStoreAsync(user, db, tokenFactory, familyId: null, ct);
         return TypedResults.Ok(ToResponse(pair, user));
     }
 
@@ -140,7 +140,7 @@ public static class AuthEndpoints
         [FromBody] LoginRequest request,
         UserManager<SpaceCraftUser> userManager,
         SpaceCraftDbContext db,
-        ITokenService tokens,
+        ITokenFactory tokenFactory,
         IOptions<JwtOptions> jwtOptions,
         CancellationToken ct)
     {
@@ -186,7 +186,7 @@ public static class AuthEndpoints
         }
 
         user.LastLoginAt = DateTimeOffset.UtcNow;
-        var pair = await IssueAndStoreAsync(user, db, tokens, jwtOptions.Value, familyId: null, ct);
+        var pair = await IssueAndStoreAsync(user, db, tokenFactory, familyId: null, ct);
         return TypedResults.Ok(ToResponse(pair, user));
     }
 
@@ -194,7 +194,7 @@ public static class AuthEndpoints
         [FromBody] RefreshRequest request,
         SpaceCraftDbContext db,
         UserManager<SpaceCraftUser> userManager,
-        ITokenService tokens,
+        ITokenFactory tokenFactory,
         IOptions<JwtOptions> jwtOptions,
         CancellationToken ct)
     {
@@ -203,7 +203,7 @@ public static class AuthEndpoints
             return ApiResults.Invalid(nameof(request.RefreshToken), "A refresh token is required.");
         }
 
-        var hash = tokens.HashToken(request.RefreshToken);
+        var hash = tokenFactory.HashToken(request.RefreshToken);
         var now = DateTimeOffset.UtcNow;
 
         // Claimed by the database, in one statement, rather than read and then written.
@@ -269,7 +269,7 @@ public static class AuthEndpoints
         // Already marked by the claim above; reloaded so the tracked entity matches the row.
         await db.Entry(stored).ReloadAsync(ct);
 
-        var pair = await IssueAndStoreAsync(user, db, tokens, jwtOptions.Value, stored.FamilyId, ct);
+        var pair = await IssueAndStoreAsync(user, db, tokenFactory, stored.FamilyId, ct);
         return TypedResults.Ok(ToResponse(pair, user));
     }
 
@@ -299,7 +299,7 @@ public static class AuthEndpoints
         [FromBody] ResetPasswordRequest request,
         UserManager<SpaceCraftUser> userManager,
         SpaceCraftDbContext db,
-        ITokenService tokens,
+        ITokenFactory tokenFactory,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Token))
@@ -320,7 +320,7 @@ public static class AuthEndpoints
             StatusCodes.Status400BadRequest);
 
         var now = DateTimeOffset.UtcNow;
-        var hash = tokens.HashToken(request.Token);
+        var hash = tokenFactory.HashToken(request.Token);
 
         var stored = await db.PasswordResetTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
         if (stored is null || !stored.IsRedeemable(now))
@@ -375,11 +375,11 @@ public static class AuthEndpoints
         [FromBody] RefreshRequest request,
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
-        ITokenService tokens,
+        ITokenFactory tokenFactory,
         CancellationToken ct)
     {
         var userId = principal.Id();
-        var hash = tokens.HashToken(request.RefreshToken ?? string.Empty);
+        var hash = tokenFactory.HashToken(request.RefreshToken ?? string.Empty);
 
         var stored = await db.RefreshTokens
             .FirstOrDefaultAsync(t => t.TokenHash == hash && t.UserId == userId, ct);
@@ -414,20 +414,19 @@ public static class AuthEndpoints
     private static async Task<TokenPair> IssueAndStoreAsync(
         SpaceCraftUser user,
         SpaceCraftDbContext db,
-        ITokenService tokens,
-        JwtOptions options,
+        ITokenFactory tokenFactory,
         Guid? familyId,
         CancellationToken ct)
     {
         // A login starts a family; a refresh continues one. Either way the access token
         // carries the family id, so the session it belongs to is identifiable later.
         var session = familyId ?? Ids.New();
-        var pair = tokens.Issue(user, session);
+        var pair = tokenFactory.Create(user, session);
 
         db.RefreshTokens.Add(new RefreshToken(
             user.Id,
-            tokens.HashToken(pair.RefreshToken),
-            DateTimeOffset.UtcNow.Add(options.RefreshTokenLifetime),
+            tokenFactory.HashToken(pair.RefreshToken),
+            DateTimeOffset.UtcNow.Add(JwtOptions.RefreshTokenLifetime),
             session));
 
         await db.SaveChangesAsync(ct);

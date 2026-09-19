@@ -212,7 +212,7 @@ Postgres, [MinIO](https://min.io), [Mailpit](https://mailpit.axllent.org) and a 
 [Verdaccio](https://verdaccio.org) npm registry come up, and a one-shot container creates the
 bucket. Mail is delivered to Mailpit and read at http://localhost:8025 — the real transport
 runs, MIME and SMTP conversation included, and nothing leaves the machine. It has no
-certificate, which is why `Email:Smtp:Security` is `None` locally and refused anywhere else. Verdaccio matters: it lets the publish
+certificate, which is why `Smtp:Security` is `None` locally and refused anywhere else. Verdaccio matters: it lets the publish
 step be exercised end to end without pushing anything irreversible to npmjs.org.
 
 If you set `ObjectStorage:AccessKey` and `SecretKey` in user secrets when storage was on
@@ -262,7 +262,7 @@ key, a production connection string — goes in user secrets, which live outside
 tree:
 
 ```bash
-dotnet user-secrets set "Email:Smtp:Password" "<secret key>" --project src/SpaceCraft.Api
+dotnet user-secrets set "Smtp:Password" "<secret key>" --project src/SpaceCraft.Api
 ```
 
 A `pre-commit` hook refuses a commit that puts something *shaped like* a real credential into
@@ -338,7 +338,7 @@ These are known and deliberate, not oversights:
   `AddSpaceCraftDataProtection` calls `PersistKeysToDbContext` unconditionally, so it lives in
   the `spacecraft.data_protection_keys` table beside the registry tokens it encrypts — which
   is also why it has to be wrapped. Development points at the fake Key Manager in
-  `infra/SpaceCraft.FakeScalewayKms`; production has to set `KeyProtection:Kms:BaseUrl`,
+  `infra/SpaceCraft.FakeScalewayKms`; production has to set `KeyProtection:BaseUrl`,
   `Region`, `KeyId` and `SecretKey` against the real service. Outside Development, startup
   throws if the provider is unset, if any of those is missing or malformed, or if the URL is
   not `https` — rather than writing the ring in clear into the database it is meant to protect.
@@ -364,5 +364,5 @@ These are known and deliberate, not oversights:
   means a persisted, KMS-wrapped store both can reach — a container-local key ring makes
   every stored token unreadable to it.
 - **The mail sending domain must be verified with Scaleway** (SPF, DKIM, MX) before anything
-  is delivered, and `Email:Smtp:Host`/`Username`/`Password` must be set — the API refuses to start
+  is delivered, and `Smtp:Host`/`Username`/`Password` must be set — the API refuses to start
   without them outside Development.

@@ -12,7 +12,7 @@ namespace SpaceCraft.Api.Email;
 /// </summary>
 public sealed class SmtpEmailOptions : IValidatableObject
 {
-    public const string SectionName = "Email:Smtp";
+    public const string SectionName = "Smtp";
 
     /// <summary>
     /// Relay hostname — <c>smtp.tem.scaleway.com</c> for Scaleway Transactional Email. When
@@ -22,18 +22,21 @@ public sealed class SmtpEmailOptions : IValidatableObject
     public string? Host { get; set; }
 
     /// <summary>
-    /// 587 or 2587 for STARTTLS, 465 or 2465 for implicit TLS. Port 25 is accepted by the
-    /// relay but blocked by most hosting providers on egress, so it is not the default.
+    /// 465 or 2465 for implicit TLS, 587 or 2587 for STARTTLS. The default is implicit TLS on
+    /// 465 — what the relay this deploys against uses, and what the base appsettings used to
+    /// restate while this initializer said 587, so a reader of the class and a reader of the
+    /// file expected different things. One default, here. Port 25 is accepted by the relay
+    /// but blocked by most hosting providers on egress, so it is not it.
     /// </summary>
     [Range(1, 65535)]
-    public int Port { get; set; } = 587;
+    public int Port { get; set; } = 465;
 
     /// <summary>
     /// How the connection is encrypted. What is never done is falling back to plaintext when
     /// an upgrade fails, which is how an SMTP client silently leaks a password — choosing
     /// <see cref="SmtpSecurity.None"/> is a decision written down, not a fallback.
     /// </summary>
-    public SmtpSecurity Security { get; set; } = SmtpSecurity.StartTls;
+    public SmtpSecurity Security { get; set; } = SmtpSecurity.ImplicitTls;
 
     /// <summary>
     /// SMTP login. Scaleway wants the id of the project the sending domain belongs to, other
@@ -77,16 +80,6 @@ public sealed class SmtpEmailOptions : IValidatableObject
     /// </summary>
     public bool RequireCertificateRevocation { get; set; } = true;
 
-    /// <summary>Ceiling for one delivery including every retry.</summary>
-    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
-
-    /// <summary>Ceiling for a single attempt, before the pipeline retries it.</summary>
-    public TimeSpan AttemptTimeout { get; set; } = TimeSpan.FromSeconds(8);
-
-    /// <summary>Retries after the first attempt.</summary>
-    [Range(0, 10)]
-    public int MaxRetries { get; set; } = 3;
-
     /// <summary>All three, or there is no relay to talk to.</summary>
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(Host)
@@ -126,9 +119,9 @@ public sealed class SmtpEmailOptions : IValidatableObject
         {
             yield return new ValidationResult(
                 Security == SmtpSecurity.ImplicitTls
-                    ? $"Email:Smtp:Security is ImplicitTls, which belongs to port 465 or 2465, not {Port}. "
+                    ? $"Smtp:Security is ImplicitTls, which belongs to port 465 or 2465, not {Port}. "
                       + "Ports 25, 587 and 2587 upgrade with StartTls."
-                    : $"Email:Smtp:Port {Port} expects TLS from the first byte. "
+                    : $"Smtp:Port {Port} expects TLS from the first byte. "
                       + "Set Security to ImplicitTls, or use 587 to upgrade with StartTls.",
                 [nameof(Port), nameof(Security)]);
         }
@@ -136,7 +129,7 @@ public sealed class SmtpEmailOptions : IValidatableObject
         if (missing.Count is > 0 and < 3)
         {
             yield return new ValidationResult(
-                $"Email:Smtp is half configured: {string.Join(" and ", missing)} "
+                $"Smtp is half configured: {string.Join(" and ", missing)} "
                 + $"{(missing.Count == 1 ? "is" : "are")} missing. Supply all of "
                 + "Host, Username and Password, or none of them to log messages instead.",
                 names);

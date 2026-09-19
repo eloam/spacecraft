@@ -30,15 +30,24 @@ public sealed class SmtpEmailTransport(
     /// <summary>How the composition root and this transport agree on one pipeline.</summary>
     public const string PipelineKey = "email-smtp";
 
+    /// <summary>Ceiling for one delivery including every retry.</summary>
+    public static readonly TimeSpan TotalTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>Ceiling for a single attempt, before the pipeline retries it.</summary>
+    public static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(8);
+
+    /// <summary>Retries after the first attempt.</summary>
+    public const int MaxRetries = 3;
+
     private readonly SmtpEmailOptions _options = options.Value;
 
     // Non-null by construction: the composition root only registers this transport once the
     // relay is configured. Read into fields so that a gap fails when the transport is
     // resolved rather than at the first password reset somebody is waiting on.
-    private readonly string _host = Required(options.Value.Host, "Email:Smtp:Host");
-    private readonly string _username = Required(options.Value.Username, "Email:Smtp:Username");
-    private readonly string _password = Required(options.Value.Password, "Email:Smtp:Password");
-    private readonly string _fromEmail = Required(options.Value.FromEmail, "Email:Smtp:FromEmail");
+    private readonly string _host = Required(options.Value.Host, "Smtp:Host");
+    private readonly string _username = Required(options.Value.Username, "Smtp:Username");
+    private readonly string _password = Required(options.Value.Password, "Smtp:Password");
+    private readonly string _fromEmail = Required(options.Value.FromEmail, "Smtp:FromEmail");
 
     private static string Required(string? value, string key) =>
         !string.IsNullOrWhiteSpace(value)

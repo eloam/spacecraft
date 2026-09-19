@@ -35,7 +35,7 @@ public static class EmailServiceExtensions
             // running. A relay reached in the clear is a relay on this machine; anywhere else
             // the credentials and every reset link cross the network readable.
             throw new InvalidOperationException(
-                "Email:Smtp:Security is None, which sends the password and every message "
+                "Smtp:Security is None, which sends the password and every message "
                 + "unencrypted. That is only allowed in Development — use StartTls on port "
                 + "587 or ImplicitTls on 465.");
         }
@@ -45,14 +45,17 @@ public static class EmailServiceExtensions
             // Same shape as the resilience handler the HTTP clients get, expressed directly
             // because there is no HttpClient to hang it off: retry with jittered backoff so a
             // recovering relay is not stampeded by the whole queue at once, and a per-attempt
-            // timeout so one hung socket does not hold the total.
+            // timeout so one hung socket does not hold the total. The budgets are constants,
+            // as they are for the jobs client: no environment has ever set them differently,
+            // and the one relation that matters — an attempt shorter than the total — is
+            // something a setting could break and a constant cannot.
             services.AddKeyedSingleton<ResiliencePipeline>(
                 SmtpEmailTransport.PipelineKey,
                 (_, _) => new ResiliencePipelineBuilder()
-                    .AddTimeout(new TimeoutStrategyOptions { Timeout = options.Timeout })
+                    .AddTimeout(new TimeoutStrategyOptions { Timeout = SmtpEmailTransport.TotalTimeout })
                     .AddRetry(new RetryStrategyOptions
                     {
-                        MaxRetryAttempts = options.MaxRetries,
+                        MaxRetryAttempts = SmtpEmailTransport.MaxRetries,
                         BackoffType = DelayBackoffType.Exponential,
                         UseJitter = true,
                         // A rejected recipient or a refused password will be rejected again;
@@ -63,7 +66,7 @@ public static class EmailServiceExtensions
                             .Handle<TimeoutRejectedException>()
                             .Handle<SmtpCommandException>(IsTransient),
                     })
-                    .AddTimeout(new TimeoutStrategyOptions { Timeout = options.AttemptTimeout })
+                    .AddTimeout(new TimeoutStrategyOptions { Timeout = SmtpEmailTransport.AttemptTimeout })
                     .Build());
 
             services.AddSingleton<IEmailTransport, SmtpEmailTransport>();
@@ -78,7 +81,7 @@ public static class EmailServiceExtensions
             // reset links and waitlist confirmations would be written to the log store in
             // clear text, and nobody would receive them.
             throw new InvalidOperationException(
-                "No email transport is configured. Set Email:Smtp:Host, Username and Password, "
+                "No email transport is configured. Set Smtp:Host, Username and Password, "
                 + "or run in Development to log messages instead.");
         }
 

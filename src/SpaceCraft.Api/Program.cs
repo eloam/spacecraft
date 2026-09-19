@@ -1,16 +1,13 @@
-using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Extensions;
 using SpaceCraft.Api.Features;
 using SpaceCraft.Api.Jobs;
 using SpaceCraft.Infrastructure;
 using SpaceCraft.Infrastructure.Persistence;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Serilog;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using SpaceCraft.Infrastructure.Security;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Net;
@@ -51,7 +48,7 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 builder.Services.AddSpaceCraftInfrastructure(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddSpaceCraftIdentity();
 builder.Services.AddSpaceCraftAuth(builder.Configuration);
-builder.Services.AddSpaceCraftCors(builder.Configuration);
+builder.Services.AddSpaceCraftCors();
 builder.Services.AddSpaceCraftPublicUrls(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddSpaceCraftRateLimiting(builder.Configuration);
 

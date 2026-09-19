@@ -22,7 +22,7 @@ used to be a second job on a cron; it is now a predicate in the dispatcher's cla
 no schedule to create and a dead executor costs seconds rather than a cron interval.
 
 Mail leaves over SMTP, not over Scaleway's REST API. `SmtpEmailTransport` opens a MailKit
-connection to the relay named in `Email:Smtp:Host`; there is no HTTP client, no route and no
+connection to the relay named in `Smtp:Host`; there is no HTTP client, no route and no
 token on that path. Scaleway happens to be the relay, and everything the application knows
 about it is a hostname, a port and a password.
 
@@ -215,11 +215,13 @@ below are supplied as environment variables in the container and job definitions
 Nested keys use a double underscore: `ConnectionStrings__Postgres` maps to
 `ConnectionStrings:Postgres`.
 
-The tracked `appsettings.json` files carry no deployment value: every setting that depends on
-where this runs — bucket, region, endpoint, URLs, relay, sender — ships empty, so an
-environment that forgets one is refused at startup rather than started on production's value.
-That was the shape of the fallback this replaces: a deployment that forgot `PublicUrls__App`
-would have mailed its password-reset links to another site and reported healthy.
+The tracked `appsettings.json` files list every setting the code reads, so the file is the
+map of what can be configured. Tuning knobs — timeouts, batch sizes, retention — show their
+defaults. Every setting that depends on where this runs — bucket, region, endpoint, URLs,
+relay, sender — ships empty, so an environment that forgets one is refused at startup rather
+than started on production's value. That was the shape of the fallback this replaces: a
+deployment that forgot `PublicUrls__App` would have mailed its password-reset links to another
+site and reported healthy.
 
 ```
 # Database
@@ -235,10 +237,10 @@ Jwt__Audience=spacecraft-api
 # they share one key ring. SecretKey is the one secret that must not live in the database
 # it protects, so it comes from the deployment and nowhere else.
 KeyProtection__Provider=ScalewayKms
-KeyProtection__Kms__BaseUrl=https://api.scaleway.com
-KeyProtection__Kms__Region=fr-par
-KeyProtection__Kms__KeyId=…
-KeyProtection__Kms__SecretKey=…
+KeyProtection__BaseUrl=https://api.scaleway.com
+KeyProtection__Region=fr-par
+KeyProtection__KeyId=…
+KeyProtection__SecretKey=…
 
 # Scaleway account — shared by every service that talks to it
 
@@ -255,13 +257,13 @@ ObjectStorage__ForcePathStyle=false
 # SMTP rather than a provider API: the relay is swappable without touching code, and
 # nothing below is derived from one. Scaleway's username is the id of the project the
 # sending domain belongs to.
-Email__Smtp__Host=smtp.tem.scaleway.com
-Email__Smtp__Port=587
-Email__Smtp__Security=StartTls
-Email__Smtp__Username=…
-Email__Smtp__Password=…
-Email__Smtp__FromEmail=noreply@yourdomain
-Email__Smtp__FromName=SpaceCraft
+Smtp__Host=smtp.tem.scaleway.com
+Smtp__Port=465
+Smtp__Security=ImplicitTls
+Smtp__Username=…
+Smtp__Password=…
+Smtp__FromEmail=noreply@yourdomain
+Smtp__FromName=SpaceCraft
 
 # Pipeline — steps run in the worker's own process, with no sandbox between a tenant's
 # build and the host. Startup refuses without this outside Development, so that it is a
@@ -277,7 +279,6 @@ Pipeline__DependencyRegistry=https://registry.npmjs.org
 # Public URLs and CORS
 PublicUrls__Api=https://api.yourdomain
 PublicUrls__App=https://app.yourdomain
-Cors__AllowedOrigins__0=https://app.yourdomain
 
 # Rate limits (optional; these are the defaults)
 RateLimits__GlobalPermitsPerMinute=300
@@ -286,7 +287,7 @@ RateLimits__CredentialWindow=00:15:00
 ```
 
 Startup fails fast rather than running degraded, and it names the setting. Every required
-setting is listed in the `"//"` key at the top of each `appsettings.json`; a missing or blank
+setting is listed in the `"//"` key at the top of its section in `appsettings.json`; a missing or blank
 one is refused before any hosted service runs. For the sections validated by annotations every
 failing key of the section is reported together; the hand-written checks (connection string,
 key protection, email's relay rules) stop at the first, and the first section that fails stops
@@ -294,7 +295,7 @@ startup. Among them: a blank connection string, a signing key missing or shorter
 characters, a bucket name or region left out, `PublicUrls:App` or `PublicUrls:Api` missing or
 not https outside Development, a sender address missing or malformed, mail that is
 unconfigured or half configured outside Development,
-`Email:Smtp:Security=None` there, a port and a handshake that contradict each other, storage
+`Smtp:Security=None` there, a port and a handshake that contradict each other, storage
 keys left blank outside Development, `KeyProtection:Provider` left at `None` there, and
 `Pipeline:AllowUnsandboxedExecution` not being `true` there.
 
@@ -312,11 +313,11 @@ unreadable.
 Nothing is checked about the generator, because there is nothing to check at runtime: which
 generator runs is not configurable at all. Kiota is a compile-time dependency pinned by
 `KiotaVersion` in `Directory.Packages.props`. What generation does read from configuration is
-`Pipeline:GenerateTimeout` and `Pipeline:WorkspaceRoot`, and neither can select a different
-generator or a different version of one.
+`Pipeline:WorkspaceRoot`, which cannot select a different generator or a different version of
+one; its time budget is a constant beside the lease it has to fit under.
 
 The relay's certificate is validated in full. Revocation is always requested; what
-`Email__Smtp__RequireCertificateRevocation` decides is what happens when no answer comes back,
+`Smtp__RequireCertificateRevocation` decides is what happens when no answer comes back,
 which on macOS and in a container with no route to an OCSP responder is every time.
 
 It is **on** for a deployment: a host that cannot get an answer about its relay's certificate
@@ -327,18 +328,18 @@ container too if it has no route to a responder, and know what that buys you.
 Nothing else moves either way: an expired certificate, an untrusted root, a mismatched name
 and a revocation that comes back positive are refused in both modes.
 
-`Email:Smtp:Security` is `StartTls`, `ImplicitTls` or `None`. `None` sends the password and
+`Smtp:Security` is `StartTls`, `ImplicitTls` or `None`. `None` sends the password and
 every message in the clear and is **refused outside Development**, where it exists for a relay
 on the same machine with no certificate. It has to be written down — no missing setting can
 ever mean plaintext, and MailKit's opportunistic `Auto` is deliberately not offered, since it
 fails open on exactly the connection that matters.
 
-`Email:Smtp:Port` and `Security` have to agree — 465 and 2465 expect TLS from the first
+`Smtp:Port` and `Security` have to agree — 465 and 2465 expect TLS from the first
 byte, 25, 587 and 2587 upgrade with STARTTLS. Crossed, neither side reports an error: the
 client waits for a greeting the server will not send until it sees TLS, and the send ends as
 a timeout several retries later with nothing naming the cause.
 
-Mail is checked the same way from the other side: `Email:Smtp` wants Host, Username and
+Mail is checked the same way from the other side: `Smtp` wants Host, Username and
 Password **together, or none of them**. All three blank is the state of a machine with no
 relay, and selects the transport that writes to the log. One or two of them is somebody who
 started configuring a relay and stopped, and reading that as "no relay" would swallow every
@@ -348,7 +349,7 @@ message the application sends.
 anything genuinely secret goes in user secrets:
 
 ```bash
-dotnet user-secrets set "Email:Smtp:Password" "<secret key>" --project src/SpaceCraft.Api
+dotnet user-secrets set "Smtp:Password" "<secret key>" --project src/SpaceCraft.Api
 ```
 
 **Two API keys, one project.** Transactional Email and Object Storage each get their own IAM
@@ -380,7 +381,7 @@ Manager. `scaleway_job_definition` takes a `secret_reference` block that mounts 
 
 Pipeline steps run in the runner's own process, so a customer's transitive npm dependency runs
 as the same user, in the same PID namespace. Everything in that process's environment —
-`KeyProtection__Kms__SecretKey`, the storage keys, the connection string — is readable from
+`KeyProtection__SecretKey`, the storage keys, the connection string — is readable from
 `/proc/self/environ` by anything the build executes. A file is not containment against the same
 uid, but it is no longer handed over by simply existing.
 

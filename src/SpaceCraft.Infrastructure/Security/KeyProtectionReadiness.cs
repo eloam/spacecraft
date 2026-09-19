@@ -31,7 +31,7 @@ public sealed class KeyProtectionReadiness(
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var kms = options.Value.Kms;
+        var kms = options.Value;
 
         // Distinctive on purpose: if this ever surfaces in a log or a KMS audit trail, it
         // should be obvious that it is a probe and not a key.
@@ -85,7 +85,7 @@ public sealed class KeyProtectionReadiness(
     /// that into a failed start.
     /// </para>
     /// </remarks>
-    private int UnwrapEveryStoredKey(ScalewayKmsOptions kms)
+    private int UnwrapEveryStoredKey(KeyProtectionOptions kms)
     {
         var repository = keyManagement.Value.XmlRepository;
         if (repository is null)

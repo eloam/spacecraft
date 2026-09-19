@@ -67,7 +67,7 @@ services:
   # instead of being sent — and unlike the logging transport, this exercises the real
   # transport: MIME building, the SMTP conversation, the dispatcher behind the queue.
   #
-  # It speaks plaintext, having no certificate, which is why Email:Smtp:Security exists and
+  # It speaks plaintext, having no certificate, which is why Smtp:Security exists and
   # why "None" is refused outside development.
   mailpit:
     image: axllent/mailpit:latest
@@ -149,10 +149,10 @@ services:
       # The runner decrypts what the API encrypted, so it must reach the same key manager
       # with the same key. Divergence here is a publish that cannot read its own credential.
       KeyProtection__Provider: "ScalewayKms"
-      KeyProtection__Kms__BaseUrl: "http://fake-scaleway-kms:8099"
-      KeyProtection__Kms__Region: "fr-par"
-      KeyProtection__Kms__KeyId: "00000000-0000-4000-8000-000000000001"
-      KeyProtection__Kms__SecretKey: "fake-token"
+      KeyProtection__BaseUrl: "http://fake-scaleway-kms:8099"
+      KeyProtection__Region: "fr-par"
+      KeyProtection__KeyId: "00000000-0000-4000-8000-000000000001"
+      KeyProtection__SecretKey: "fake-token"
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"
       ObjectStorage__ServiceUrl: "http://minio:9000"
       ObjectStorage__BucketName: "openapi-bucket"
@@ -162,7 +162,6 @@ services:
       # Where dependencies are resolved from, not where packages go: that is on the
       # credential now. Verdaccio proxies npmjs, so this also keeps builds off the wire.
       Pipeline__DependencyRegistry: "http://verdaccio:4873"
-      Database__MigrateOnStartup: "false"
     # One shot, then gone. This service no longer watches the queue: fake-scaleway-jobs starts
     # a container per run, the way the deployment starts a job per run. What it still does is
     # A run id that does not exist: the container boots the whole container — Postgres, storage,
@@ -193,10 +192,10 @@ services:
       # not here — it travels as an argument on the execution.
       Fake__Definitions__spacecraft-pipeline__Env__DOTNET_ENVIRONMENT: "Development"
       Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Provider: "ScalewayKms"
-      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Kms__BaseUrl: "http://fake-scaleway-kms:8099"
-      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Kms__Region: "fr-par"
-      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Kms__KeyId: "00000000-0000-4000-8000-000000000001"
-      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Kms__SecretKey: "fake-token"
+      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__BaseUrl: "http://fake-scaleway-kms:8099"
+      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__Region: "fr-par"
+      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__KeyId: "00000000-0000-4000-8000-000000000001"
+      Fake__Definitions__spacecraft-pipeline__Env__KeyProtection__SecretKey: "fake-token"
       Fake__Definitions__spacecraft-pipeline__Env__ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=spacecraft;Username=spacecraft;Password=spacecraft"
       Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__ServiceUrl: "http://minio:9000"
       Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__BucketName: "openapi-bucket"
@@ -204,7 +203,6 @@ services:
       Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__SecretKey: "spacecraft-dev-secret"
       Fake__Definitions__spacecraft-pipeline__Env__ObjectStorage__ForcePathStyle: "true"
       Fake__Definitions__spacecraft-pipeline__Env__Pipeline__DependencyRegistry: "http://verdaccio:4873"
-      Fake__Definitions__spacecraft-pipeline__Env__Database__MigrateOnStartup: "false"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8098/health || exit 1"]
       interval: 5s

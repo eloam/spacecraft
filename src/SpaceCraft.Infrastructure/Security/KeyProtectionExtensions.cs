@@ -33,7 +33,7 @@ public static class KeyProtectionExtensions
 
         if (options.Provider is KeyProtectionProvider.ScalewayKms)
         {
-            AddScalewayKms(services, options.Kms, isDevelopment);
+            AddScalewayKms(services, options, isDevelopment);
         }
         else if (isDevelopment)
         {
@@ -48,7 +48,7 @@ public static class KeyProtectionExtensions
             // clear into the database it is supposed to protect, and nothing would say so.
             throw new InvalidOperationException(
                 "No key protection is configured. Set KeyProtection:Provider to ScalewayKms "
-                + "with Kms:BaseUrl, Kms:Region, Kms:KeyId and Kms:SecretKey, or run in "
+                + "with BaseUrl, Region, KeyId and SecretKey, or run in "
                 + "Development to store the key ring unwrapped.");
         }
 
@@ -65,7 +65,7 @@ public static class KeyProtectionExtensions
         return services;
     }
 
-    private static void AddScalewayKms(IServiceCollection services, ScalewayKmsOptions kms, bool isDevelopment)
+    private static void AddScalewayKms(IServiceCollection services, KeyProtectionOptions kms, bool isDevelopment)
     {
         Validate(kms, isDevelopment);
 
@@ -94,12 +94,12 @@ public static class KeyProtectionExtensions
         services.AddHostedService<KeyProtectionReadiness>();
     }
 
-    private static void Validate(ScalewayKmsOptions kms, bool isDevelopment)
+    private static void Validate(KeyProtectionOptions kms, bool isDevelopment)
     {
         if (!Uri.TryCreate(kms.BaseUrl, UriKind.Absolute, out var baseUrl))
         {
             throw new InvalidOperationException(
-                $"KeyProtection:Kms:BaseUrl must be an absolute URL; it was '{kms.BaseUrl}'.");
+                $"KeyProtection:BaseUrl must be an absolute URL; it was '{kms.BaseUrl}'.");
         }
 
         // The whole point of the fake is that it speaks the same API over plain HTTP on a
@@ -109,19 +109,19 @@ public static class KeyProtectionExtensions
         if (!isDevelopment && baseUrl.Scheme != Uri.UriSchemeHttps)
         {
             throw new InvalidOperationException(
-                $"KeyProtection:Kms:BaseUrl must be https outside Development; it was '{kms.BaseUrl}'. "
+                $"KeyProtection:BaseUrl must be https outside Development; it was '{kms.BaseUrl}'. "
                 + "The development fake in infra/SpaceCraft.FakeScalewayKms is not a key manager.");
         }
 
         if (!Guid.TryParse(kms.KeyId, out _))
         {
             throw new InvalidOperationException(
-                $"KeyProtection:Kms:KeyId must be the key's UUID; it was '{kms.KeyId}'.");
+                $"KeyProtection:KeyId must be the key's UUID; it was '{kms.KeyId}'.");
         }
 
         if (string.IsNullOrWhiteSpace(kms.SecretKey))
         {
-            throw new InvalidOperationException("KeyProtection:Kms:SecretKey is not configured.");
+            throw new InvalidOperationException("KeyProtection:SecretKey is not configured.");
         }
 
         // Presence first. This had a default of fr-par, which is also a region the API serves —
@@ -129,16 +129,16 @@ public static class KeyProtectionExtensions
         // the wrong region with a valid-looking name.
         if (string.IsNullOrWhiteSpace(kms.Region))
         {
-            throw new InvalidOperationException("KeyProtection:Kms:Region is not configured.");
+            throw new InvalidOperationException("KeyProtection:Region is not configured.");
         }
 
         // Checked rather than trusted: the fake accepts any region, so a typo would work all
         // the way to production and fail there on the first credential.
-        if (!isDevelopment && !ScalewayKmsOptions.KnownRegions.Contains(kms.Region, StringComparer.Ordinal))
+        if (!isDevelopment && !KeyProtectionOptions.KnownRegions.Contains(kms.Region, StringComparer.Ordinal))
         {
             throw new InvalidOperationException(
-                $"KeyProtection:Kms:Region '{kms.Region}' is not one Key Manager serves "
-                + $"({string.Join(", ", ScalewayKmsOptions.KnownRegions)}).");
+                $"KeyProtection:Region '{kms.Region}' is not one Key Manager serves "
+                + $"({string.Join(", ", KeyProtectionOptions.KnownRegions)}).");
         }
     }
 }

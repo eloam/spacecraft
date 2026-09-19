@@ -3,6 +3,8 @@ using System.Threading.RateLimiting;
 using SpaceCraft.Api.Auth;
 using SpaceCraft.Api.Common;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 
@@ -26,7 +28,7 @@ public static class ApiServiceExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddSingleton<ITokenService, TokenService>();
+        services.AddSingleton<ITokenFactory, TokenFactory>();
         services.AddScoped<IOrganizationAccess, OrganizationAccess>();
 
         var jwt = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
@@ -110,19 +112,34 @@ public static class ApiServiceExtensions
         return services;
     }
 
-    public static IServiceCollection AddSpaceCraftCors(this IServiceCollection services, IConfiguration configuration)
+    /// <summary>
+    /// The one origin allowed to call this API with credentials: the front end, which is
+    /// already named by <c>PublicUrls:App</c>.
+    /// </summary>
+    /// <remarks>
+    /// This used to be its own list, <c>Cors:AllowedOrigins</c>, and the deployment document
+    /// told the operator to copy <c>PublicUrls:App</c> into it. One fact under two keys drifts:
+    /// the e2e stack said 5173 in one and 4173 in the other and never noticed, because the
+    /// browser there never crosses an origin. Deriving it removes the copy and the drift.
+    /// </remarks>
+    public static IServiceCollection AddSpaceCraftCors(this IServiceCollection services)
     {
-        var origins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        services.AddOptions<CorsOptions>().Configure<IOptions<PublicUrlsOptions>>((cors, publicUrls) =>
+            cors.AddPolicy(SpaCorsPolicy, policy =>
+            {
+                // Origin, not URL: a path or a trailing slash on PublicUrls:App would make the
+                // browser's Origin header never match.
+                var origin = new Uri(publicUrls.Value.App!).GetLeftPart(UriPartial.Authority);
 
-        services.AddCors(options => options.AddPolicy(SpaCorsPolicy, policy =>
-        {
-            // No AllowAnyOrigin: credentials are sent on these requests, and the two are
-            // mutually exclusive for good reason.
-            policy.WithOrigins(origins)
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
-        }));
+                // No AllowAnyOrigin: credentials are sent on these requests, and the two are
+                // mutually exclusive for good reason.
+                policy.WithOrigins(origin)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+            }));
+
+        services.AddCors();
 
         return services;
     }

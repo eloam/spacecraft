@@ -17,8 +17,6 @@ namespace SpaceCraft.UnitTests;
 /// </remarks>
 public class PipelineTimeoutTests
 {
-    private static readonly PipelineOptions Options = new();
-
     /// <summary>Enough that a step finishing near its limit is not a race with the reaper.</summary>
     private static readonly TimeSpan Margin = TimeSpan.FromMinutes(5);
 
@@ -26,7 +24,7 @@ public class PipelineTimeoutTests
     public void The_lease_outlasts_the_longest_step_it_has_to_cover()
     {
         // Renewed before each step, so the sum does not matter — the longest one does.
-        var longest = new[] { Options.GenerateTimeout, Options.BuildTimeout, Options.PublishTimeout }.Max();
+        var longest = new[] { PipelineOptions.GenerateTimeout, PipelineOptions.BuildTimeout, PipelineOptions.PublishTimeout }.Max();
 
         PipelineRun.LeaseDuration.ShouldBeGreaterThan(
             longest + Margin,

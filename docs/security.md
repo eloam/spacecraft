@@ -66,7 +66,7 @@ without a filesystem between them, and **wrapped by a Scaleway Key Manager key**
 written. The wrapping is what makes the encryption mean anything: stored in clear, the ring
 sat in the same database as the credentials it protects, and a single dump carried both the
 ciphertext and the key that opens it. The only unwrapped secret now lives in the deployment —
-`KeyProtection:Kms:SecretKey` — where a database dump cannot reach it.
+`KeyProtection:SecretKey` — where a database dump cannot reach it.
 
 An `IXmlEncryptor` applies when a key is minted rather than retroactively, so a ring that
 predates Key Manager keeps its old keys in clear. That cannot happen on a deployment:
@@ -181,8 +181,8 @@ one NAT address exhausted it faster. Separate windows still stop spraying a sing
 
 SMTP, over MailKit. Two deployment prerequisites are not optional: the sending domain must be
 one the relay has been shown to own (SPF, DKIM and MX records) or every send is rejected, and
-`Email:Smtp:Host`/`Username`/`Password` must be set — outside Development startup fails
-without them rather than quietly writing reset links to the log. `Email:Smtp:Security` of
+`Smtp:Host`/`Username`/`Password` must be set — outside Development startup fails
+without them rather than quietly writing reset links to the log. `Smtp:Security` of
 `None` is refused outside Development for the same reason: a relay reached in the clear
 carries the password and every reset link with it.
 

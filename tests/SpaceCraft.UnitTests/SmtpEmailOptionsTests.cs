@@ -8,7 +8,7 @@ namespace SpaceCraft.UnitTests;
 public class SmtpEmailOptionsTests
 {
     private static SmtpEmailOptions Configured(
-        int port = 587, SmtpSecurity security = SmtpSecurity.StartTls) => new()
+        int port = 465, SmtpSecurity security = SmtpSecurity.ImplicitTls) => new()
     {
         Host = "smtp.tem.scaleway.com",
         Port = port,
@@ -114,21 +114,28 @@ public class SmtpEmailOptionsTests
     [Fact]
     public void Encryption_is_the_default_and_must_be_opted_out_of() =>
         // None has to be written down. A missing setting can never mean plaintext.
-        new SmtpEmailOptions().Security.ShouldBe(SmtpSecurity.StartTls);
+        new SmtpEmailOptions().Security.ShouldNotBe(SmtpSecurity.None);
 
     [Fact]
-    public void The_default_port_is_the_submission_one() =>
-        // 587 with STARTTLS. Port 25 is accepted by relays but blocked on egress by most
-        // hosting providers, so defaulting to it would fail only once deployed.
-        new SmtpEmailOptions().Port.ShouldBe(587);
+    public void The_default_port_and_handshake_agree_and_are_not_port_25()
+    {
+        // 465 with implicit TLS — what the relay this deploys against uses. Pinned as a pair,
+        // because the two are validated against each other and a default that failed its own
+        // validation would refuse every host that set neither. Port 25 is accepted by relays
+        // but blocked on egress by most hosting providers, so defaulting to it would fail only
+        // once deployed.
+        var options = new SmtpEmailOptions();
+
+        options.Port.ShouldBe(465);
+        options.Security.ShouldBe(SmtpSecurity.ImplicitTls);
+        options.Port.ShouldNotBe(25);
+    }
 
     [Fact]
     public void The_attempt_timeout_leaves_room_for_retries_inside_the_total()
     {
-        var options = new SmtpEmailOptions();
-
         // The pipeline nests a per-attempt timeout inside the total one; an attempt allowed
         // to outlast the whole send would make the retry count meaningless.
-        options.AttemptTimeout.ShouldBeLessThan(options.Timeout);
+        SmtpEmailTransport.AttemptTimeout.ShouldBeLessThan(SmtpEmailTransport.TotalTimeout);
     }
 }
