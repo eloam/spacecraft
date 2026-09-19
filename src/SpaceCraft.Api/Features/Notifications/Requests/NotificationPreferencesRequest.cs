@@ -10,13 +10,15 @@ public sealed record NotificationPreferencesRequest(List<NotificationPreferenceS
     {
         public Validator()
         {
-            RuleLevelCascadeMode = CascadeMode.Stop;
-
             // Judged switch by switch, so every wrong name is reported under its own index
-            // rather than the first one stopping the rest. A null list has nothing to judge
-            // and passes, as it always has.
+            // rather than the first one stopping the rest — which is why the cascade setting
+            // sits on the child rules and not on the collection rule, where it would end the
+            // walk at the first bad row. A null list has nothing to judge and passes, as it
+            // always has.
             RuleForEach(request => request.Preferences).ChildRules(state =>
             {
+                state.RuleLevelCascadeMode = CascadeMode.Stop;
+
                 state.RuleFor(preference => preference.Kind)
                     .Must(BeAKindWeSend)
                     .WithMessage("'{PropertyValue}' is not a notification we send.");

@@ -10,9 +10,10 @@ public sealed record UpdateProfileRequest(string? DisplayName)
         {
             RuleLevelCascadeMode = CascadeMode.Stop;
 
-            // No name at all is a valid request: it clears the one on file.
+            // Measured as it will be stored — trimmed. No name at all is a valid request: it
+            // clears the one on file.
             RuleFor(request => request.DisplayName)
-                .MaximumLength(100)
+                .Must(name => name is null || name.Trim().Length <= 100)
                 .WithMessage("Use 100 characters or fewer.");
         }
     }

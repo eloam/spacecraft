@@ -82,10 +82,12 @@ public sealed class CredentialRequestValidationTests
             .WithErrorMessage("'not a url' is not an absolute http or https URL.");
 
     [Fact]
-    public void A_blank_token_is_refused() =>
+    public void A_blank_token_is_refused_once() =>
+        // Blank fails every rule on the token; the form must hear the first message only.
         InProduction.TestValidate(Request(token: " "))
             .ShouldHaveValidationErrorFor(r => r.Token)
-            .WithErrorMessage("Provide the registry token.");
+            .WithErrorMessage("Provide the registry token.")
+            .Only();
 
     [Fact]
     public void A_token_for_npmjs_that_is_not_shaped_like_one_is_refused() =>
@@ -100,9 +102,12 @@ public sealed class CredentialRequestValidationTests
         InProduction.TestValidate(Request(token: "abcdefghijklmnop", registryUrl: "https://nexus.acme.test/repository/npm/"))
             .ShouldNotHaveAnyValidationErrors();
 
-    [Fact]
-    public void A_token_too_short_to_be_one_is_refused() =>
-        InProduction.TestValidate(Request(token: "npm_1"))
+    // Measured trimmed, as the handler measured and stores it: padding is not length.
+    [Theory]
+    [InlineData("npm_1")]
+    [InlineData("  npm_1  ")]
+    public void A_token_too_short_to_be_one_is_refused(string token) =>
+        InProduction.TestValidate(Request(token: token))
             .ShouldHaveValidationErrorFor(r => r.Token)
             .WithErrorMessage(
                 "That token is 5 characters. A registry token is far longer — check that the whole value was pasted.");

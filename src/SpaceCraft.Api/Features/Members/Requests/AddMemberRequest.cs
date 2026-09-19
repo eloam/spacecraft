@@ -11,13 +11,16 @@ public sealed record AddMemberRequest(string Email, OrganizationRole Role)
         {
             RuleLevelCascadeMode = CascadeMode.Stop;
 
+            // Judged trimmed, as the handler stores it, and asked only for an '@': the
+            // invitation mail is the real test of the address.
             RuleFor(request => request.Email)
                 .NotEmpty()
                 .WithMessage("Enter a valid email address.")
-                .EmailAddress()
+                .Must(email => email.Trim().Contains('@', StringComparison.Ordinal))
                 .WithMessage("Enter a valid email address.");
 
-            // An undefined value compares above every real role, so it would create a member
+            // Enums bind from any integer. A value outside the model is not a role: below
+            // Viewer it would be a member every permission check refuses, above Owner one
             // nobody could demote.
             RuleFor(request => request.Role)
                 .IsInEnum()

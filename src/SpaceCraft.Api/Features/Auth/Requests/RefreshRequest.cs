@@ -1,5 +1,4 @@
 using FluentValidation;
-using SpaceCraft.Domain.Identity;
 
 namespace SpaceCraft.Api.Features.Auth.Requests;
 

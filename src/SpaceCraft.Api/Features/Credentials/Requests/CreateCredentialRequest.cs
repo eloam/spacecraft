@@ -85,9 +85,10 @@ public sealed record CreateCredentialRequest(
                                 + "automation token (npm_...): granular or classic publish tokens with 2FA enabled "
                                 + "will fail on an unattended publish.";
                         })
-                        .MinimumLength(8)
-                        .WithMessage(
-                            "That token is {TotalLength} characters. A registry token is far longer — "
+                        // Measured as it will be stored — trimmed.
+                        .Must(token => token.Trim().Length >= 8)
+                        .WithMessage((_, token) =>
+                            $"That token is {token.Trim().Length} characters. A registry token is far longer — "
                             + "check that the whole value was pasted.");
                 });
         }

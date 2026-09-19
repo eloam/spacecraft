@@ -1,6 +1,7 @@
 using FluentValidation.TestHelper;
 using SpaceCraft.Api.Features.Notifications.Requests;
 using SpaceCraft.Api.Features.Notifications.Responses;
+using Shouldly;
 using Xunit;
 
 namespace SpaceCraft.UnitTests;
@@ -36,6 +37,27 @@ public sealed class NotificationsRequestValidationTests
         Validator.TestValidate(request)
             .ShouldHaveValidationErrorFor("Preferences[1].Channel")
             .WithErrorMessage("'Pigeon' is not a channel we deliver on.");
+    }
+
+    [Fact]
+    public void Every_wrong_row_is_reported_and_each_only_once()
+    {
+        var request = new NotificationPreferencesRequest(
+        [
+            new NotificationPreferenceState("RunExploded", "Email", true),
+            new NotificationPreferenceState("RunCompleted", "Email", true),
+            new NotificationPreferenceState("Nope", "Pigeon", true),
+        ]);
+
+        var result = Validator.TestValidate(request);
+
+        // Three failures across two rows: the collection walk does not stop at the first bad
+        // row, and a wrong Kind does not also produce a wrong-Channel message for the same row.
+        result.Errors.Count.ShouldBe(3);
+        result.ShouldHaveValidationErrorFor("Preferences[0].Kind");
+        result.ShouldHaveValidationErrorFor("Preferences[2].Kind");
+        result.ShouldHaveValidationErrorFor("Preferences[2].Channel");
+        result.ShouldNotHaveValidationErrorFor("Preferences[1].Kind");
     }
 
     [Fact]

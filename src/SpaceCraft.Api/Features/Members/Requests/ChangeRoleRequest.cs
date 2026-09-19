@@ -11,8 +11,9 @@ public sealed record ChangeRoleRequest(OrganizationRole Role)
         {
             RuleLevelCascadeMode = CascadeMode.Stop;
 
-            // An undefined value compares above every real role, so once written it would
-            // make a member nobody could demote.
+            // Enums bind from any integer, and the handler used to write whatever arrived. A
+            // value outside the model is not a role: below Viewer it makes a member every
+            // permission check refuses, above Owner one nobody could demote.
             RuleFor(request => request.Role)
                 .IsInEnum()
                 .WithMessage("'{PropertyValue}' is not a role.");

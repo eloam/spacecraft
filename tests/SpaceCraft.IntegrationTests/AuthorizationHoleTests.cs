@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SpaceCraft.Domain.Organizations;
@@ -143,6 +144,9 @@ public sealed class AuthorizationHoleTests(SpaceCraftApi api)
             TestContext.Current.CancellationToken);
 
         added.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await added.Content.ReadFromJsonAsync<HttpValidationProblemDetails>(TestContext.Current.CancellationToken);
+        problem.ShouldNotBeNull();
+        problem.Errors.ShouldContainKey("Role");
     }
 
     private static string Email() => $"{Guid.NewGuid():N}@example.test";

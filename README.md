@@ -55,7 +55,7 @@ installs and type-checks in a consumer project under `strict`.
 | `SpaceCraft.Domain` | Entities and rules. No dependencies. |
 | `SpaceCraft.Infrastructure` | EF Core, Postgres, object storage, encryption, spec validation. |
 | `SpaceCraft.Pipeline` | Generation, build and publish, and the command runner that starts them on the host. |
-| `SpaceCraft.Api` | Minimal API, organised as vertical slices per feature. |
+| `SpaceCraft.Api` | Minimal API, organised as vertical slices per feature: `Features/<Name>/` holds one file per use case, its `Requests/` and `Responses/` records, and each request's rules in a nested `Validator` (FluentValidation) run by a filter on the API group. |
 | `SpaceCraft.Runner` | Same work as a one-shot process, for schedulers that treat the process as the unit of work (serverless job, batch task, single-use pod). |
 | `src/web` | React 19, Tailwind v4, shadcn/ui, TanStack Query, Zustand. |
 
