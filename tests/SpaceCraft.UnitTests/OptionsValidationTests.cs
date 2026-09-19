@@ -2,7 +2,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using SpaceCraft.Api.Email;
+using SpaceCraft.Api.Extensions;
+using SpaceCraft.Api.Features.Notifications;
 using SpaceCraft.Infrastructure;
+using SpaceCraft.Pipeline;
 using Shouldly;
 using Xunit;
 
@@ -19,8 +23,18 @@ namespace SpaceCraft.UnitTests;
 /// </summary>
 public class OptionsValidationTests
 {
+    private static Task<Exception?> StartWith(
+        Dictionary<string, string?> settings, bool isDevelopment = true) =>
+        StartWith(
+            (services, configuration) => services.AddSpaceCraftInfrastructure(configuration, isDevelopment),
+            settings);
+
+    /// <summary>
+    /// Starts a host with one registration — the same method the API or the runner calls —
+    /// and returns what stopped it, if anything.
+    /// </summary>
     private static async Task<Exception?> StartWith(
-        Dictionary<string, string?> settings, bool isDevelopment = true)
+        Action<IServiceCollection, IConfiguration> register, Dictionary<string, string?> settings)
     {
         var builder = Host.CreateApplicationBuilder();
 
@@ -33,9 +47,21 @@ public class OptionsValidationTests
 
         try
         {
-            // Inside the try: the connection-string guard throws at registration, before
-            // there is a host to start.
-            builder.Services.AddSpaceCraftInfrastructure(builder.Configuration, isDevelopment);
+            // Inside the try: some registrations refuse at the call — the connection-string
+            // guard, the pipeline's sandbox acknowledgement — before there is a host to start.
+            register(builder.Services, builder.Configuration);
+
+            // A section's registration brings the hosted services of its feature — dispatchers
+            // that sweep a database this host does not have. What is under test is whether
+            // the host may start, not what it does afterwards; the options validation is the
+            // framework's and stays.
+            foreach (var hosted in builder.Services
+                .Where(s => s.ServiceType == typeof(IHostedService)
+                    && s.ImplementationType?.Namespace?.StartsWith("SpaceCraft", StringComparison.Ordinal) == true)
+                .ToList())
+            {
+                builder.Services.Remove(hosted);
+            }
 
             using var host = builder.Build();
             await host.StartAsync(TestContext.Current.CancellationToken);
@@ -154,4 +180,110 @@ public class OptionsValidationTests
         error.ShouldBeOfType<OptionsValidationException>();
         error.Message.ShouldContain("ObjectStorage:ServiceUrl");
     }
+
+    private static Dictionary<string, string?> UnencryptedRelay() => new()
+    {
+        ["Smtp:Host"] = "mailpit",
+        ["Smtp:Port"] = "1025",
+        ["Smtp:Security"] = "None",
+        ["Smtp:Username"] = "user",
+        ["Smtp:Password"] = "secret",
+        ["Smtp:FromEmail"] = "noreply@example.test",
+    };
+
+    [Fact]
+    public async Task An_unencrypted_relay_is_refused_outside_Development()
+    {
+        // The class cannot say this itself: it does not know where it is running. Anywhere
+        // but a developer's machine, None sends the password and every reset link readable.
+        var error = await StartWith(
+            (services, configuration) => services.AddSpaceCraftEmail(configuration, isDevelopment: false),
+            UnencryptedRelay());
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("Smtp:Security");
+    }
+
+    [Fact]
+    public async Task An_unencrypted_relay_is_the_local_mail_catcher_and_is_allowed_in_Development() =>
+        (await StartWith(
+            (services, configuration) => services.AddSpaceCraftEmail(configuration, isDevelopment: true),
+            UnencryptedRelay()))
+            .ShouldBeNull();
+
+    // One refused value per remaining section. Each section's own rules are pinned beside
+    // its class; what these pin is that the registration the host calls runs them at all —
+    // an annotated class bound with a plain Configure<> evaluates nothing, and that is how
+    // the bucket name above went unchecked for months.
+
+    [Fact]
+    public async Task A_missing_signing_key_stops_the_host_and_names_the_key()
+    {
+        // Every token the factory would sign is unverifiable without it; there is no default
+        // a signing key could sensibly have.
+        var error = await StartWith(
+            (services, configuration) => services.AddSpaceCraftAuth(configuration),
+            new Dictionary<string, string?>());
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("SigningKey");
+    }
+
+    [Fact]
+    public async Task A_signing_key_shorter_than_the_hash_is_refused()
+    {
+        // HMAC-SHA256 wants at least 32 bytes; anything shorter is a key an attacker can
+        // enumerate, and the token handler would refuse it at the first sign.
+        var error = await StartWith(
+            (services, configuration) => services.AddSpaceCraftAuth(configuration),
+            new Dictionary<string, string?> { ["Jwt:SigningKey"] = "too-short" });
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("SigningKey");
+    }
+
+    [Fact]
+    public async Task A_rate_limit_of_zero_is_refused_rather_than_turning_the_api_off()
+    {
+        var error = await StartWith(
+            (services, configuration) => services.AddSpaceCraftRateLimiting(configuration),
+            new Dictionary<string, string?> { ["RateLimits:GlobalPermitsPerMinute"] = "0" });
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("GlobalPermitsPerMinute");
+    }
+
+    [Fact]
+    public async Task A_notification_sweep_of_zero_seconds_is_refused_rather_than_clamped()
+    {
+        // These used to be read one key at a time with a Math.Clamp around each, so a zero
+        // became one second and nobody was told. The range is enforced at startup now.
+        var error = await StartWith(
+            (services, configuration) => services.AddSpaceCraftNotifications(configuration),
+            new Dictionary<string, string?> { ["Notifications:SweepSeconds"] = "0" });
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("SweepSeconds");
+    }
+
+    [Fact]
+    public async Task Running_unsandboxed_outside_Development_has_to_be_written_down()
+    {
+        // There is no sandbox to fall back to, so the decision has to be taken by somebody
+        // rather than defaulted. The rule is the section's environment-dependent one, and it
+        // sits on the options builder like Smtp:Security above: refused at start, key named.
+        var error = await StartWith(
+            (services, configuration) => services.AddSpaceCraftPipeline(configuration, isDevelopment: false),
+            new Dictionary<string, string?> { ["Pipeline:AllowUnsandboxedExecution"] = "false" });
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain("Pipeline:AllowUnsandboxedExecution");
+    }
+
+    [Fact]
+    public async Task Running_unsandboxed_outside_Development_is_allowed_once_written_down() =>
+        (await StartWith(
+            (services, configuration) => services.AddSpaceCraftPipeline(configuration, isDevelopment: false),
+            new Dictionary<string, string?> { ["Pipeline:AllowUnsandboxedExecution"] = "true" }))
+            .ShouldBeNull();
 }

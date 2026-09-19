@@ -31,11 +31,19 @@ public static class ApiServiceExtensions
         services.AddSingleton<ITokenFactory, TokenFactory>();
         services.AddScoped<IOrganizationAccess, OrganizationAccess>();
 
-        var jwt = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-            ?? throw new InvalidOperationException("The Jwt configuration section is missing.");
-
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
+            .AddJwtBearer();
+
+        // The bearer scheme is configured through its own options so the issuer, the audience
+        // and the signing key come from the validated JwtOptions rather than being read here a
+        // second time — the same shape as the rate limiter and the CORS policy below.
+        //
+        // Registered after AddJwtBearer() on purpose: IConfigureOptions run in registration
+        // order, and AddJwtBearer() adds the package's own binding of
+        // Authentication:Schemes:Bearer, so what is written here keeps the last word — the
+        // same precedence the delegate handed to AddJwtBearer used to have.
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Configure<IOptions<JwtOptions>>((options, jwt) =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
@@ -43,9 +51,9 @@ public static class ApiServiceExtensions
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwt.Issuer,
-                    ValidAudience = jwt.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
+                    ValidIssuer = jwt.Value.Issuer,
+                    ValidAudience = jwt.Value.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Value.SigningKey)),
                     // Tokens are short-lived; the default five-minute grace would double
                     // their effective lifetime.
                     ClockSkew = TimeSpan.FromSeconds(30),
