@@ -1,3 +1,5 @@
+using FluentValidation;
+using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Extensions;
 using SpaceCraft.Api.Features.Account;
@@ -109,7 +111,10 @@ builder.Services.AddSpaceCraftJobs(builder.Configuration, builder.Environment.Is
 
 builder.Services.AddProblemDetails();
 // Runs before the default handler, which would answer 500 to a request the caller malformed.
-builder.Services.AddExceptionHandler<SpaceCraft.Api.Common.BadRequestExceptionHandler>();
+builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
+// Every request record's nested Validator, found by scanning this assembly. They run from the
+// filter on the API group below, before the handler sees the request.
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddRequestTimeouts();
 builder.Services.AddOpenApi(options => options.AddSchemaTransformer<NumericSchemaTransformer>());
 
@@ -173,7 +178,8 @@ app.UseRateLimiter();
 
 app.MapHealthChecks("/health").AllowAnonymous();
 
-var api = app.MapGroup("/api/v1");
+var api = app.MapGroup("/api/v1")
+    .AddEndpointFilterFactory(ValidationFilterFactory.Create);
 
 api.MapAuthEndpoints()
    .MapWaitlistEndpoints()
