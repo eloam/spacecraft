@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SpaceCraft.Api.Features.Runs;
 using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
@@ -152,6 +153,9 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
             services.RemoveAll<IEmailTransport>();
             services.AddSingleton<IEmailTransport>(new CapturingTransport(Mailbox));
 
+            // Picked up by the DbContext the way the application's own interceptors are.
+            services.AddSingleton<ISaveChangesInterceptor>(BeforeSaving);
+
             // The run dispatcher must not run here. It is a background sweep, and this host
             // loads the API's own appsettings.Development.json — which points PipelineJobs at
             // the development fake on localhost:8098. A developer with that stack up would
@@ -231,6 +235,55 @@ public sealed class SpaceCraftApi : WebApplicationFactory<Program>, IAsyncLifeti
     }
 
     public Outbox Mailbox { get; } = new();
+
+    /// <summary>
+    /// A place to put a second request between a handler's reads and its write.
+    /// </summary>
+    /// <remarks>
+    /// A race is two requests interleaved at a point neither controls, and a test that sends
+    /// two at once only sometimes gets the interleaving it means to prove. The seam is the
+    /// save: the interceptor runs whatever the test armed inside SaveChanges, after the
+    /// handler has read and judged and before its statements go out — so the write that
+    /// follows is the stale one, every time.
+    /// <para>
+    /// Armed for one save, chosen by what it is about to write; every context in the host
+    /// goes through here, background sweeps included, and the hook must not fire on theirs.
+    /// Disarmed before it runs, since the hook's own save comes through here too.
+    /// </para>
+    /// </remarks>
+    public sealed class SaveChangesHook : SaveChangesInterceptor
+    {
+        private (Func<DbContext, bool> When, Func<CancellationToken, Task> Run)? _armed;
+
+        public void Arm(Func<DbContext, bool> when, Func<CancellationToken, Task> run) =>
+            _armed = (when, run);
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(eventData);
+
+            if (_armed is { } armed && eventData.Context is { } context)
+            {
+                // Not yet run at this point of the save, as in the auditing example of the
+                // interceptors documentation: without it a member removed from a loaded
+                // collection is not Deleted yet, and the predicate looks at nothing.
+                context.ChangeTracker.DetectChanges();
+
+                if (armed.When(context))
+                {
+                    _armed = null;
+                    await armed.Run(cancellationToken);
+                }
+            }
+
+            return result;
+        }
+    }
+
+    public SaveChangesHook BeforeSaving { get; } = new();
 
     /// <summary>A client already signed in as a brand-new account.</summary>
     public async Task<HttpClient> SignedInAsync(string email)

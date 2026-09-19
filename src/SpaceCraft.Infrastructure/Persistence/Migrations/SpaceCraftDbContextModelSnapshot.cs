@@ -16,7 +16,7 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260919214129_UsePipelineRunRowVersion";
+    public override string LastMigrationId => "20260919214202_UseOrganizationRowVersion";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -471,6 +471,12 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
                 b.Property<DateTimeOffset>("UpdatedAt")
                     .HasColumnType("timestamp with time zone")
                     .HasColumnName("updated_at");
+
+                b.Property<uint>("xmin")
+                    .IsConcurrencyToken()
+                    .ValueGeneratedOnAddOrUpdate()
+                    .HasColumnType("xid")
+                    .HasColumnName("xmin");
 
                 b.HasKey("Id")
                     .HasName("pk_organizations");
