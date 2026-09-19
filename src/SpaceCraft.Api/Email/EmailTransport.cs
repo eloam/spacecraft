@@ -1,4 +1,3 @@
-using SpaceCraft.Api.Common;
 
 namespace SpaceCraft.Api.Email;
 

@@ -4,7 +4,6 @@ using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
 using Polly;
-using SpaceCraft.Api.Common;
 using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Api.Email;

@@ -255,7 +255,7 @@ public sealed class InvitationTests(SpaceCraftApi api)
         invitation.RevokedAt.ShouldBeNull();
     }
 
-    private static string TokenFrom(SpaceCraft.Api.Common.EmailMessage message)
+    private static string TokenFrom(SpaceCraft.Api.Email.EmailMessage message)
     {
         var match = Regex.Match(message.TextBody, @"token=([A-Za-z0-9%]+)");
         match.Success.ShouldBeTrue("the invitation email carries an accept link");

@@ -449,7 +449,7 @@ PipelineJobs__SecretKey=…            # IAM key allowed to start this job defin
 That key is the platform's only control-plane credential, and it belongs to the API alone —
 never to a job definition. Everything else the deployment holds reads or decrypts data; this
 one starts compute, and a build running a customer's transitive npm dependencies must not be
-able to reach it. It is why the code lives under `SpaceCraft.Api/Jobs` rather than in the
+able to reach it. It is why the code lives under `SpaceCraft.Api/Features/Runs` rather than in the
 shared project.
 
 `dispatched_at` on the run records that a job was asked for. It is a column rather than

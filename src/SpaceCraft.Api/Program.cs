@@ -1,7 +1,16 @@
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Extensions;
-using SpaceCraft.Api.Features;
-using SpaceCraft.Api.Jobs;
+using SpaceCraft.Api.Features.Account;
+using SpaceCraft.Api.Features.Auth;
+using SpaceCraft.Api.Features.Credentials;
+using SpaceCraft.Api.Features.Members;
+using SpaceCraft.Api.Features.Notifications;
+using SpaceCraft.Api.Features.Organizations;
+using SpaceCraft.Api.Features.Projects;
+using SpaceCraft.Api.Features.Publications;
+using SpaceCraft.Api.Features.Runs;
+using SpaceCraft.Api.Features.Specs;
+using SpaceCraft.Api.Features.Waitlist;
 using SpaceCraft.Infrastructure;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http.Features;
@@ -57,7 +66,15 @@ builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.I
 
 // Bounds the notification history. The count beside the bell is the most frequent query
 // in the application, and it stays cheap only while there is a limit on what it counts.
-builder.Services.AddHostedService<SpaceCraft.Api.Common.NotificationRetention>();
+// The background half of each feature, listed here rather than inside the email
+// registration where four of them used to hide: what runs in this process is a decision
+// of the composition root, and a reader looking for "who sends invitations" finds it
+// beside the feature's name.
+builder.Services.AddHostedService<PasswordResetDispatcher>();
+builder.Services.AddHostedService<InvitationDispatcher>();
+builder.Services.AddHostedService<WaitlistDispatcher>();
+builder.Services.AddHostedService<NotificationDispatcher>();
+builder.Services.AddHostedService<NotificationRetention>();
 
 // Data Protection encrypts registry tokens at rest. The default key ring is per-machine and
 // ephemeral in a container, which would make every stored token unreadable after a restart —

@@ -1,6 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
-using SpaceCraft.Api.Auth;
+using SpaceCraft.Api.Features.Auth;
 using SpaceCraft.Api.Common;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Cors.Infrastructure;
