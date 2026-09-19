@@ -174,14 +174,19 @@ public static class ApiServiceExtensions
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        // Configurable so a load test or a staging soak is not throttled into meaninglessness,
-        // and so the limits can be tightened in production without a rebuild.
-        var globalPermits = configuration.GetValue("RateLimits:GlobalPermitsPerMinute", 300);
-        var strictPermits = configuration.GetValue("RateLimits:CredentialPermitsPerWindow", 10);
-        var strictWindow = configuration.GetValue("RateLimits:CredentialWindow", TimeSpan.FromMinutes(15));
+        services.AddOptions<RateLimitOptions>()
+            .Bind(configuration.GetSection(RateLimitOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
-        services.AddRateLimiter(options =>
+        // The limiter is configured through its own options so the numbers come from the
+        // validated RateLimitOptions rather than being read here a second time.
+        services.AddOptions<RateLimiterOptions>().Configure<IOptions<RateLimitOptions>>((options, limits) =>
         {
+            var globalPermits = limits.Value.GlobalPermitsPerMinute;
+            var strictPermits = limits.Value.CredentialPermitsPerWindow;
+            var strictWindow = limits.Value.CredentialWindow;
+
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
             // Baseline for authenticated traffic, partitioned per user so one tenant cannot
@@ -221,6 +226,8 @@ public static class ApiServiceExtensions
                         Window = strictWindow,
                     }));
         });
+
+        services.AddRateLimiter(_ => { });
 
         return services;
     }

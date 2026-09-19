@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Infrastructure.Persistence;
+using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Api.Features.Notifications;
 
@@ -24,7 +25,7 @@ namespace SpaceCraft.Api.Features.Notifications;
 /// </remarks>
 public sealed class NotificationRetention(
     IServiceScopeFactory scopeFactory,
-    IConfiguration configuration,
+    IOptions<NotificationOptions> options,
     ILogger<NotificationRetention> logger) : BackgroundService
 {
     /// <summary>Rows per statement, so a purge never takes a lock worth noticing.</summary>
@@ -37,14 +38,12 @@ public sealed class NotificationRetention(
     /// </summary>
     private const int MaxBatches = 20;
 
-    private readonly TimeSpan _interval = TimeSpan.FromHours(
-        Math.Clamp(configuration.GetValue<int?>("Notifications:PurgeHours") ?? 6, 1, 168));
+    // Bounded by [Range] on the options class and refused at startup when outside it.
+    private readonly TimeSpan _interval = TimeSpan.FromHours(options.Value.PurgeHours);
 
-    private readonly TimeSpan _readRetention = TimeSpan.FromDays(
-        Math.Clamp(configuration.GetValue<int?>("Notifications:ReadRetentionDays") ?? 30, 1, 3650));
+    private readonly TimeSpan _readRetention = TimeSpan.FromDays(options.Value.ReadRetentionDays);
 
-    private readonly TimeSpan _unreadRetention = TimeSpan.FromDays(
-        Math.Clamp(configuration.GetValue<int?>("Notifications:UnreadRetentionDays") ?? 90, 1, 3650));
+    private readonly TimeSpan _unreadRetention = TimeSpan.FromDays(options.Value.UnreadRetentionDays);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

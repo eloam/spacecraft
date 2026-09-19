@@ -31,35 +31,15 @@ namespace SpaceCraft.Api.Features.Notifications;
 public sealed class NotificationDispatcher(
     IServiceScopeFactory scopeFactory,
     IEmailSender email,
-    IConfiguration configuration,
+    IOptions<NotificationOptions> options,
     IOptions<PublicUrlsOptions> publicUrls,
     ILogger<NotificationDispatcher> logger) : BackgroundService
 {
-    /// <summary>
-    /// Long enough that an idle deployment is not querying constantly, short enough that a
-    /// failed run reaches a mailbox while the person who started it still remembers it.
-    /// </summary>
-    /// <remarks>
-    /// Configurable because the tests assert that a message actually arrives, and waiting a
-    /// quarter of a minute for each is a suite nobody runs. Clamped so the setting cannot
-    /// turn the sweep into a busy loop against the database.
-    /// </remarks>
-    private readonly TimeSpan _interval = TimeSpan.FromSeconds(
-        Math.Clamp(configuration.GetValue<int?>("Notifications:SweepSeconds") ?? 15, 1, 300));
+    // Both bounded by [Range] on the options class and refused at startup when outside it;
+    // the reasoning for each value is on the property.
+    private readonly TimeSpan _interval = TimeSpan.FromSeconds(options.Value.SweepSeconds);
 
-    /// <summary>
-    /// How many are claimed per sweep. With the interval, this is the ceiling on delivery
-    /// rate — fifty every fifteen seconds is two hundred a minute — so it is the first thing
-    /// to raise if a backlog ever builds, and a setting rather than a constant for that reason.
-    /// </summary>
-    /// <remarks>
-    /// It is also how much a crash costs. A batch is stamped as sent before any of it is
-    /// handed over, so a process that dies mid-sweep loses what it was holding: at most this
-    /// many messages, never a duplicate. Raising it for throughput widens that window in the
-    /// same breath.
-    /// </remarks>
-    private readonly int _batchSize =
-        Math.Clamp(configuration.GetValue<int?>("Notifications:BatchSize") ?? 50, 1, 500);
+    private readonly int _batchSize = options.Value.BatchSize;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

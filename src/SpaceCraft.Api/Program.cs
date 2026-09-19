@@ -81,6 +81,10 @@ builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.I
 builder.Services.AddHostedService<PasswordResetDispatcher>();
 builder.Services.AddHostedService<InvitationDispatcher>();
 builder.Services.AddHostedService<WaitlistDispatcher>();
+builder.Services.AddOptions<NotificationOptions>()
+    .Bind(builder.Configuration.GetSection(NotificationOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddHostedService<NotificationDispatcher>();
 builder.Services.AddHostedService<NotificationRetention>();
 
