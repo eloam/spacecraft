@@ -6,11 +6,16 @@ using Xunit;
 namespace SpaceCraft.UnitTests;
 
 /// <summary>
-/// Deletion cascades through the graph in a specific order. These cover the shape of that
-/// graph — what belongs to what — since getting it wrong leaves rows behind rather than
-/// failing loudly.
+/// What each aggregate owns: the children it creates carry its id and sit on its
+/// collections, which is the shape the database cascades mirror.
 /// </summary>
-public class DeletionTests
+/// <remarks>
+/// Ownership in memory is all these can see. Whether a delete reaches the rows and objects
+/// no foreign key covers — runs, credentials, publications, the documents in the bucket — is
+/// a question for a real Postgres and MinIO, and DeletionTests in the integration suite asks
+/// it.
+/// </remarks>
+public class AggregateOwnershipTests
 {
     [Fact]
     public void A_project_carries_its_specs_and_targets()

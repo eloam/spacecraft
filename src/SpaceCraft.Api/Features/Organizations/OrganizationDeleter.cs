@@ -11,10 +11,11 @@ namespace SpaceCraft.Api.Features.Organizations;
 /// </summary>
 /// <remarks>
 /// Cascade deletes cover only part of the graph: projects, members, targets and specs hang
-/// off the organization by foreign key, but pipeline runs, registry credentials and
-/// publications carry its id without a constraint behind it. Relying on the database alone
+/// off the organization by foreign key, but pipeline runs, registry credentials, publications
+/// and invitations carry its id without a constraint behind it. Relying on the database alone
 /// would leave those behind — including encrypted registry tokens outliving the organization
-/// they belonged to, which is the one kind of leftover that actually matters.
+/// they belonged to, which is the one kind of leftover that actually matters, and pending
+/// invitations that AcceptInvitation would have to notice point at nothing.
 /// </remarks>
 public sealed class OrganizationDeleter(
     SpaceCraftDbContext db,
@@ -37,11 +38,13 @@ public sealed class OrganizationDeleter(
 
         var runKeys = await runs.RemoveAsync(r => r.OrganizationId == organizationId, ct);
 
-        // No foreign key covers these two, so nothing would remove them for us.
+        // No foreign key covers these three, so nothing would remove them for us.
         db.RegistryCredentials.RemoveRange(
             await db.RegistryCredentials.Where(c => c.OrganizationId == organizationId).ToListAsync(ct));
         db.Publications.RemoveRange(
             await db.Publications.Where(p => p.OrganizationId == organizationId).ToListAsync(ct));
+        db.OrganizationInvitations.RemoveRange(
+            await db.OrganizationInvitations.Where(i => i.OrganizationId == organizationId).ToListAsync(ct));
 
         var projects = await db.ApiProjects.CountAsync(p => p.OrganizationId == organizationId, ct);
 
