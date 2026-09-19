@@ -1,6 +1,3 @@
-using System.Net;
-using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,34 +18,11 @@ namespace SpaceCraft.UnitTests;
 /// </remarks>
 public class ScalewayKmsTests
 {
-    private const string KeyId = "00000000-0000-4000-8000-000000000001";
+    private const string KeyId = KeyManagerRecorder.KeyId;
 
-    /// <summary>Answers like Key Manager, recording what it was asked.</summary>
-    private sealed class Recorder : HttpMessageHandler
+    private static (ScalewayKmsClient Client, KeyManagerRecorder Recorder) Build()
     {
-        public HttpRequestMessage? LastRequest { get; private set; }
-        public string? LastBody { get; private set; }
-
-        protected override async Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            LastRequest = request;
-            LastBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
-
-            var body = JsonDocument.Parse(LastBody!).RootElement;
-
-            // Stands in for the cipher: the point here is the envelope, not the algorithm.
-            var payload = body.TryGetProperty("plaintext", out var plaintext)
-                ? new { key_id = KeyId, ciphertext = plaintext.GetString() }
-                : (object)new { key_id = KeyId, plaintext = body.GetProperty("ciphertext").GetString() };
-
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(payload) };
-        }
-    }
-
-    private static (ScalewayKmsClient Client, Recorder Recorder) Build()
-    {
-        var recorder = new Recorder();
+        var recorder = new KeyManagerRecorder();
         var http = new HttpClient(recorder) { BaseAddress = new Uri("https://api.scaleway.com/") };
         http.DefaultRequestHeaders.Add("X-Auth-Token", "secret");
 
