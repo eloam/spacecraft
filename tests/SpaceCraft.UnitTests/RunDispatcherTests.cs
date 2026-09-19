@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -11,83 +12,157 @@ using Xunit;
 namespace SpaceCraft.UnitTests;
 
 /// <summary>
-/// What one sweep does with the batch it claimed when it cannot finish it.
+/// What one sweep does with the batch it claimed.
 /// </summary>
 /// <remarks>
-/// The claim stamps every run in the batch, and a stamped run is left alone for the whole
-/// redispatch window. That is right for a run whose job was started and wrong for every other
-/// one, so the sweep's obligation is to take the stamp off whatever it did not start — and to
-/// do so however the batch ended, because the trigger is an HTTP client and the refusal record
-/// is a database write, and either can throw. No database here: the claim is Postgres's and is
-/// tested in <c>DispatchClaimTests</c>; what is tested is what the sweep hands back to it.
+/// The claim is Postgres's and is tested against a real one in <c>DispatchClaimTests</c>; the
+/// trigger's reading of the platform's answer is <c>JobTriggerTests</c>. Between the two sits
+/// the composition — which runs are asked for, which are released so the next sweep retries
+/// them at once, which are counted as refused — the piece where a wrong branch spends an
+/// execution against the parallel-run ceiling or leaves a run stamped for a job that never
+/// existed. The sweep's obligation is to take the stamp off whatever it did not start — and
+/// to do so however the batch ended, because the trigger is an HTTP client and the refusal
+/// record is a database write, and either can throw.
+/// <para>
+/// No database. The queue is a fake that hands back a scripted batch and records what comes
+/// back to it, the trigger answers each run as scripted, and the metrics are the real ones
+/// over an in-process meter, read back through a listener. The cases call
+/// <see cref="RunDispatcher.SweepAsync"/> directly rather than starting the service and
+/// waiting for its timer, which is what they used to do: a sweep called is a sweep that ran,
+/// with nothing to wait for and nothing to time out. The one case that needs the timer is the
+/// one about the loop itself — a sweep that throws must not end the service — and that one
+/// goes through <c>StartAsync</c>.
+/// </para>
 /// </remarks>
 public class RunDispatcherTests
 {
+    private static readonly Guid First = Guid.CreateVersion7();
+    private static readonly Guid Second = Guid.CreateVersion7();
+    private static readonly Guid Third = Guid.CreateVersion7();
+
+    [Fact]
+    public async Task A_batch_that_all_starts_leaves_nothing_to_release()
+    {
+        var queue = new RecordingQueue(First, Second);
+        var trigger = new ScriptedTrigger
+        {
+            [First] = Started("job-1"),
+            [Second] = Started("job-2"),
+        };
+
+        var counted = await SweepAsync(queue, trigger);
+
+        trigger.Asked.ShouldBe([First, Second]);
+
+        // Every run has a job; the stamps stay on so the next sweep leaves them alone until
+        // the redispatch window passes or a worker claims them.
+        queue.Released.ShouldBeEmpty();
+        queue.Refusals.ShouldBeEmpty();
+        counted.ShouldBe(new JobCounts(Started: 2, Deferred: 0, Refused: 0));
+    }
+
+    [Fact]
+    public async Task A_deferral_stops_the_batch_and_releases_what_was_not_asked_for()
+    {
+        var queue = new RecordingQueue(First, Second, Third);
+        var trigger = new ScriptedTrigger
+        {
+            [First] = Started("job-1"),
+            [Second] = new JobStartResult(JobStartOutcome.Deferred, null, "quota exceeded"),
+        };
+
+        var counted = await SweepAsync(queue, trigger);
+
+        // The ceiling applies to the rest of the batch too, so the third is never asked for.
+        trigger.Asked.ShouldBe([First, Second]);
+
+        // The deferred run and every run after it come off the stamp, or they would wait out
+        // the whole window for a job that was never started. The one that started keeps it.
+        queue.Released.ShouldBe([Second, Third]);
+        queue.Refusals.ShouldBeEmpty();
+
+        // One deferral counted, not two: the third was released without being asked.
+        counted.ShouldBe(new JobCounts(Started: 1, Deferred: 1, Refused: 0));
+    }
+
+    [Fact]
+    public async Task A_rejection_is_recorded_against_the_run_and_the_batch_goes_on()
+    {
+        var queue = new RecordingQueue(First, Second);
+        var trigger = new ScriptedTrigger
+        {
+            [First] = new JobStartResult(JobStartOutcome.Rejected, null, "404 Not Found. job definition not found"),
+            [Second] = Started("job-2"),
+        };
+
+        var counted = await SweepAsync(queue, trigger);
+
+        // A deployment fault on one run says nothing about the next, so the sweep keeps going.
+        trigger.Asked.ShouldBe([First, Second]);
+
+        // Counted rather than released: the refusal itself clears the stamp, and it is what
+        // fails the run once it has happened enough times.
+        var refusal = queue.Refusals.ShouldHaveSingleItem();
+        refusal.RunId.ShouldBe(First);
+        refusal.Reason.ShouldBe("404 Not Found. job definition not found");
+        queue.Released.ShouldBeEmpty();
+        counted.ShouldBe(new JobCounts(Started: 1, Deferred: 0, Refused: 1));
+    }
+
+    [Fact]
+    public async Task An_empty_batch_asks_the_platform_for_nothing()
+    {
+        var queue = new RecordingQueue();
+        var trigger = new ScriptedTrigger();
+
+        var counted = await SweepAsync(queue, trigger);
+
+        trigger.Asked.ShouldBeEmpty();
+        queue.Released.ShouldBeEmpty();
+        counted.ShouldBe(new JobCounts(Started: 0, Deferred: 0, Refused: 0));
+    }
+
     [Fact]
     public async Task A_trigger_that_throws_mid_batch_still_releases_the_rest_of_it()
     {
-        Guid[] runs = [Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7()];
-        var queue = new SpyQueue(runs);
-        var trigger = new StubTrigger(JobStartOutcome.Started, throwOn: runs[1]);
+        var queue = new RecordingQueue(First, Second, Third);
+        var trigger = new ScriptedTrigger
+        {
+            [First] = Started("job-1"),
+        };
+        trigger.ThrowOn(Second);
 
-        var released = await SweepOnceAsync(queue, trigger);
+        await Should.ThrowAsync<InvalidOperationException>(() => SweepAsync(queue, trigger));
 
         // The first was started and keeps its stamp. The second threw, so nothing was started
         // for it; the third was never asked about. Both go back to the queue now rather than
         // after the redispatch window.
-        released.ShouldBe([runs[1], runs[2]]);
-        trigger.Asked.ShouldBe([runs[0], runs[1]]);
-    }
-
-    [Fact]
-    public async Task A_deferral_releases_the_deferred_run_and_everything_behind_it()
-    {
-        Guid[] runs = [Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7()];
-        var queue = new SpyQueue(runs);
-        var trigger = new StubTrigger(JobStartOutcome.Deferred);
-
-        var released = await SweepOnceAsync(queue, trigger);
-
-        // The ceiling, or an unreachable platform, applies to the whole batch: the sweep stops
-        // at the first deferral and asks nothing more.
-        released.ShouldBe(runs);
-        trigger.Asked.ShouldBe([runs[0]]);
-    }
-
-    [Fact]
-    public async Task A_refusal_is_recorded_rather_than_released()
-    {
-        Guid[] runs = [Guid.CreateVersion7(), Guid.CreateVersion7()];
-        var queue = new SpyQueue(runs);
-        var trigger = new StubTrigger(JobStartOutcome.Rejected);
-
-        var released = await SweepOnceAsync(queue, trigger);
-
-        // The refusal record clears the stamp itself and counts the attempt; releasing on top
-        // of it would be harmless but would hide that the count is what fails the run.
-        queue.Refused.ShouldBe(runs);
-        released.ShouldBeEmpty();
+        trigger.Asked.ShouldBe([First, Second]);
+        queue.Released.ShouldBe([Second, Third]);
     }
 
     [Fact]
     public async Task A_release_that_fails_after_a_throw_does_not_hide_what_threw()
     {
-        Guid[] runs = [Guid.CreateVersion7(), Guid.CreateVersion7()];
-        var queue = new SpyQueue(runs, releaseFailure: new InvalidOperationException("The release fell over."));
-        var trigger = new StubTrigger(JobStartOutcome.Started, throwOn: runs[0]);
+        var queue = new RecordingQueue(First, Second);
+        queue.FailRelease(new InvalidOperationException("The release fell over."));
+        var trigger = new ScriptedTrigger();
+        trigger.ThrowOn(First);
         var log = new SpyLogger();
 
-        await SweepOnceAsync(queue, trigger, log);
+        await using var services = Services(queue, _ => trigger);
+        using var metrics = MetricsOver(services);
+        using var dispatcher = DispatcherFor(services, metrics, sweepSeconds: 1, log);
 
         // The trigger's exception is what stopped the batch, so it is the one the sweep
-        // reports. A release that throws from the finally would replace it — the likely case
+        // raises. A release that throws from the finally would replace it — the likely case
         // being a refusal record and a release failing the same way on the same context — so
-        // the release's own failure is logged beside it, not in its place.
-        log.Errors.ShouldBe(
-        [
-            ("Could not release 2 claimed runs after the sweep failed", "The release fell over."),
-            ("Run dispatch sweep failed", "The trigger fell over."),
-        ]);
+        // the release's own failure is logged beside it, not raised in its place.
+        var raised = await Should.ThrowAsync<InvalidOperationException>(
+            () => dispatcher.SweepAsync(TestContext.Current.CancellationToken));
+
+        raised.Message.ShouldContain("something unreadable");
+        log.Errors.ShouldBe([("Could not release 2 claimed runs after the sweep failed", "The release fell over.")]);
     }
 
     [Fact]
@@ -96,74 +171,86 @@ public class RunDispatcherTests
         // The trigger is a typed HttpClient, transient so the factory can rotate its handler.
         // Captured once by this singleton it would keep the first handler — and its DNS
         // answer — for the life of the process. So each sweep asks its own scope for one.
-        var queue = new SpyQueue([]);
+        var queue = new RecordingQueue();
         var resolved = 0;
 
-        using var dispatcher = DispatcherFor(
-            queue,
-            _ =>
-            {
-                resolved++;
-                return new StubTrigger(JobStartOutcome.Started);
-            },
-            sweepSeconds: 1);
+        await using var services = Services(queue, _ =>
+        {
+            resolved++;
+            return new ScriptedTrigger();
+        });
+        using var metrics = MetricsOver(services);
+        using var dispatcher = DispatcherFor(services, metrics, sweepSeconds: 1);
 
-        await dispatcher.StartAsync(TestContext.Current.CancellationToken);
-        await queue.ClaimedAgain.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-        await dispatcher.StopAsync(TestContext.Current.CancellationToken);
+        await dispatcher.SweepAsync(TestContext.Current.CancellationToken);
+        await dispatcher.SweepAsync(TestContext.Current.CancellationToken);
 
-        queue.Claims.ShouldBeGreaterThanOrEqualTo(2);
-        resolved.ShouldBe(queue.Claims);
+        resolved.ShouldBe(2);
     }
 
-    /// <summary>
-    /// Runs the dispatcher through its own hosted-service entry point until the sweep has
-    /// handed its release back to the queue, then stops it. The sweep interval is the longest
-    /// allowed, so exactly one sweep happens.
-    /// </summary>
-    private static async Task<IReadOnlyCollection<Guid>> SweepOnceAsync(
-        SpyQueue queue, IJobTrigger trigger, ILogger<RunDispatcher>? logger = null)
+    [Fact]
+    public async Task A_sweep_that_throws_does_not_take_the_service_with_it()
     {
+        // Through the hosted-service entry point, because what is under test is the loop
+        // around the sweep: a sweep that throws — the database gone for a moment — is logged
+        // and the next tick sweeps again. A dispatcher that stopped instead would be the
+        // absence it exists to fix, and nothing would say so.
         var ct = TestContext.Current.CancellationToken;
+        var queue = new RecordingQueue();
+        queue.FailNextClaim(new InvalidOperationException("The database went away for one sweep."));
 
-        using var dispatcher = DispatcherFor(queue, _ => trigger, sweepSeconds: 300, logger);
+        await using var services = Services(queue, _ => new ScriptedTrigger());
+        using var metrics = MetricsOver(services);
+        using var dispatcher = DispatcherFor(services, metrics, sweepSeconds: 1);
 
         await dispatcher.StartAsync(ct);
-        var released = await queue.Released.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
-        // StopAsync waits for the sweep to end, so everything it logged is in by now.
+        await queue.ClaimedAgain.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
         await dispatcher.StopAsync(ct);
 
-        return released;
+        // The first claim threw; the second could only have come from the loop going on.
+        queue.Claims.ShouldBeGreaterThanOrEqualTo(2);
     }
 
-    private static RunDispatcher DispatcherFor(
-        SpyQueue queue, Func<IServiceProvider, IJobTrigger> trigger, int sweepSeconds,
-        ILogger<RunDispatcher>? logger = null)
+    private static JobStartResult Started(string jobRunId) =>
+        new(JobStartOutcome.Started, jobRunId, null);
+
+    /// <summary>
+    /// One sweep, called directly, over the dispatcher as the host builds it: a scope factory
+    /// that resolves the fake queue and the trigger, the real metrics over an in-process
+    /// meter, the options' defaults. Returns what the sweep counted.
+    /// </summary>
+    private static async Task<JobCounts> SweepAsync(RecordingQueue queue, ScriptedTrigger trigger)
     {
+        await using var services = Services(queue, _ => trigger);
+        using var metrics = MetricsOver(services);
+        using var counters = new JobCounters(services.GetRequiredService<IMeterFactory>());
+        using var dispatcher = DispatcherFor(services, metrics, sweepSeconds: 1);
+
+        await dispatcher.SweepAsync(TestContext.Current.CancellationToken);
+
+        return counters.Snapshot();
+    }
+
+    private static ServiceProvider Services(RecordingQueue queue, Func<IServiceProvider, IJobTrigger> trigger) =>
         // Both resolved from the sweep's scope, as the dispatcher does: the trigger is a
         // typed HttpClient and must not be captured for the life of the service.
-        var services = new ServiceCollection()
+        new ServiceCollection()
             .AddMetrics()
             .AddScoped<IPipelineRunQueue>(_ => queue)
             .AddScoped(trigger)
-            .AddSingleton<PipelineMetrics>()
             .BuildServiceProvider();
 
-        var options = Options.Create(new PipelineJobOptions
-        {
-            BaseUrl = "https://jobs.test",
-            Region = "fr-par",
-            JobDefinitionId = "spacecraft-pipeline",
-            SecretKey = "key",
-            SweepSeconds = sweepSeconds,
-        });
+    /// <summary>Owned by the test rather than the provider, so that the test disposes it.</summary>
+    private static PipelineMetrics MetricsOver(ServiceProvider services) =>
+        new(services.GetRequiredService<IMeterFactory>(), services.GetRequiredService<IServiceScopeFactory>());
 
-        return new RunDispatcher(
+    private static RunDispatcher DispatcherFor(
+        ServiceProvider services, PipelineMetrics metrics, int sweepSeconds, ILogger<RunDispatcher>? logger = null) =>
+        new(
             services.GetRequiredService<IServiceScopeFactory>(),
-            services.GetRequiredService<PipelineMetrics>(),
-            options,
+            metrics,
+            Options.Create(new PipelineJobOptions { SweepSeconds = sweepSeconds }),
             logger ?? NullLogger<RunDispatcher>.Instance);
-    }
 
     /// <summary>Keeps the errors, since the question is which exception reached the log.</summary>
     private sealed class SpyLogger : ILogger<RunDispatcher>
@@ -186,72 +273,142 @@ public class RunDispatcherTests
         }
     }
 
-    private sealed class StubTrigger(JobStartOutcome outcome, Guid? throwOn = null) : IJobTrigger
+    private sealed record JobCounts(long Started, long Deferred, long Refused);
+
+    /// <summary>
+    /// Totals the three job counters as the sweep increments them. Listens to the instruments
+    /// of one meter factory only — the factory is the meter's scope — so another test's
+    /// meter of the same name, running alongside, is not counted here.
+    /// </summary>
+    private sealed class JobCounters : IDisposable
     {
+        private readonly MeterListener _listener = new();
+        private readonly Dictionary<string, long> _totals = new(StringComparer.Ordinal);
+
+        public JobCounters(IMeterFactory factory)
+        {
+            _listener.InstrumentPublished = (instrument, listener) =>
+            {
+                if (ReferenceEquals(instrument.Meter.Scope, factory))
+                {
+                    listener.EnableMeasurementEvents(instrument);
+                }
+            };
+
+            _listener.SetMeasurementEventCallback<long>((instrument, value, _, _) =>
+                _totals[instrument.Name] = _totals.GetValueOrDefault(instrument.Name) + value);
+
+            _listener.Start();
+        }
+
+        public JobCounts Snapshot() => new(
+            _totals.GetValueOrDefault("spacecraft.jobs.started"),
+            _totals.GetValueOrDefault("spacecraft.jobs.deferred"),
+            _totals.GetValueOrDefault("spacecraft.jobs.refused"));
+
+        public void Dispose() => _listener.Dispose();
+    }
+
+    /// <summary>
+    /// Answers each run with what the test scripted for it, and fails the test on a run it
+    /// was never told about — a sweep asking for a run outside its batch is a bug, not a
+    /// case to answer.
+    /// </summary>
+    private sealed class ScriptedTrigger : IJobTrigger
+    {
+        private readonly Dictionary<Guid, JobStartResult> _answers = [];
+
         public List<Guid> Asked { get; } = [];
+
+        private readonly HashSet<Guid> _throwing = [];
+
+        public JobStartResult this[Guid runId]
+        {
+            set => _answers[runId] = value;
+        }
+
+        /// <summary>Scripts the one kind of answer a trigger gives without meaning to.</summary>
+        public void ThrowOn(Guid runId) => _throwing.Add(runId);
 
         public Task<JobStartResult> StartAsync(Guid runId, CancellationToken ct = default)
         {
             Asked.Add(runId);
 
-            if (runId == throwOn)
+            if (_throwing.Contains(runId))
             {
-                throw new InvalidOperationException("The trigger fell over.");
+                throw new InvalidOperationException($"The platform answered run {runId} with something unreadable.");
             }
 
-            return Task.FromResult(new JobStartResult(
-                outcome, outcome is JobStartOutcome.Started ? "job" : null, "detail"));
+            return _answers.TryGetValue(runId, out var answer)
+                ? Task.FromResult(answer)
+                : throw new InvalidOperationException($"No answer was scripted for run {runId}.");
         }
     }
 
     /// <summary>
-    /// Hands out one batch, then nothing, and records what the sweep gives back.
+    /// Hands back the batch it was built with on every claim, and records what the sweep
+    /// gives back. The claims a sweep must never make throw, so reaching for one fails the
+    /// test.
     /// </summary>
-    private sealed class SpyQueue(IReadOnlyList<Guid> batch, Exception? releaseFailure = null) : IPipelineRunQueue
+    private sealed class RecordingQueue(params Guid[] batch) : IPipelineRunQueue
     {
+        private Exception? _nextClaimFailure;
+
         public int Claims { get; private set; }
 
+        /// <summary>Completes once a second claim has been made — a second sweep has run.</summary>
         public TaskCompletionSource ClaimedAgain { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public TaskCompletionSource<IReadOnlyCollection<Guid>> Released { get; } =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public List<Guid> Released { get; } = [];
 
-        public List<Guid> Refused { get; } = [];
+        public List<(Guid RunId, string Reason)> Refusals { get; } = [];
+
+        private Exception? _releaseFailure;
+
+        /// <summary>Scripts the claim that throws — the database gone for a moment.</summary>
+        public void FailNextClaim(Exception failure) => _nextClaimFailure = failure;
+
+        /// <summary>Scripts a release that throws, as one does when its context is already broken.</summary>
+        public void FailRelease(Exception failure) => _releaseFailure = failure;
 
         public Task<IReadOnlyList<Guid>> ClaimForDispatchAsync(
             int batchSize, TimeSpan redispatchAfter, CancellationToken ct = default)
         {
             Claims++;
 
-            if (Claims == 1)
+            if (Claims > 1)
             {
-                return Task.FromResult(batch);
+                ClaimedAgain.TrySetResult();
             }
 
-            ClaimedAgain.TrySetResult();
-            return Task.FromResult<IReadOnlyList<Guid>>([]);
+            if (Interlocked.Exchange(ref _nextClaimFailure, null) is { } failure)
+            {
+                throw failure;
+            }
+
+            return Task.FromResult<IReadOnlyList<Guid>>(batch);
         }
 
         public Task ReleaseDispatchAsync(IReadOnlyCollection<Guid> runIds, CancellationToken ct = default)
         {
-            Released.TrySetResult(runIds);
-            return releaseFailure is null ? Task.CompletedTask : Task.FromException(releaseFailure);
+            Released.AddRange(runIds);
+            return _releaseFailure is null ? Task.CompletedTask : Task.FromException(_releaseFailure);
         }
 
         public Task<bool> RecordDispatchRefusalAsync(Guid runId, string reason, CancellationToken ct = default)
         {
-            Refused.Add(runId);
+            Refusals.Add((runId, reason));
             return Task.FromResult(true);
         }
 
-        public Task<PipelineRun?> TryClaimAsync(Guid runId, string workerId, CancellationToken ct = default) =>
-            throw new NotSupportedException("The dispatcher starts jobs; it does not execute runs.");
-
         public Task<PipelineRun?> TryClaimAsync(string workerId, CancellationToken ct = default) =>
-            throw new NotSupportedException("The dispatcher starts jobs; it does not execute runs.");
+            throw new NotSupportedException("A sweep starts jobs; it never executes a run itself.");
+
+        public Task<PipelineRun?> TryClaimAsync(Guid runId, string workerId, CancellationToken ct = default) =>
+            throw new NotSupportedException("A sweep starts jobs; it never executes a run itself.");
 
         public Task<(int Count, TimeSpan OldestAge)> QueueDepthAsync(CancellationToken ct = default) =>
-            throw new NotSupportedException("Depth is the metrics' question, not the sweep's.");
+            throw new NotSupportedException("Depth is read by the metrics gauge, not by a sweep.");
     }
 }
