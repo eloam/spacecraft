@@ -242,7 +242,11 @@ public class RunDispatcherTests
 
     /// <summary>Owned by the test rather than the provider, so that the test disposes it.</summary>
     private static PipelineMetrics MetricsOver(ServiceProvider services) =>
-        new(services.GetRequiredService<IMeterFactory>(), services.GetRequiredService<IServiceScopeFactory>());
+        new(
+            services.GetRequiredService<IMeterFactory>(),
+            services.GetRequiredService<IServiceScopeFactory>(),
+            TimeProvider.System,
+            NullLogger<PipelineMetrics>.Instance);
 
     private static RunDispatcher DispatcherFor(
         ServiceProvider services, PipelineMetrics metrics, int sweepSeconds, ILogger<RunDispatcher>? logger = null) =>

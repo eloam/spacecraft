@@ -1,7 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
+using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -46,16 +46,7 @@ public sealed class TokenFactory(IOptions<JwtOptions> options) : ITokenFactory
 
         return new TokenPair(
             new JwtSecurityTokenHandler().WriteToken(token),
-            GenerateRefreshToken(),
+            OpaqueTokens.Generate(),
             expiresAt);
     }
-
-    public string HashToken(string token)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(token);
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
-    }
-
-    private static string GenerateRefreshToken() =>
-        Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(count: 32));
 }

@@ -30,6 +30,11 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
             .HasDatabaseName("ix_notifications_unread")
             .HasFilter("read_at IS NULL AND show_in_app");
 
+        // The retention sweep: everything older than the cut-off, oldest first, a batch at a
+        // time, across every user. Neither index above leads on created_at, so without this one
+        // each batch is a scan of the table and a sort.
+        builder.HasIndex(n => n.CreatedAt);
+
         builder.HasMany(n => n.Deliveries)
             .WithOne()
             .HasForeignKey(d => d.NotificationId)

@@ -21,7 +21,9 @@ public static class ChangeMemberRole
     {
         var caller = principal.Id();
 
-        if (await access.DenyUnlessAsync(organizationId, caller, OrganizationRole.Admin, ct) is { } denied)
+        var membership = await access.CheckAsync(organizationId, caller, OrganizationRole.Admin, ct);
+
+        if (membership.Denied is { } denied)
         {
             return denied;
         }
@@ -42,7 +44,6 @@ public static class ChangeMemberRole
         // deletion deliberately reserves because "an admin was added by someone else". The
         // same rule protects the other direction: an Admin must not demote an Owner, or the
         // reservation is worked around from below instead of above.
-        var callerRole = await access.GetRoleAsync(organizationId, caller, ct);
         var currentRole = organization.Members.Single(m => m.UserId == userId).Role;
 
         if (userId == caller && request.Role != currentRole)
@@ -53,7 +54,10 @@ public static class ChangeMemberRole
                 StatusCodes.Status403Forbidden);
         }
 
-        if (callerRole is not { } held || request.Role > held)
+        // The role is there behind a pass: the guard refuses a non-member before this line.
+        var held = membership.Role!.Value;
+
+        if (request.Role > held)
         {
             return ApiResults.Problem(
                 "Forbidden",

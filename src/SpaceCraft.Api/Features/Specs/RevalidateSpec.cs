@@ -43,11 +43,18 @@ public static class RevalidateSpec
             return denied;
         }
 
+        // The one row this rewrites, and the project's mode; not the project with its whole
+        // history tracked to pick one entry out of it.
         var project = await db.ApiProjects
-            .Include(p => p.SpecVersions)
-            .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
+            .AsNoTracking()
+            .Where(p => p.Id == projectId && p.OrganizationId == organizationId)
+            .Select(p => new { p.StrictValidation })
+            .FirstOrDefaultAsync(ct);
 
-        var specVersion = project?.SpecVersions.FirstOrDefault(s => s.Id == specVersionId);
+        var specVersion = project is null
+            ? null
+            : await db.SpecVersions
+                .FirstOrDefaultAsync(s => s.Id == specVersionId && s.ApiProjectId == projectId, ct);
 
         if (project is null || specVersion is null)
         {
@@ -78,11 +85,12 @@ public static class RevalidateSpec
         // one the document was uploaded with.
         // The document that came before this one, not the newest: revalidating spec #1 must
         // not judge it against #2.
-        var previousApiVersion = project.SpecVersions
-            .Where(s => s.Sequence < specVersion.Sequence)
+        var previousApiVersion = await db.SpecVersions
+            .AsNoTracking()
+            .Where(s => s.ApiProjectId == projectId && s.Sequence < specVersion.Sequence)
             .OrderByDescending(s => s.Sequence)
             .Select(s => s.ApiVersion)
-            .FirstOrDefault();
+            .FirstOrDefaultAsync(ct);
 
         // Answering "what would the other mode say about this document?" without making the
         // project live in that mode. The findings it writes are the ones this run produced,

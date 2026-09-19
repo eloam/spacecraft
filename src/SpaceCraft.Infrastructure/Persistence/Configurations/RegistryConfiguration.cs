@@ -41,6 +41,10 @@ public sealed class PublicationConfiguration : IEntityTypeConfiguration<Publicat
             .HasDatabaseName("ux_publications_target_version");
 
         builder.HasIndex(p => p.PipelineRunId);
-        builder.HasIndex(p => p.OrganizationId);
+
+        // ListPublications: the tenant's publications, newest first, a page at a time. The sort
+        // key on the index lets the page come off the end of it instead of a sort over the
+        // tenant's whole history; OrganizationDeleter's plain filter uses the prefix.
+        builder.HasIndex(p => new { p.OrganizationId, p.CreatedAt });
     }
 }

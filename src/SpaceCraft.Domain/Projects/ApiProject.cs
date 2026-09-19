@@ -23,16 +23,20 @@ public sealed class ApiProject : Entity
 
     private ApiProject() { }
 
+    /// <summary>
+    /// Same rule as <c>Organization</c>: the name is held to <see cref="ResourceName"/> from
+    /// the start, and the slug is accepted as given, valid, until the first rename derives
+    /// it from the name.
+    /// </summary>
     internal ApiProject(Guid organizationId, string name, string slug)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (!Common.Slug.IsValid(slug))
         {
             throw new ArgumentException($"'{slug}' is not a valid slug.", nameof(slug));
         }
 
         OrganizationId = organizationId;
-        Name = name;
+        Name = ResourceName.Require(name);
         Slug = slug;
     }
 

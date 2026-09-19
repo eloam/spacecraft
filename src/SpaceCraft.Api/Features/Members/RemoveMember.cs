@@ -24,7 +24,9 @@ public static class RemoveMember
         // Anyone may remove themselves; removing someone else takes Admin.
         var required = caller == userId ? OrganizationRole.Viewer : OrganizationRole.Admin;
 
-        if (await access.DenyUnlessAsync(organizationId, caller, required, ct) is { } denied)
+        var membership = await access.CheckAsync(organizationId, caller, required, ct);
+
+        if (membership.Denied is { } denied)
         {
             return denied;
         }
@@ -43,10 +45,10 @@ public static class RemoveMember
         // the same escalation as granting oneself Owner, reached by subtraction.
         if (caller != userId)
         {
-            var callerRole = await access.GetRoleAsync(organizationId, caller, ct);
             var target = organization.Members.FirstOrDefault(m => m.UserId == userId);
 
-            if (target is not null && (callerRole is not { } held || target.Role > held))
+            // The role is there behind a pass: the guard refuses a non-member before this line.
+            if (target is not null && target.Role > membership.Role!.Value)
             {
                 return ApiResults.Problem(
                     "Forbidden",

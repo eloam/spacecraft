@@ -1,3 +1,4 @@
+using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Features.Waitlist.Responses;
 using SpaceCraft.Api.Features.Waitlist.Requests;
@@ -22,9 +23,16 @@ public static class JoinWaitlist
         signups.Enqueue(new WaitlistSignup(
             address,
             request.Source,
-            MailedTokens.HashIp(http.Connection.RemoteIpAddress?.ToString())));
+            HashIp(http.Connection.RemoteIpAddress?.ToString())));
 
         return TypedResults.Ok(new WaitlistSignupResponse(
             "Check your inbox — we've sent you a confirmation link."));
     }
+
+    /// <summary>
+    /// Stores a hash rather than the address itself: enough to rate-limit repeat abuse,
+    /// without retaining a personal identifier for everyone who visits the landing page.
+    /// </summary>
+    private static string? HashIp(string? ip) =>
+        string.IsNullOrWhiteSpace(ip) ? null : OpaqueTokens.Hash(ip);
 }

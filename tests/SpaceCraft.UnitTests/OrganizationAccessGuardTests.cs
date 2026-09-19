@@ -66,6 +66,40 @@ public class OrganizationAccessGuardTests
     }
 
     [Fact]
+    public async Task A_check_that_passes_hands_back_the_role_it_read()
+    {
+        // So the handlers that go on to compare roles — who may grant which, who may remove
+        // whom — do not ask the database a second time for what the guard just read.
+        var check = await new Membership(OrganizationRole.Admin)
+            .CheckAsync(Org, User, OrganizationRole.Admin, TestContext.Current.CancellationToken);
+
+        check.Denied.ShouldBeNull();
+        check.Role.ShouldBe(OrganizationRole.Admin);
+    }
+
+    [Fact]
+    public async Task A_check_that_refuses_still_says_which_role_was_held()
+    {
+        // The 403 names the role it takes; the role held is the other half of that sentence,
+        // and a handler answering with more detail should not have to look it up again.
+        var check = await new Membership(OrganizationRole.Member)
+            .CheckAsync(Org, User, OrganizationRole.Admin, TestContext.Current.CancellationToken);
+
+        check.Denied.ShouldBeOfType<ProblemHttpResult>().ProblemDetails.Status.ShouldBe(StatusCodes.Status403Forbidden);
+        check.Role.ShouldBe(OrganizationRole.Member);
+    }
+
+    [Fact]
+    public async Task A_non_member_has_no_role_to_hand_back()
+    {
+        var check = await new Membership(null)
+            .CheckAsync(Org, User, OrganizationRole.Viewer, TestContext.Current.CancellationToken);
+
+        check.Denied.ShouldBeOfType<ProblemHttpResult>().ProblemDetails.Status.ShouldBe(StatusCodes.Status404NotFound);
+        check.Role.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task A_viewer_may_download_an_artifact()
     {
         // The floor this endpoint settled on, pinned: the artifact reads like the step logs

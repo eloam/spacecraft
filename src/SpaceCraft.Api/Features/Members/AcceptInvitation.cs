@@ -5,7 +5,6 @@ using SpaceCraft.Infrastructure.Notifications;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Features.Members.Requests;
 
 namespace SpaceCraft.Api.Features.Members;
@@ -31,7 +30,7 @@ public static class AcceptInvitation
         CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
-        var hash = MailedTokens.Hash(request.Token);
+        var hash = OpaqueTokens.Hash(request.Token);
 
         // Looked up by hash, so the comparison is an index seek rather than a string compare
         // whose timing could be measured.

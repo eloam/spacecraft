@@ -189,6 +189,65 @@ public sealed class DispatchClaimTests(SpaceCraftApi api)
             ?? throw new InvalidOperationException("The test host has no connection string.");
     }
 
+    [Fact]
+    public async Task The_queue_depth_counts_what_is_queued_and_ages_the_oldest_of_it()
+    {
+        var runIds = await SeedQueuedRunsAsync(3);
+
+        // The oldest is made unmistakably so: an age of minutes, against runs seeded within a
+        // millisecond of each other.
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
+            await db.PipelineRuns
+                .Where(r => r.Id == runIds[0])
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(r => r.QueuedAt, DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10)),
+                    TestContext.Current.CancellationToken);
+        }
+
+        // Both numbers from one aggregate over the queue's partial index — a GROUP BY the
+        // provider has to translate, which is why this runs against the real one.
+        var (count, oldestAge) = await DepthAsync();
+
+        count.ShouldBe(3);
+        oldestAge.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromMinutes(10));
+        oldestAge.ShouldBeLessThan(TimeSpan.FromMinutes(11));
+
+        // A claimed run leaves the queue; the count and the age move together.
+        (await ClaimAsync(batchSize: 10)).Count.ShouldBe(3);
+
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SpaceCraftDbContext>();
+            var run = await db.PipelineRuns.SingleAsync(r => r.Id == runIds[0], TestContext.Current.CancellationToken);
+            run.Claim("worker", DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var (remaining, youngerAge) = await DepthAsync();
+
+        remaining.ShouldBe(2);
+        youngerAge.ShouldBeLessThan(TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
+    public async Task An_empty_queue_has_no_depth_and_no_age()
+    {
+        await SeedQueuedRunsAsync(0);
+
+        // No group at all when nothing is queued, and that has to read as zero rather than as
+        // a null the caller trips on.
+        (await DepthAsync()).ShouldBe((0, TimeSpan.Zero));
+    }
+
+    private async Task<(int Count, TimeSpan OldestAge)> DepthAsync()
+    {
+        await using var scope = api.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IPipelineRunQueue>()
+            .QueueDepthAsync(TestContext.Current.CancellationToken);
+    }
+
     private async Task<IReadOnlyList<Guid>> ClaimAsync(int batchSize)
     {
         await using var scope = api.Services.CreateAsyncScope();

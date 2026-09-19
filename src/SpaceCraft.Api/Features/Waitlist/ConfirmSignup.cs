@@ -1,5 +1,4 @@
 using SpaceCraft.Api.Common;
-using SpaceCraft.Api.Email;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Waitlist.Responses;
 using Microsoft.AspNetCore.Mvc;
@@ -19,7 +18,7 @@ public static class ConfirmSignup
             return ApiResults.Invalid(nameof(token), "A confirmation token is required.");
         }
 
-        var hash = MailedTokens.Hash(token);
+        var hash = OpaqueTokens.Hash(token);
         var entry = await db.WaitlistEntries.FirstOrDefaultAsync(w => w.ConfirmationTokenHash == hash, ct);
 
         if (entry is null)

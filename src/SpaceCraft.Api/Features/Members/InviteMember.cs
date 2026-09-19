@@ -41,7 +41,9 @@ public static class InviteMember
 
         // Admin, not Member: adding people changes who can reach the organization's
         // credentials and publish under its packages.
-        if (await access.DenyUnlessAsync(organizationId, caller, OrganizationRole.Admin, ct) is { } denied)
+        var membership = await access.CheckAsync(organizationId, caller, OrganizationRole.Admin, ct);
+
+        if (membership.Denied is { } denied)
         {
             return denied;
         }
@@ -51,10 +53,9 @@ public static class InviteMember
         var address = request.Email.Trim().ToLowerInvariant();
 
         // Nobody grants a role they do not hold — the same cap the role-change endpoint
-        // applies, checked here because the domain knows roles but not who is asking.
-        var callerRole = await access.GetRoleAsync(organizationId, caller, ct);
-
-        if (callerRole is not { } held || request.Role > held)
+        // applies, checked here because the domain knows roles but not who is asking. The
+        // role is there behind a pass: the guard refuses a non-member before this line.
+        if (request.Role > membership.Role!.Value)
         {
             return ApiResults.Problem(
                 "Forbidden",
@@ -78,13 +79,13 @@ public static class InviteMember
             previous.Revoke(now);
         }
 
-        var raw = MailedTokens.Generate();
+        var raw = OpaqueTokens.Generate();
         var invitation = new OrganizationInvitation(
             organizationId,
             address,
             request.Role,
             caller,
-            MailedTokens.Hash(raw),
+            OpaqueTokens.Hash(raw),
             now.Add(InvitationDispatcher.Lifetime));
 
         db.OrganizationInvitations.Add(invitation);

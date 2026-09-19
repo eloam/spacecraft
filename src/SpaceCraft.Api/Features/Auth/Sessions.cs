@@ -30,7 +30,7 @@ internal static class Sessions
 
         db.RefreshTokens.Add(new RefreshToken(
             user.Id,
-            tokenFactory.HashToken(pair.RefreshToken),
+            OpaqueTokens.Hash(pair.RefreshToken),
             DateTimeOffset.UtcNow.Add(JwtOptions.RefreshTokenLifetime),
             session));
 

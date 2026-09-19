@@ -4,7 +4,6 @@ using SpaceCraft.Infrastructure.Notifications;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Features.Members.Requests;
 
 namespace SpaceCraft.Api.Features.Members;
@@ -29,7 +28,7 @@ public static class DeclineInvitation
 
         var now = DateTimeOffset.UtcNow;
         var invitation = await db.OrganizationInvitations
-            .FirstOrDefaultAsync(i => i.TokenHash == MailedTokens.Hash(request.Token), ct);
+            .FirstOrDefaultAsync(i => i.TokenHash == OpaqueTokens.Hash(request.Token), ct);
 
         if (invitation is null || !invitation.IsRedeemable(now))
         {

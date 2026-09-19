@@ -48,7 +48,24 @@ public sealed class PipelineRunConfiguration : IEntityTypeConfiguration<Pipeline
             .HasFilter("lease_expires_at IS NOT NULL");
 
         builder.HasIndex(r => new { r.ApiProjectId, r.QueuedAt });
-        builder.HasIndex(r => r.OrganizationId);
+
+        // The history the web polls every two seconds: the tenant's runs, newest first, a page
+        // at a time. Leading on the organization and ending on the sort key lets Postgres walk
+        // the index backwards and stop at the page size, rather than sort the tenant's whole
+        // history on every poll. Everything else that filters on organization_id alone —
+        // GetRun, CancelRun, the deleters — is served by the prefix.
+        builder.HasIndex(r => new { r.OrganizationId, r.QueuedAt });
+
+        // "Is a run in flight for this target?" — CreateRun, UpdateTarget and ProjectDeleter
+        // all ask it, and SdkTargetId has no foreign key, so nothing indexes it by convention.
+        // Status second, so the two in-flight values are found inside the target's runs
+        // without reading the finished ones.
+        builder.HasIndex(r => new { r.SdkTargetId, r.Status });
+
+        // SpecDeleter's scope: the runs of a version being deleted. No foreign key either.
+        // CreateRun's duplicate check also names the spec version, but it is served by
+        // (sdk_target_id, status) above, which fixes two of its three columns.
+        builder.HasIndex(r => r.SpecVersionId);
 
         builder.HasMany(r => r.Steps)
             .WithOne()

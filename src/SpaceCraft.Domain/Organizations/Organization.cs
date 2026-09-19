@@ -14,15 +14,20 @@ public sealed class Organization : Entity
 
     private Organization() { }
 
+    /// <summary>
+    /// The name is held to <see cref="ResourceName"/> from the start, not only on rename: a
+    /// name that would not slug predictably is refused wherever it arrives, so the aggregate
+    /// never holds one whose address it could not derive. The slug is accepted as given,
+    /// valid, because a caller may choose one; see <see cref="Rename"/> for how long it lasts.
+    /// </summary>
     public Organization(string name, string slug, Guid createdByUserId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (!Common.Slug.IsValid(slug))
         {
             throw new ArgumentException($"'{slug}' is not a valid slug.", nameof(slug));
         }
 
-        Name = name;
+        Name = ResourceName.Require(name);
         Slug = slug;
         _members.Add(new OrganizationMember(Id, createdByUserId, OrganizationRole.Owner));
     }
@@ -39,6 +44,13 @@ public sealed class Organization : Entity
     /// The slug is the URL, so it follows the name rather than drifting away from it. The
     /// cost is that links to the old slug stop resolving — which is why the name is
     /// restricted to characters that slug predictably, and why the UI says so before saving.
+    /// </para>
+    /// <para>
+    /// That includes a slug chosen explicitly at creation: the first rename replaces it with
+    /// the derived one. One rule rather than two — the settings page shows the slug as
+    /// derived from the name and warns that renaming moves it, without a case for a slug
+    /// somebody once typed — and a caller who wants the address to survive a rename does not
+    /// rename.
     /// </para>
     /// </summary>
     public void Rename(string name)
