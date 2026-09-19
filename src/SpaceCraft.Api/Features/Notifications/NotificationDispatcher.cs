@@ -255,6 +255,8 @@ public sealed class NotificationDispatcher(
         {
             delivery.Release();
 
+            // The message's key beside the delivery's: the transport has just logged the
+            // failure under the former, and this is the line that says which row it was.
             if (delivery.IsAbandoned)
             {
                 // Said out loud, once. Otherwise a message that will never be sent leaves no
@@ -262,12 +264,14 @@ public sealed class NotificationDispatcher(
                 // was for is never told and never knows they were not.
                 logger.LogWarning(
                     ex,
-                    "Giving up on notification delivery {DeliveryId} after {Attempts} attempts",
-                    delivery.Id, delivery.Attempts);
+                    "Giving up on notification delivery {DeliveryId} after {Attempts} attempts; the last was email {MessageId}",
+                    delivery.Id, delivery.Attempts, message.Id);
             }
             else
             {
-                logger.LogError(ex, "Delivering notification {DeliveryId} failed", delivery.Id);
+                logger.LogError(
+                    ex, "Delivering notification {DeliveryId} as email {MessageId} failed",
+                    delivery.Id, message.Id);
             }
         }
     }

@@ -37,8 +37,8 @@ public sealed class EmailDispatcher(
             catch (Exception ex)
             {
                 // One undeliverable message must not stop the dispatcher; the transport has
-                // already logged the specifics.
-                logger.LogError(ex, "Dispatching {Subject} failed", message.Subject);
+                // already logged the specifics under the same key.
+                logger.LogError(ex, "Dispatching email {MessageId} failed", message.Id);
             }
         }
     }

@@ -90,11 +90,12 @@ stays valid), and revokes every session of the account.
 
 ## Mail
 
-`SmtpEmailTransport` never logs a message body — a reset link is a bearer credential — but
-logs the recipient in full on success and failure. Delivery retries transport errors and 4xx
-with jittered backoff under per-attempt and total timeouts; 5xx and refused credentials are
-not retried. Outside Development startup refuses `Smtp:Security=None` and refuses to fall
-back to the logging transport.
+`SmtpEmailTransport` logs a per-message key on success and failure, never the body — a reset
+link is a bearer credential — nor the recipient or the subject, which can name a person too.
+The development `LoggingEmailTransport` writes address and body in full, and is refused
+outside Development. Delivery retries transport errors and 4xx with jittered backoff under
+per-attempt and total timeouts; 5xx and refused credentials are not retried. Outside
+Development startup also refuses `Smtp:Security=None`.
 
 ## Deleting things
 

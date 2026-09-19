@@ -85,7 +85,9 @@ public sealed class SmtpEmailTransport(
             await pipeline.ExecuteAsync(
                 async token => await DeliverAsync(mail, token), ct);
 
-            logger.LogInformation("Email sent to {To}: {Subject}", message.To, message.Subject);
+            // The key alone — neither the recipient nor the subject, which names a person
+            // just as well: see EmailMessage.Id.
+            logger.LogInformation("Email {MessageId} sent", message.Id);
         }
         catch (Exception ex) when (ex is SmtpCommandException or SmtpProtocolException
                                       or AuthenticationException or IOException
@@ -93,8 +95,7 @@ public sealed class SmtpEmailTransport(
         {
             // Named exception types rather than a bare catch: a bug in message construction
             // should surface as a bug, not as "the mail provider is having trouble".
-            logger.LogError(
-                ex, "Email to {To} could not be delivered: {Subject}", message.To, message.Subject);
+            logger.LogError(ex, "Email {MessageId} could not be delivered", message.Id);
             throw;
         }
     }
