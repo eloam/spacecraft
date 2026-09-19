@@ -46,6 +46,12 @@ public sealed class NotificationDelivery : Entity
     /// sends the same message twice. Claiming first means a crash in the gap loses a message
     /// instead of duplicating it, which is the right way round for something that lands in
     /// somebody's inbox.
+    /// <para>
+    /// The stamp comes off again when the transport throws — see <see cref="Release"/> — and
+    /// a transport can throw after the relay took the message. So the guarantee is at-most-once
+    /// against the process dying and at-least-once against the transport failing, not
+    /// at-most-once outright.
+    /// </para>
     /// </remarks>
     public DateTimeOffset? SentAt { get; private set; }
 
@@ -67,7 +73,9 @@ public sealed class NotificationDelivery : Entity
 
     /// <summary>
     /// Puts it back for the next sweep. The attempt stays counted, so a recipient the relay
-    /// keeps rejecting is given up on rather than retried until the end of time.
+    /// keeps rejecting is given up on rather than retried until the end of time. Called for
+    /// any transport failure, including one the relay may already have accepted, so a
+    /// released message can arrive twice.
     /// </summary>
     public void Release()
     {
