@@ -15,6 +15,7 @@ public static class AccountEndpoints
 
         group.MapPatch("/", UpdateProfile.HandleAsync)
             .Produces<AccountResponse>()
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem()
             .WithSummary("Updates the display name.");
 

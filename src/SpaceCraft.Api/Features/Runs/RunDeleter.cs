@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Infrastructure.Persistence;
-using SpaceCraft.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Runs;
@@ -16,10 +15,7 @@ namespace SpaceCraft.Api.Features.Runs;
 /// artifacts and step logs they point at with them. Everything that deletes one of those
 /// containers comes through here for its runs.
 /// </remarks>
-public sealed class RunDeleter(
-    SpaceCraftDbContext db,
-    IObjectStorage storage,
-    ILogger<RunDeleter> logger)
+public sealed class RunDeleter(SpaceCraftDbContext db)
 {
     /// <summary>
     /// Refuses while a run in scope is queued or executing. A worker holding a lease would
@@ -40,19 +36,25 @@ public sealed class RunDeleter(
     }
 
     /// <summary>
-    /// Removes the runs in scope along with their artifacts and step logs. The rows are
-    /// staged, not saved: the caller commits them with the rest of its delete.
+    /// Stages the runs in scope for removal and returns the keys of the artifacts and step
+    /// logs they point at.
     /// </summary>
-    public async Task PurgeAsync(Expression<Func<PipelineRun, bool>> scope, CancellationToken ct)
+    /// <remarks>
+    /// The rows are staged, not saved: the caller commits them with the rest of its delete,
+    /// which keeps one transaction per delete. The objects are handed back rather than removed
+    /// here for the same reason — they go once that commit has landed. Removed before it, a
+    /// save that failed left rows whose artifacts and logs were already gone.
+    /// </remarks>
+    public async Task<IReadOnlyList<string?>> RemoveAsync(
+        Expression<Func<PipelineRun, bool>> scope, CancellationToken ct)
     {
         var runs = await db.PipelineRuns.Where(scope).Include(r => r.Steps).ToListAsync(ct);
 
-        var keys = runs
-            .Select(r => r.ArtifactStorageKey)
-            .Concat(runs.SelectMany(r => r.Steps).Select(s => s.LogStorageKey));
-
-        await storage.TryDeleteAsync(keys, logger, ct);
-
         db.PipelineRuns.RemoveRange(runs);
+
+        return runs
+            .Select(r => r.ArtifactStorageKey)
+            .Concat(runs.SelectMany(r => r.Steps).Select(s => s.LogStorageKey))
+            .ToList();
     }
 }

@@ -29,7 +29,17 @@ public static class UpdateProfile
         // storing whitespace.
         var name = request.DisplayName?.Trim();
         user.DisplayName = string.IsNullOrWhiteSpace(name) ? null : name;
-        await userManager.UpdateAsync(user);
+
+        // Identity reports a user row changed under it — a password change landing at the
+        // same instant — as a failed result rather than an exception, so an unchecked result
+        // answered 200 with a name that was never stored. UpdateAsync also fails for a user
+        // that no longer passes its validators (user name, unique email), which a change to
+        // the display name alone cannot cause.
+        var result = await userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return ApiResults.Conflict("Someone else changed this account at the same time. Reload and try again.");
+        }
 
         var organizations = await db.OrganizationMembers.CountAsync(m => m.UserId == user.Id, ct);
 
