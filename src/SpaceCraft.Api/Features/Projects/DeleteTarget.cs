@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
-using SpaceCraft.Api.Features.Deletion;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +17,7 @@ public static class DeleteTarget
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         IOrganizationAccess access,
-        ResourceDeleter deleter,
+        ProjectDeleter deleter,
         CancellationToken ct)
     {
         if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Admin, ct) is { } denied)

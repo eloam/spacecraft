@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
-using SpaceCraft.Api.Features.Deletion;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +15,7 @@ public static class DeleteSpec
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         IOrganizationAccess access,
-        ResourceDeleter deleter,
+        SpecDeleter deleter,
         CancellationToken ct)
     {
         if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Member, ct) is { } denied)
@@ -37,7 +36,7 @@ public static class DeleteSpec
             return ApiResults.NotFound("The specification version");
         }
 
-        if (await deleter.DeleteSpecVersionAsync(specVersionId, ct) is { } refusal)
+        if (await deleter.DeleteAsync(specVersionId, ct) is { } refusal)
         {
             return ApiResults.Conflict(refusal.Reason);
         }

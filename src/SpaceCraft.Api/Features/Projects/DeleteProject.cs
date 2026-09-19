@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
-using SpaceCraft.Api.Features.Deletion;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +16,7 @@ public static class DeleteProject
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         IOrganizationAccess access,
-        ResourceDeleter deleter,
+        ProjectDeleter deleter,
         CancellationToken ct)
     {
         // Admin: destroying a project's history is not the same kind of act as uploading a
@@ -43,7 +42,7 @@ public static class DeleteProject
             return ApiResults.Invalid(nameof(request.Name), $"Type the project's name exactly: {project.Name}");
         }
 
-        if (await deleter.DeleteProjectAsync(projectId, ct) is { } refusal)
+        if (await deleter.DeleteAsync(projectId, ct) is { } refusal)
         {
             return ApiResults.Conflict(refusal.Reason);
         }

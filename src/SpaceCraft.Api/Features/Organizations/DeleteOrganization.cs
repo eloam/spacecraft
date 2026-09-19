@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using SpaceCraft.Api.Common;
-using SpaceCraft.Api.Features.Deletion;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +17,7 @@ public static class DeleteOrganization
         ClaimsPrincipal principal,
         SpaceCraftDbContext db,
         IOrganizationAccess access,
-        ResourceDeleter deleter,
+        OrganizationDeleter deleter,
         CancellationToken ct)
     {
         // Owner, not Admin: this removes every project, run and credential the organization
@@ -44,7 +43,7 @@ public static class DeleteOrganization
                 nameof(request.Name), $"Type the organization's name exactly: {organization.Name}");
         }
 
-        if (await deleter.DeleteOrganizationAsync(organizationId, ct) is { } refusal)
+        if (await deleter.DeleteAsync(organizationId, ct) is { } refusal)
         {
             return ApiResults.Conflict(refusal.Reason);
         }

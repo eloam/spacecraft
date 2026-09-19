@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using SpaceCraft.Api.Common;
-using SpaceCraft.Api.Features.Deletion;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Domain.Projects;
@@ -29,7 +28,7 @@ public static class UploadSpec
         IOrganizationAccess access,
         ISpecValidator validator,
         IObjectStorage storage,
-        ResourceDeleter deleter,
+        SpecDeleter deleter,
         CancellationToken ct)
     {
         if (await access.DenyUnlessAsync(organizationId, principal.Id(), OrganizationRole.Member, ct) is { } denied)
