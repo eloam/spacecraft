@@ -16,7 +16,7 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260919214202_UseOrganizationRowVersion";
+    public override string LastMigrationId => "20260919214615_IndexFilteredAndSortedColumns";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -351,6 +351,9 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
 
                 b.HasKey("Id")
                     .HasName("pk_notifications");
+
+                b.HasIndex("CreatedAt")
+                    .HasDatabaseName("ix_notifications_created_at");
 
                 b.HasIndex("UserId")
                     .HasDatabaseName("ix_notifications_unread")
@@ -741,11 +744,17 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_pipeline_runs_lease")
                     .HasFilter("lease_expires_at IS NOT NULL");
 
-                b.HasIndex("OrganizationId")
-                    .HasDatabaseName("ix_pipeline_runs_organization_id");
+                b.HasIndex("SpecVersionId")
+                    .HasDatabaseName("ix_pipeline_runs_spec_version_id");
 
                 b.HasIndex("ApiProjectId", "QueuedAt")
                     .HasDatabaseName("ix_pipeline_runs_api_project_id_queued_at");
+
+                b.HasIndex("OrganizationId", "QueuedAt")
+                    .HasDatabaseName("ix_pipeline_runs_organization_id_queued_at");
+
+                b.HasIndex("SdkTargetId", "Status")
+                    .HasDatabaseName("ix_pipeline_runs_sdk_target_id_status");
 
                 b.HasIndex("Status", "QueuedAt")
                     .HasDatabaseName("ix_pipeline_runs_queue")
@@ -1098,11 +1107,11 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("Id")
                     .HasName("pk_publications");
 
-                b.HasIndex("OrganizationId")
-                    .HasDatabaseName("ix_publications_organization_id");
-
                 b.HasIndex("PipelineRunId")
                     .HasDatabaseName("ix_publications_pipeline_run_id");
+
+                b.HasIndex("OrganizationId", "CreatedAt")
+                    .HasDatabaseName("ix_publications_organization_id_created_at");
 
                 b.HasIndex("SdkTargetId", "Version")
                     .IsUnique()
