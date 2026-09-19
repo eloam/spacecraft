@@ -34,15 +34,15 @@
     -->
     <AnalysisLevel>10.0-recommended</AnalysisLevel>
     <!--
-      CA1848 LoggerMessage source generators: not worth the ceremony at this scale.
+      CA1848/CA1873 both push every log call through a source generator. Worth it in hot
+              paths — the run queue does exactly that — but not for once-per-step pipeline
+              logging, where it trades readability for an allocation nobody will measure.
       CA2007  ConfigureAwait(false): no synchronisation context in ASP.NET Core or worker hosts.
       CA1711  Reserved type-name suffixes: "Queue" here names a work queue in the domain sense,
               not a Queue<T> subclass. The rule has no way to tell those apart.
-    -->
-    <!--
-      CA1848/CA1873 both push every log call through a source generator. Worth it in hot
-      paths — the run queue does exactly that — but not for once-per-step pipeline logging,
-      where it trades readability for an allocation nobody will measure.
+      VSTHRD200 "Async" suffix on async methods: not a rule this repository chose. The analyser
+              arrives transitively through Kiota.Builder and would fire on every test method
+              returning Task.
     -->
     <NoWarn>$(NoWarn);CA1848;CA1873;CA2007;CA1711;VSTHRD200</NoWarn>
   </PropertyGroup>
