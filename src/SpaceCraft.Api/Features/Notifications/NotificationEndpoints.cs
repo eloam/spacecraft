@@ -337,8 +337,6 @@ public static class NotificationEndpoints
            select new NotificationPreferenceState(
                kind.ToString(),
                channel.ToString(),
-               stated.FirstOrDefault(p => p.Kind == kind && p.Channel == channel) is { } row
-                   ? row.Enabled
-                   : NotificationDefaults.IsEnabled(kind, channel))
+               NotificationAddressing.IsEnabled(stated, kind, channel))
     ];
 }
