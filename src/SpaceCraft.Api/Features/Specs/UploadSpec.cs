@@ -55,8 +55,13 @@ public static class UploadSpec
             return ApiResults.Invalid(nameof(file), "Upload a .yaml, .yml or .json document.");
         }
 
+        // The newest version only, not the history. AddSpecVersion numbers the new document
+        // from the highest sequence it can see, and the strict policy judges the declared
+        // version against the one that came before; both need the latest row and nothing
+        // older, and the project's history was being loaded, tracked, on every upload to read
+        // one number and one string off its last entry.
         var project = await db.ApiProjects
-            .Include(p => p.SpecVersions)
+            .Include(p => p.SpecVersions.OrderByDescending(s => s.Sequence).Take(1))
             .Include(p => p.Targets)
             .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
 
@@ -78,7 +83,12 @@ public static class UploadSpec
         // Refused, not silently accepted. This used to return 200 with the existing version
         // and no diagnostics, which the UI reported as a successful upload of a version it had
         // never created — the upload looked broken precisely because it had done nothing.
-        var duplicate = project.SpecVersions.FirstOrDefault(s => s.ContentHash == contentHash);
+        var duplicate = await db.SpecVersions
+            .AsNoTracking()
+            .Where(s => s.ApiProjectId == projectId && s.ContentHash == contentHash)
+            .Select(s => new { s.Id, s.Sequence, s.CreatedAt })
+            .FirstOrDefaultAsync(ct);
+
         if (duplicate is not null)
         {
             var detail =
@@ -96,10 +106,7 @@ public static class UploadSpec
         }
 
         buffer.Position = 0;
-        var previousApiVersion = project.SpecVersions
-            .OrderByDescending(s => s.Sequence)
-            .Select(s => s.ApiVersion)
-            .FirstOrDefault();
+        var previousApiVersion = project.LatestSpec?.ApiVersion;
 
         var validation = await validator.ValidateAsync(
             buffer, file.FileName, project.StrictValidation, previousApiVersion, ct);
