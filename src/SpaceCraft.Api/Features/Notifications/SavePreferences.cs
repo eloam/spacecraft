@@ -5,10 +5,9 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Notifications;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Notifications.Responses;
+using SpaceCraft.Api.Features.Notifications.Requests;
 
 namespace SpaceCraft.Api.Features.Notifications;
-
-public sealed record NotificationPreferencesRequest(List<NotificationPreferenceState> Preferences);
 
 /// <summary>
 /// Replaces the whole matrix.

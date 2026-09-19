@@ -4,12 +4,11 @@ using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Runs.Responses;
+using SpaceCraft.Api.Features.Runs.Requests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Runs;
-
-public sealed record CreateRunRequest(Guid SpecVersionId, Guid SdkTargetId, bool Publish);
 
 public static class CreateRun
 {

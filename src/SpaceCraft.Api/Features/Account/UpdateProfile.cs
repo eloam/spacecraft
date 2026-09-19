@@ -3,13 +3,12 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Account.Responses;
+using SpaceCraft.Api.Features.Account.Requests;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Account;
-
-public sealed record UpdateProfileRequest(string? DisplayName);
 
 public static class UpdateProfile
 {

@@ -1,4 +1,4 @@
-namespace SpaceCraft.Api.Features.Projects;
+namespace SpaceCraft.Api.Features.Projects.Requests;
 
 /// <summary>
 /// Typing the name back is the confirmation. Shared by project and target deletion so the

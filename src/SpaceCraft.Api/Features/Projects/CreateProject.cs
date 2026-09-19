@@ -5,17 +5,11 @@ using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Projects;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Projects.Responses;
+using SpaceCraft.Api.Features.Projects.Requests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Projects;
-
-/// <summary>
-/// <paramref name="StrictValidation"/> is nullable so that omitting it means "whatever the
-/// default is" rather than "off" — a caller that predates the option should not silently
-/// create projects without it.
-/// </summary>
-public sealed record CreateProjectRequest(string Name, string? Slug, bool? StrictValidation);
 
 public static class CreateProject
 {

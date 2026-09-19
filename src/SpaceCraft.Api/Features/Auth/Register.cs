@@ -3,14 +3,13 @@ using SpaceCraft.Api.Email;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Auth.Responses;
+using SpaceCraft.Api.Features.Auth.Requests;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Api.Features.Auth;
-
-public sealed record RegisterRequest(string Email, string Password, string? DisplayName);
 
 public static class Register
 {

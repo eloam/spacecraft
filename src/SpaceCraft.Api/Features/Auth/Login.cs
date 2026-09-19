@@ -2,14 +2,13 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Identity;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Auth.Responses;
+using SpaceCraft.Api.Features.Auth.Requests;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace SpaceCraft.Api.Features.Auth;
-
-public sealed record LoginRequest(string Email, string Password);
 
 public static class Login
 {

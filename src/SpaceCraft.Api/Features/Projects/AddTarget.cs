@@ -4,18 +4,11 @@ using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Projects;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Projects.Responses;
+using SpaceCraft.Api.Features.Projects.Requests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Projects;
-
-public sealed record AddTargetRequest(
-    SdkLanguage Language,
-    string PackageName,
-    RegistryKind? Registry,
-    bool AutoPublish,
-    /// <summary>Which credential publishes it. Null while the organization has only one.</summary>
-    Guid? RegistryCredentialId = null);
 
 public static class AddTarget
 {

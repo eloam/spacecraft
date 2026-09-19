@@ -1,11 +1,10 @@
 using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Features.Waitlist.Responses;
+using SpaceCraft.Api.Features.Waitlist.Requests;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SpaceCraft.Api.Features.Waitlist;
-
-public sealed record WaitlistSignupRequest(string Email, string? Source);
 
 public static class JoinWaitlist
 {

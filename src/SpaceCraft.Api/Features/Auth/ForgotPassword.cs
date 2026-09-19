@@ -1,11 +1,10 @@
 using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Features.Auth.Responses;
+using SpaceCraft.Api.Features.Auth.Requests;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SpaceCraft.Api.Features.Auth;
-
-public sealed record ForgotPasswordRequest(string Email);
 
 public static class ForgotPassword
 {

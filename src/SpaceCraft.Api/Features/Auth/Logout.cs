@@ -3,7 +3,7 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SpaceCraft.Domain.Identity;
+using SpaceCraft.Api.Features.Auth.Requests;
 
 namespace SpaceCraft.Api.Features.Auth;
 

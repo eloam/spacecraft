@@ -6,10 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Features.Members.Responses;
+using SpaceCraft.Api.Features.Members.Requests;
 
 namespace SpaceCraft.Api.Features.Members;
-
-public sealed record AddMemberRequest(string Email, OrganizationRole Role);
 
 /// <summary>
 /// Sends an invitation to an address. Nobody joins until it is accepted.

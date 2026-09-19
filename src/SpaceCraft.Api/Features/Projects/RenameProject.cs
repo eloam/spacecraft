@@ -4,12 +4,11 @@ using SpaceCraft.Domain.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Projects.Responses;
+using SpaceCraft.Api.Features.Projects.Requests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Projects;
-
-public sealed record RenameProjectRequest(string Name);
 
 public static class RenameProject
 {

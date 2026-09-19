@@ -3,12 +3,11 @@ using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Projects.Responses;
+using SpaceCraft.Api.Features.Projects.Requests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Projects;
-
-public sealed record StrictValidationRequest(bool Enabled);
 
 /// <summary>
 /// Turns the SDK-readiness checks on or off.

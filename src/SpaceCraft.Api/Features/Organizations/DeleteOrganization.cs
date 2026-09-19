@@ -2,12 +2,11 @@ using System.Security.Claims;
 using SpaceCraft.Api.Common;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
+using SpaceCraft.Api.Features.Organizations.Requests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Organizations;
-
-public sealed record DeleteOrganizationRequest(string Name);
 
 public static class DeleteOrganization
 {

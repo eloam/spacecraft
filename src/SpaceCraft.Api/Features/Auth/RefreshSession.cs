@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SpaceCraft.Api.Features.Auth.Responses;
+using SpaceCraft.Api.Features.Auth.Requests;
 
 namespace SpaceCraft.Api.Features.Auth;
 

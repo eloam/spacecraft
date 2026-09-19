@@ -4,20 +4,11 @@ using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Domain.Pipelines;
 using SpaceCraft.Infrastructure.Persistence;
 using SpaceCraft.Api.Features.Projects.Responses;
+using SpaceCraft.Api.Features.Projects.Requests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace SpaceCraft.Api.Features.Projects;
-
-/// <summary>
-/// What a target can still be changed to. Language and registry are not here: they decide
-/// which generator runs and where the result goes, so changing either would make the row
-/// describe something that was never built.
-/// </summary>
-public sealed record UpdateTargetRequest(
-    string PackageName,
-    bool AutoPublish,
-    Guid? RegistryCredentialId = null);
 
 /// <summary>
 /// Changes the package a target publishes to, and whether it does so on its own.
