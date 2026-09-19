@@ -75,6 +75,7 @@ builder.Services.AddScoped<RunDeleter>();
 builder.Services.AddScoped<OrganizationDeleter>();
 builder.Services.AddScoped<ProjectDeleter>();
 builder.Services.AddScoped<SpecDeleter>();
+builder.Services.AddScoped<AccountDeleter>();
 builder.Services.AddSpaceCraftEmail(builder.Configuration, builder.Environment.IsDevelopment());
 
 // Bounds the notification history. The count beside the bell is the most frequent query
