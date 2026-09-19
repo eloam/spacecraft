@@ -94,7 +94,7 @@ public sealed class SdkTargetConfiguration : IEntityTypeConfiguration<SdkTarget>
         //
         // The registry is the authority on who owns a name, and it says so at publish time.
         // What this platform can usefully catch is an organization colliding with itself,
-        // which ProjectEndpoints checks within the organization before the row is written.
+        // which AddTarget checks within the organization before the row is written.
         builder.HasIndex(t => new { t.Registry, t.PackageName });
     }
 }

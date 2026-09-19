@@ -5,10 +5,10 @@ namespace SpaceCraft.Infrastructure.Security;
 /// <summary>
 /// Backed by ASP.NET Core Data Protection.
 /// <para>
-/// In development the key ring sits on disk. In production it must be persisted to a
-/// shared store and wrapped by a KMS key (<c>ProtectKeysWithAzureKeyVault</c>,
-/// <c>ProtectKeysWithAwsKms</c>, or equivalent) — otherwise every stored token becomes
-/// unreadable the moment the key ring is lost, and readable to anyone who copies it.
+/// The key ring is persisted in Postgres in every environment, so the API and the runner
+/// read the same one, and is wrapped by the Key Manager outside Development —
+/// <c>KeyProtectionExtensions</c> refuses to start without it. Lose the ring and every stored
+/// token is unreadable; copy it unwrapped and every stored token is readable.
 /// </para>
 /// </summary>
 public sealed class DataProtectionSecretProtector : ISecretProtector

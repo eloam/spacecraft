@@ -218,8 +218,9 @@ public static class UploadSpec
     private static async Task<bool> SequenceTakenAsync(
         SpaceCraftDbContext db, Guid projectId, int sequence, CancellationToken ct)
     {
-        // A fresh context: the failed SaveChanges left this one holding entries it could not
-        // write, and asking it anything about the database would replay them.
+        // The same context, deliberately: the failed SaveChanges left it holding entries it
+        // could not write, but a query does not flush the tracker, so asking the database a
+        // question here replays nothing. AsNoTracking keeps the answer out of that tracker too.
         return await db.SpecVersions
             .AsNoTracking()
             .AnyAsync(s => s.ApiProjectId == projectId && s.Sequence == sequence, ct);

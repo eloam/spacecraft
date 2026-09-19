@@ -19,9 +19,9 @@ namespace SpaceCraft.Api.Features.Runs;
 /// the only version that is correct when the platform is briefly unavailable.
 /// </para>
 /// <para>
-/// It runs here rather than beside <c>--reap</c> in the runner image because the key that
-/// starts jobs must not travel to a process that executes a customer's build. That is the
-/// whole reason <see cref="PipelineJobOptions"/> lives in this project.
+/// It runs here rather than in the runner image because the key that starts jobs must not
+/// travel to a process that executes a customer's build. That is the whole reason
+/// <see cref="PipelineJobOptions"/> lives in this project.
 /// </para>
 /// <para>
 /// One execution per run, never a drain: the isolation this buys is per container, and a job

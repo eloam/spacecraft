@@ -79,8 +79,8 @@ public sealed class PipelineJobOptions : IValidatableObject
     /// filters on <c>Queued</c> under <c>FOR UPDATE SKIP LOCKED</c>, so the loser exits having
     /// done nothing — but it spends an execution against the concurrency ceiling for nothing.
     /// <para>
-    /// Held in memory rather than in a column: the only cost of forgetting it is one duplicate
-    /// start, which is already safe, and a schema change for that would be a poor trade.
+    /// The stamp is the run's <c>dispatched_at</c> column, so it holds across API instances
+    /// and restarts; this is how long the claim honours it before offering the run again.
     /// </para>
     /// </remarks>
     [Range(10, 3600)]

@@ -1,8 +1,9 @@
-# Image for the API, sized for a serverless container platform.
+# Image for the API, run as a serverless container that never scales to zero: RunDispatcher
+# lives in it and is the only thing that starts jobs (docs/deployment.md).
 #
 # Unlike the runner, this carries no language toolchains: the API never generates or builds
 # an SDK, it only records the intent and hands work to the queue. That keeps the image small,
-# which is what a scale-to-zero platform charges for on every cold start.
+# which is what a deploy or a scale-out event pulls.
 ARG DOTNET_VERSION=11.0-preview
 
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
