@@ -324,8 +324,23 @@ public sealed class PipelineRun : Entity
         Touch();
     }
 
+    /// <summary>
+    /// Marks the run failed, unless it has already finished.
+    /// </summary>
+    /// <remarks>
+    /// The same guard as <see cref="Succeed"/>, for the same reason: a terminal status is a
+    /// decision somebody made, and a run cancelled from the API while a worker held it must
+    /// still read Cancelled once that worker's step fails — not Failed, with the
+    /// cancellation and its reason overwritten. The guard covers the copy in hand; the
+    /// concurrency token on the row covers the copy the worker loaded before the cancel.
+    /// </remarks>
     public void Fail(string reason)
     {
+        if (IsTerminal)
+        {
+            throw new InvalidOperationException($"Cannot fail a run in status {Status}.");
+        }
+
         Status = RunStatus.Failed;
         FailureReason = Text.Clamp(reason, ReasonLimit);
         CompletedAt = DateTimeOffset.UtcNow;

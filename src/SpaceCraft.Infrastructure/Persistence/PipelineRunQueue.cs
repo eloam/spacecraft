@@ -98,9 +98,13 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
 
             // No LINQ operators may be composed onto this query: EF would wrap it in a
             // subquery, and Postgres rejects FOR UPDATE inside one.
+            //
+            // xmin by name, here and in the two claims below: it is the run's concurrency
+            // token, and a system column that SELECT * leaves out. Without it EF refuses the
+            // rows for missing a mapped column.
             var candidates = await db.PipelineRuns
                 .FromSql($"""
-                    SELECT * FROM spacecraft.pipeline_runs
+                    SELECT *, xmin FROM spacecraft.pipeline_runs
                     WHERE status = {(int)RunStatus.Queued}
                     ORDER BY queued_at
                     LIMIT 1
@@ -147,7 +151,7 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
 
             var candidates = await db.PipelineRuns
                 .FromSql($"""
-                    SELECT * FROM spacecraft.pipeline_runs
+                    SELECT *, xmin FROM spacecraft.pipeline_runs
                     WHERE id = {runId} AND status = {(int)RunStatus.Queued}
                     FOR UPDATE SKIP LOCKED
                     """)
@@ -199,11 +203,12 @@ public sealed class PipelineRunQueue(SpaceCraftDbContext db, ILogger<PipelineRun
             // — with id as a tiebreak, because two runs queued in the same millisecond share a
             // queued_at and would otherwise come back in whatever order the index felt like.
             // Ids are UUIDv7, so the tiebreak is itself time-ordered rather than arbitrary.
-            // SELECT * because FromSql must return every mapped column, and because these rows
-            // are tracked and mutated below rather than projected.
+            // SELECT *, xmin because FromSql must return every mapped column — the token
+            // included — and because these rows are tracked and mutated below rather than
+            // projected.
             var claimed = await db.PipelineRuns
                 .FromSql($"""
-                    SELECT * FROM spacecraft.pipeline_runs
+                    SELECT *, xmin FROM spacecraft.pipeline_runs
                     WHERE (status = {(int)RunStatus.Queued}
                            AND (dispatched_at IS NULL OR dispatched_at < {cutoff}))
                        OR (status = {(int)RunStatus.Running}

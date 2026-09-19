@@ -126,6 +126,38 @@ public class PipelineRunTests
         Should.Throw<InvalidOperationException>(() => run.Cancel("too late"));
     }
 
+    /// <summary>
+    /// The cancel is a decision somebody made, and the worker that was mid-step when it landed
+    /// must not unmake it — neither with Succeeded, which was guarded, nor with Failed, which
+    /// was not: a step failing after a cancel wrote Failed over Cancelled, reason and all.
+    /// </summary>
+    [Fact]
+    public void A_cancelled_run_stays_cancelled_when_its_worker_fails_it()
+    {
+        var run = NewRun();
+        run.Claim("worker-1", DateTimeOffset.UtcNow);
+        run.Step(StepKind.Validate).Start();
+        run.Cancel("Cancelled by the owner.");
+
+        Should.Throw<InvalidOperationException>(() => run.Fail("build blew up"));
+
+        run.Status.ShouldBe(RunStatus.Cancelled);
+        run.FailureReason.ShouldBe("Cancelled by the owner.");
+        run.Step(StepKind.Validate).Status.ShouldBe(StepStatus.Skipped);
+    }
+
+    [Fact]
+    public void A_finished_run_cannot_be_failed()
+    {
+        var run = NewRun();
+        run.Claim("worker-1", DateTimeOffset.UtcNow);
+        run.Succeed();
+
+        Should.Throw<InvalidOperationException>(() => run.Fail("too late"));
+
+        run.Status.ShouldBe(RunStatus.Succeeded);
+    }
+
     [Fact]
     public void Renewing_the_lease_only_makes_sense_while_running()
     {

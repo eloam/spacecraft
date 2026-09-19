@@ -112,6 +112,8 @@ builder.Services.AddSpaceCraftJobs(builder.Configuration, builder.Environment.Is
 builder.Services.AddProblemDetails();
 // Runs before the default handler, which would answer 500 to a request the caller malformed.
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
+// Likewise for a write the database refused because the row moved: a 409 to retry, not a 500.
+builder.Services.AddExceptionHandler<ConcurrencyConflictExceptionHandler>();
 // Every request record's nested Validator, found by scanning this assembly. They run from the
 // filter on the API group below, before the handler sees the request.
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
