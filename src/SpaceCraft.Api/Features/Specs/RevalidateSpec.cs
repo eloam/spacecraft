@@ -54,18 +54,22 @@ public static class RevalidateSpec
             return ApiResults.NotFound("The specification version");
         }
 
-        if (!await storage.ExistsAsync(specVersion.StorageKey, ct))
-        {
-            return ApiResults.NotFound("The stored document");
-        }
-
         // Buffered rather than validated straight off the storage stream: that one cannot
         // seek, and reading the declared OpenAPI version means going back to the top of the
         // document after the parser has run through it. Upload buffers for the same reason.
         using var buffer = new MemoryStream();
-        await using (var stored = await storage.GetAsync(specVersion.StorageKey, ct))
+
+        try
         {
+            await using var stored = await storage.GetAsync(specVersion.StorageKey, ct);
             await stored.CopyToAsync(buffer, ct);
+        }
+        catch (ObjectNotFoundException)
+        {
+            // The row outlived its object. Caught rather than checked first, as GetSpecContent
+            // and the artifact and log readers do: one storage call instead of two, and no
+            // window between them for the object to go missing.
+            return ApiResults.NotFound("The stored document");
         }
 
         buffer.Position = 0;

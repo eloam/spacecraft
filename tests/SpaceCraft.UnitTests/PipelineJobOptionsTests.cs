@@ -131,4 +131,24 @@ public class PipelineJobOptionsTests
 
         (await StartWith(settings, isDevelopment: true)).ShouldBeNull();
     }
+
+    /// <summary>
+    /// The dispatcher used to clamp these at the first read, so a sweep of 0 seconds ran every
+    /// second and a batch of 1000 claimed 100, and nothing said so. A value outside its bound
+    /// is a configuration error and is refused with the property named.
+    /// </summary>
+    [Theory]
+    [InlineData("SweepSeconds", "0")]
+    [InlineData("BatchSize", "101")]
+    [InlineData("RedispatchAfterSeconds", "5")]
+    public async Task A_knob_outside_its_range_is_refused_rather_than_clamped(string property, string value)
+    {
+        var settings = Valid();
+        settings[$"PipelineJobs:{property}"] = value;
+
+        var error = await StartWith(settings, isDevelopment: false);
+
+        error.ShouldBeOfType<OptionsValidationException>();
+        error.Message.ShouldContain(property);
+    }
 }

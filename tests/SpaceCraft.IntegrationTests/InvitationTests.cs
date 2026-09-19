@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using SpaceCraft.Api.Email;
+using SpaceCraft.Api.Features.Members;
 using SpaceCraft.Domain.Organizations;
 using SpaceCraft.Infrastructure.Persistence;
 using Shouldly;
@@ -253,6 +255,44 @@ public sealed class InvitationTests(SpaceCraftApi api)
 
         invitation.DeclinedAt.ShouldNotBeNull();
         invitation.RevokedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task An_invitation_revoked_before_its_mail_went_out_is_not_mailed()
+    {
+        // The row is written on the request thread and the mail leaves through a queue, so
+        // an admin can withdraw an invitation in the gap. Withdrawing sets RevokedAt rather
+        // than deleting the row, and the dispatcher used to check only for the row.
+        var owner = await api.SignedInAsync(Email());
+        var organizationId = await OrganizationAsync(owner);
+        var revokedEmail = Email();
+
+        var invited = await Invite(owner, organizationId, revokedEmail, OrganizationRole.Member);
+        var invitationId = (await invited.Content.ReadFromJsonAsync<InvitationPayload>(
+            TestContext.Current.CancellationToken))!.Id;
+        await api.Mailbox.WaitForAsync(revokedEmail, "invited", TestContext.Current.CancellationToken);
+
+        var revoked = await owner.DeleteAsync(
+            new Uri($"/api/v1/organizations/{organizationId}/members/invitations/{invitationId}", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        revoked.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        // The gap, reproduced: the send request reaches the dispatcher after the withdrawal.
+        // A second invitation to somebody else follows it through the same single-reader
+        // queue, so once that one has been mailed the revoked one is known to have been
+        // handled — and to have produced nothing.
+        api.Services.GetRequiredService<BackgroundWorkQueue<InvitationRequest>>()
+            .Enqueue(new InvitationRequest(invitationId, "raw-token-of-a-revoked-invitation"));
+
+        var otherEmail = Email();
+        await Invite(owner, organizationId, otherEmail, OrganizationRole.Member);
+        await api.Mailbox.WaitForAsync(otherEmail, "invited", TestContext.Current.CancellationToken);
+
+        api.Mailbox.Sent
+            .Count(m => string.Equals(m.To, revokedEmail, StringComparison.OrdinalIgnoreCase)
+                        && m.Subject.Contains("invited", StringComparison.OrdinalIgnoreCase))
+            .ShouldBe(1, "the withdrawn invitation must not be mailed a second time");
     }
 
     private static string TokenFrom(SpaceCraft.Api.Email.EmailMessage message)

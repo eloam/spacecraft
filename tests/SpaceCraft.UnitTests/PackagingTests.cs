@@ -1,6 +1,10 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using SpaceCraft.Pipeline;
 using SpaceCraft.Pipeline.Building;
 using SpaceCraft.Pipeline.Generation;
 using SpaceCraft.Pipeline.Publishing;
+using SpaceCraft.Pipeline.Sandbox;
 using Shouldly;
 using Xunit;
 
@@ -84,4 +88,71 @@ public class NpmPublisherTests
     [InlineData("https://npm.pkg.github.com/", "//npm.pkg.github.com/:_authToken")]
     public void The_npmrc_auth_key_matches_the_registry(string registry, string expected) =>
         NpmSdkPublisher.AuthKeyFor(registry).ShouldBe(expected);
+
+    [Fact]
+    public async Task Npm_is_pointed_at_the_npmrc_that_was_written()
+    {
+        // The variable once named /workspace/<artifact>/.npmrc, a bind-mount path from a
+        // sandbox the runner no longer has; npm found the file anyway, as the project config
+        // of the directory the publish runs in. It has to be the path the file is written
+        // to, so that the credential does not hang on where the command runs — and the file
+        // has to exist when npm runs, since it is deleted afterwards.
+        var workspace = Directory.CreateTempSubdirectory("spacecraft-publish-");
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(workspace.FullName, "artifact"));
+            await File.WriteAllBytesAsync(
+                Path.Combine(workspace.FullName, "artifact", "acme-billing-sdk-1.0.0.tgz"),
+                [],
+                TestContext.Current.CancellationToken);
+
+            var runner = new SpyRunner();
+            var publisher = new NpmSdkPublisher(
+                runner, Options.Create(new PipelineOptions()), NullLogger<NpmSdkPublisher>.Instance);
+
+            await publisher.PublishAsync(
+                new PublishRequest
+                {
+                    WorkspaceRoot = workspace.FullName,
+                    ArtifactDirectory = "artifact",
+                    ArtifactFileName = "acme-billing-sdk-1.0.0.tgz",
+                    PackageName = "@acme/billing-sdk",
+                    Version = "1.0.0",
+                    RegistryUrl = "https://registry.npmjs.org",
+                    Token = "npm_token",
+                },
+                TestContext.Current.CancellationToken);
+
+            var expected = Path.Combine(workspace.FullName, "artifact", ".npmrc");
+            runner.Request.ShouldNotBeNull().Environment["npm_config_userconfig"].ShouldBe(expected);
+            runner.NpmrcExistedWhenRun.ShouldBeTrue();
+            File.Exists(expected).ShouldBeFalse("the file is removed once npm has run");
+        }
+        finally
+        {
+            workspace.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>Records the request and whether the file it points npm at was there to read.</summary>
+    private sealed class SpyRunner : ICommandRunner
+    {
+        public CommandRequest? Request { get; private set; }
+
+        public bool NpmrcExistedWhenRun { get; private set; }
+
+        public Task<CommandResult> RunAsync(CommandRequest request, CancellationToken ct = default)
+        {
+            Request = request;
+            NpmrcExistedWhenRun = File.Exists(request.Environment["npm_config_userconfig"]);
+
+            return Task.FromResult(new CommandResult
+            {
+                ExitCode = 0,
+                Output = string.Empty,
+                Duration = TimeSpan.Zero,
+            });
+        }
+    }
 }

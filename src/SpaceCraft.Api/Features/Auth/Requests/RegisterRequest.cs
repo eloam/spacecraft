@@ -19,6 +19,12 @@ public sealed record RegisterRequest(string Email, string Password, string? Disp
             RuleFor(request => request.Password)
                 .NotEmpty()
                 .WithMessage("A password is required.");
+
+            // The same rule as UpdateProfileRequest, since Register stores the same column:
+            // measured trimmed, and absent is fine — the name is optional at registration.
+            RuleFor(request => request.DisplayName)
+                .Must(name => name is null || name.Trim().Length <= 100)
+                .WithMessage("Use 100 characters or fewer.");
         }
     }
 }

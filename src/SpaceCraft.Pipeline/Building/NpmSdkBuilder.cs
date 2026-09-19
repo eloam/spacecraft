@@ -130,8 +130,8 @@ public sealed partial class NpmSdkBuilder(
     /// <summary>
     /// Build steps run with a deliberately bare environment: no registry token is present
     /// at any point, so a lifecycle script that slipped through has nothing to steal.
-    /// Caches and npm's global prefix are redirected to the writable tmpfs, because the
-    /// container's root filesystem is mounted read-only.
+    /// Caches, HOME and npm's global prefix are pointed under /tmp so that npm writes nothing
+    /// into the worker's own home directory, and nothing it writes outlives the job.
     /// </summary>
     private static Dictionary<string, string> NpmEnvironment() => new(StringComparer.Ordinal)
     {

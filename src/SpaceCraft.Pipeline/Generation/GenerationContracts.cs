@@ -5,7 +5,7 @@ namespace SpaceCraft.Pipeline.Generation;
 /// <summary>Everything the generator needs to turn one spec into one SDK source tree.</summary>
 public sealed record GenerationRequest
 {
-    /// <summary>Absolute host path of the run workspace, bind-mounted into the sandbox.</summary>
+    /// <summary>The run's workspace, as an absolute path on the host.</summary>
     public required string WorkspaceRoot { get; init; }
 
     /// <summary>Spec path, relative to the workspace root.</summary>

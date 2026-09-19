@@ -50,7 +50,14 @@ public sealed class PipelineJobOptions : IValidatableObject
     /// The cost is latency: a run waits up to this long before its job starts. Against a build
     /// measured in minutes that is not a trade worth thinking about.
     /// </para>
+    /// <para>
+    /// The ranges on these three knobs are the bounds the dispatcher used to clamp to at the
+    /// first read. Stated here and enforced at startup instead, as <c>NotificationOptions</c>
+    /// does: a value outside them is a configuration error and says so, rather than being
+    /// narrowed in silence.
+    /// </para>
     /// </remarks>
+    [Range(1, 300)]
     public int SweepSeconds { get; set; } = 5;
 
     /// <summary>How many runs may be started per sweep.</summary>
@@ -60,6 +67,7 @@ public sealed class PipelineJobOptions : IValidatableObject
     /// is handled: the row stays queued. This bound simply keeps a backlog from spending the
     /// whole sweep collecting refusals.
     /// </remarks>
+    [Range(1, 100)]
     public int BatchSize { get; set; } = 5;
 
     /// <summary>
@@ -71,10 +79,11 @@ public sealed class PipelineJobOptions : IValidatableObject
     /// filters on <c>Queued</c> under <c>FOR UPDATE SKIP LOCKED</c>, so the loser exits having
     /// done nothing — but it spends an execution against the concurrency ceiling for nothing.
     /// <para>
-    /// Held in memory rather than in a column: the only cost of forgetting it is one duplicate
-    /// start, which is already safe, and a schema change for that would be a poor trade.
+    /// The stamp is the run's <c>dispatched_at</c> column, so it holds across API instances
+    /// and restarts; this is how long the claim honours it before offering the run again.
     /// </para>
     /// </remarks>
+    [Range(10, 3600)]
     public int RedispatchAfterSeconds { get; set; } = 120;
 
     /// <summary>

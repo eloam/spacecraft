@@ -58,9 +58,12 @@ public sealed class InvitationDispatcher(
             .AsNoTracking()
             .FirstOrDefaultAsync(i => i.Id == request.InvitationId, ct);
 
-        if (invitation is null)
+        if (invitation is null || !invitation.IsRedeemable(DateTimeOffset.UtcNow))
         {
-            // Withdrawn between the request and this worker picking it up. Sending it now
+            // Gone, or no longer usable, between the request and this worker picking it up.
+            // Withdrawing an invitation sets RevokedAt rather than deleting the row, so a
+            // null check alone only caught an organization deleted underneath it; the mail
+            // would still have gone out, offering a link the API refuses. Sending it now
             // would offer membership the organization has already taken back.
             return;
         }

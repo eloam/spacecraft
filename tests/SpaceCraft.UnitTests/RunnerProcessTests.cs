@@ -54,19 +54,25 @@ public class RunnerProcessTests
     [Fact]
     public async Task A_bad_command_line_is_refused_without_a_database()
     {
-        // Pointed at a host that does not exist. Parsing happens before Host.CreateApplicationBuilder,
-        // so this still exits 2 — and that ordering is the point. Move the parse below the host
-        // and this becomes a container that waits on a connection it will never get, then dies
-        // as a fault, which is the one outcome that tells the operator nothing.
-        var (exit, _, stderr) = await RunAsync(
+        // Pointed at a host that does not exist, under the key the runner actually reads —
+        // ConnectionStrings:Postgres, the one AddSpaceCraftInfrastructure asks for. Parsing
+        // happens before Host.CreateApplicationBuilder, so this still exits 2 — and that
+        // ordering is the point. Move the parse below the host and this becomes a container
+        // that waits on a connection it will never get, then dies as a fault, which is the
+        // one outcome that tells the operator nothing.
+        var (exit, stdout, stderr) = await RunAsync(
             ["--nonsense"],
             environment: new()
             {
-                ["ConnectionStrings__SpaceCraft"] = "Host=192.0.2.1;Port=5432;Database=nope;Username=nope;Password=nope",
+                ["ConnectionStrings__Postgres"] = "Host=192.0.2.1;Port=5432;Database=nope;Username=nope;Password=nope",
             });
 
         exit.ShouldBe((int)RunnerExitCode.InvalidArguments);
         stderr.ShouldContain("Unrecognised argument");
+
+        // Refused before the connection string was ever looked at: nothing the process wrote
+        // names the host it was pointed at.
+        (stdout + stderr).ShouldNotContain("192.0.2.1");
     }
 
     private static async Task<(int Exit, string Stdout, string Stderr)> RunAsync(

@@ -87,6 +87,10 @@ public sealed class PasswordResetDispatcher(
         var urls = publicUrls.Value;
         var link = $"{urls.AppRoot()}/reset-password?token={Uri.EscapeDataString(raw)}";
 
-        await email.SendAsync(AuthEmails.PasswordReset(address, link, TokenLifetime, urls.ApiRoot()), ct);
+        // To the address the account holds, not the one that was typed. Identity looks the
+        // account up by normalised address, so "Alice@Example.com" finds the account Register
+        // stored as alice@example.com — and the link is a bearer credential, so it goes to the
+        // spelling on the account, not to whichever one the request happened to use.
+        await email.SendAsync(AuthEmails.PasswordReset(user.Email!, link, TokenLifetime, urls.ApiRoot()), ct);
     }
 }

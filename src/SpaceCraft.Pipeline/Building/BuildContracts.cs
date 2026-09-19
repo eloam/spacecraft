@@ -4,7 +4,7 @@ namespace SpaceCraft.Pipeline.Building;
 
 public sealed record BuildRequest
 {
-    /// <summary>Absolute host path of the run workspace, bind-mounted into the sandbox.</summary>
+    /// <summary>The run's workspace, as an absolute path on the host.</summary>
     public required string WorkspaceRoot { get; init; }
 
     /// <summary>Source directory, relative to the workspace root.</summary>

@@ -16,7 +16,7 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260903111054_AddPipelineRunDispatchAttempts";
+    public override string LastMigrationId => "20260919164037_BoundUserDisplayName";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -179,6 +179,111 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
                     .HasName("pk_user_tokens");
 
                 b.ToTable("user_tokens", "spacecraft");
+            });
+
+        modelBuilder.Entity("SpaceCraft.Domain.Identity.PasswordResetToken", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<DateTimeOffset>("ExpiresAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("expires_at");
+
+                b.Property<DateTimeOffset?>("InvalidatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("invalidated_at");
+
+                b.Property<string>("TokenHash")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)")
+                    .HasColumnName("token_hash");
+
+                b.Property<DateTimeOffset>("UpdatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("updated_at");
+
+                b.Property<DateTimeOffset?>("UsedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("used_at");
+
+                b.Property<Guid>("UserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("user_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_password_reset_tokens");
+
+                b.HasIndex("TokenHash")
+                    .IsUnique()
+                    .HasDatabaseName("ix_password_reset_tokens_token_hash");
+
+                b.HasIndex("UserId")
+                    .HasDatabaseName("ix_password_reset_tokens_user_id");
+
+                b.ToTable("password_reset_tokens", "spacecraft");
+            });
+
+        modelBuilder.Entity("SpaceCraft.Domain.Identity.RefreshToken", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<DateTimeOffset>("ExpiresAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("expires_at");
+
+                b.Property<Guid>("FamilyId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("family_id");
+
+                b.Property<DateTimeOffset?>("RevokedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("revoked_at");
+
+                b.Property<string>("TokenHash")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)")
+                    .HasColumnName("token_hash");
+
+                b.Property<DateTimeOffset>("UpdatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("updated_at");
+
+                b.Property<DateTimeOffset?>("UsedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("used_at");
+
+                b.Property<Guid>("UserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("user_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_refresh_tokens");
+
+                b.HasIndex("FamilyId")
+                    .HasDatabaseName("ix_refresh_tokens_family_id");
+
+                b.HasIndex("TokenHash")
+                    .IsUnique()
+                    .HasDatabaseName("ix_refresh_tokens_token_hash");
+
+                b.HasIndex("UserId")
+                    .HasDatabaseName("ix_refresh_tokens_user_id");
+
+                b.ToTable("refresh_tokens", "spacecraft");
             });
 
         modelBuilder.Entity("SpaceCraft.Domain.Notifications.Notification", b =>
@@ -375,6 +480,77 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_organizations_slug");
 
                 b.ToTable("organizations", "spacecraft");
+            });
+
+        modelBuilder.Entity("SpaceCraft.Domain.Organizations.OrganizationInvitation", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<DateTimeOffset?>("AcceptedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("accepted_at");
+
+                b.Property<Guid?>("AcceptedByUserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("accepted_by_user_id");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<DateTimeOffset?>("DeclinedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("declined_at");
+
+                b.Property<string>("Email")
+                    .IsRequired()
+                    .HasMaxLength(256)
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("email");
+
+                b.Property<DateTimeOffset>("ExpiresAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("expires_at");
+
+                b.Property<Guid>("InvitedByUserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("invited_by_user_id");
+
+                b.Property<Guid>("OrganizationId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("organization_id");
+
+                b.Property<DateTimeOffset?>("RevokedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("revoked_at");
+
+                b.Property<int>("Role")
+                    .HasColumnType("integer")
+                    .HasColumnName("role");
+
+                b.Property<string>("TokenHash")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)")
+                    .HasColumnName("token_hash");
+
+                b.Property<DateTimeOffset>("UpdatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("updated_at");
+
+                b.HasKey("Id")
+                    .HasName("pk_organization_invitations");
+
+                b.HasIndex("TokenHash")
+                    .IsUnique()
+                    .HasDatabaseName("ix_organization_invitations_token_hash");
+
+                b.HasIndex("OrganizationId", "Email")
+                    .HasDatabaseName("ix_organization_invitations_organization_id_email");
+
+                b.ToTable("organization_invitations", "spacecraft");
             });
 
         modelBuilder.Entity("SpaceCraft.Domain.Organizations.OrganizationMember", b =>
@@ -1047,182 +1223,6 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("waitlist_entries", "spacecraft");
             });
 
-        modelBuilder.Entity("SpaceCraft.Infrastructure.Identity.OrganizationInvitation", b =>
-            {
-                b.Property<Guid>("Id")
-                    .HasColumnType("uuid")
-                    .HasColumnName("id");
-
-                b.Property<DateTimeOffset?>("AcceptedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("accepted_at");
-
-                b.Property<Guid?>("AcceptedByUserId")
-                    .HasColumnType("uuid")
-                    .HasColumnName("accepted_by_user_id");
-
-                b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("created_at");
-
-                b.Property<DateTimeOffset?>("DeclinedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("declined_at");
-
-                b.Property<string>("Email")
-                    .IsRequired()
-                    .HasMaxLength(256)
-                    .HasColumnType("character varying(256)")
-                    .HasColumnName("email");
-
-                b.Property<DateTimeOffset>("ExpiresAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("expires_at");
-
-                b.Property<Guid>("InvitedByUserId")
-                    .HasColumnType("uuid")
-                    .HasColumnName("invited_by_user_id");
-
-                b.Property<Guid>("OrganizationId")
-                    .HasColumnType("uuid")
-                    .HasColumnName("organization_id");
-
-                b.Property<DateTimeOffset?>("RevokedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("revoked_at");
-
-                b.Property<int>("Role")
-                    .HasColumnType("integer")
-                    .HasColumnName("role");
-
-                b.Property<string>("TokenHash")
-                    .IsRequired()
-                    .HasMaxLength(64)
-                    .HasColumnType("character varying(64)")
-                    .HasColumnName("token_hash");
-
-                b.Property<DateTimeOffset>("UpdatedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("updated_at");
-
-                b.HasKey("Id")
-                    .HasName("pk_organization_invitations");
-
-                b.HasIndex("TokenHash")
-                    .IsUnique()
-                    .HasDatabaseName("ix_organization_invitations_token_hash");
-
-                b.HasIndex("OrganizationId", "Email")
-                    .HasDatabaseName("ix_organization_invitations_organization_id_email");
-
-                b.ToTable("organization_invitations", "spacecraft");
-            });
-
-        modelBuilder.Entity("SpaceCraft.Infrastructure.Identity.PasswordResetToken", b =>
-            {
-                b.Property<Guid>("Id")
-                    .HasColumnType("uuid")
-                    .HasColumnName("id");
-
-                b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("created_at");
-
-                b.Property<DateTimeOffset>("ExpiresAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("expires_at");
-
-                b.Property<DateTimeOffset?>("InvalidatedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("invalidated_at");
-
-                b.Property<string>("TokenHash")
-                    .IsRequired()
-                    .HasMaxLength(64)
-                    .HasColumnType("character varying(64)")
-                    .HasColumnName("token_hash");
-
-                b.Property<DateTimeOffset>("UpdatedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("updated_at");
-
-                b.Property<DateTimeOffset?>("UsedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("used_at");
-
-                b.Property<Guid>("UserId")
-                    .HasColumnType("uuid")
-                    .HasColumnName("user_id");
-
-                b.HasKey("Id")
-                    .HasName("pk_password_reset_tokens");
-
-                b.HasIndex("TokenHash")
-                    .IsUnique()
-                    .HasDatabaseName("ix_password_reset_tokens_token_hash");
-
-                b.HasIndex("UserId")
-                    .HasDatabaseName("ix_password_reset_tokens_user_id");
-
-                b.ToTable("password_reset_tokens", "spacecraft");
-            });
-
-        modelBuilder.Entity("SpaceCraft.Infrastructure.Identity.RefreshToken", b =>
-            {
-                b.Property<Guid>("Id")
-                    .HasColumnType("uuid")
-                    .HasColumnName("id");
-
-                b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("created_at");
-
-                b.Property<DateTimeOffset>("ExpiresAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("expires_at");
-
-                b.Property<Guid>("FamilyId")
-                    .HasColumnType("uuid")
-                    .HasColumnName("family_id");
-
-                b.Property<DateTimeOffset?>("RevokedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("revoked_at");
-
-                b.Property<string>("TokenHash")
-                    .IsRequired()
-                    .HasMaxLength(64)
-                    .HasColumnType("character varying(64)")
-                    .HasColumnName("token_hash");
-
-                b.Property<DateTimeOffset>("UpdatedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("updated_at");
-
-                b.Property<DateTimeOffset?>("UsedAt")
-                    .HasColumnType("timestamp with time zone")
-                    .HasColumnName("used_at");
-
-                b.Property<Guid>("UserId")
-                    .HasColumnType("uuid")
-                    .HasColumnName("user_id");
-
-                b.HasKey("Id")
-                    .HasName("pk_refresh_tokens");
-
-                b.HasIndex("FamilyId")
-                    .HasDatabaseName("ix_refresh_tokens_family_id");
-
-                b.HasIndex("TokenHash")
-                    .IsUnique()
-                    .HasDatabaseName("ix_refresh_tokens_token_hash");
-
-                b.HasIndex("UserId")
-                    .HasDatabaseName("ix_refresh_tokens_user_id");
-
-                b.ToTable("refresh_tokens", "spacecraft");
-            });
-
         modelBuilder.Entity("SpaceCraft.Infrastructure.Identity.SpaceCraftRole", b =>
             {
                 b.Property<Guid>("Id")
@@ -1276,7 +1276,8 @@ partial class SpaceCraftDbContextModelSnapshot : ModelSnapshot
                     .HasColumnName("created_at");
 
                 b.Property<string>("DisplayName")
-                    .HasColumnType("text")
+                    .HasMaxLength(100)
+                    .HasColumnType("character varying(100)")
                     .HasColumnName("display_name");
 
                 b.Property<string>("Email")

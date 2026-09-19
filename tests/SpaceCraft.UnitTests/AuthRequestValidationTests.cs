@@ -46,6 +46,23 @@ public sealed class AuthRequestValidationTests
     }
 
     [Fact]
+    public void Registering_with_a_display_name_over_the_column_is_refused()
+    {
+        // The profile page has had this rule since the column got its limit; registration
+        // stores the same column and accepted anything. Measured trimmed, like the profile:
+        // the padding is not stored, so it is not counted.
+        var padded = " " + new string('a', 100) + " ";
+        var validator = new RegisterRequest.Validator();
+
+        validator.TestValidate(new RegisterRequest("ada@example.com", "correct horse battery", padded))
+            .ShouldNotHaveValidationErrorFor(request => request.DisplayName);
+
+        validator.TestValidate(new RegisterRequest("ada@example.com", "correct horse battery", new string('a', 101)))
+            .ShouldHaveValidationErrorFor(request => request.DisplayName)
+            .WithErrorMessage("Use 100 characters or fewer.");
+    }
+
+    [Fact]
     public void Registering_with_an_email_and_a_password_passes()
     {
         var result = new RegisterRequest.Validator().TestValidate(new RegisterRequest("ada@example.com", "correct horse battery", "Ada"));

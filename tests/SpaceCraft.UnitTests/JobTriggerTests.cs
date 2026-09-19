@@ -3,6 +3,8 @@ using System.Net;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 using SpaceCraft.Api.Features.Runs;
 using Shouldly;
 using Xunit;
@@ -108,15 +110,30 @@ public class JobTriggerTests
         result.Detail.ShouldNotBeNull().ShouldContain("no route to host");
     }
 
-    [Fact]
-    public async Task A_timeout_is_deferred_rather_than_failing_the_run()
+    /// <summary>
+    /// The exceptions the standard resilience handler throws, not the ones a bare HttpClient
+    /// would: its total timeout surfaces as <see cref="TimeoutRejectedException"/> and an open
+    /// circuit as <see cref="BrokenCircuitException"/>. A filter that only named the
+    /// HttpClient pair let both escape, and an escaped exception aborts the whole sweep.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(ResilienceExceptions))]
+    public async Task What_the_resilience_handler_throws_is_deferred_rather_than_failing_the_run(Exception thrown)
     {
-        var trigger = TriggerFor(_ => throw new TaskCanceledException("timed out"));
+        var trigger = TriggerFor(_ => throw thrown);
 
         var result = await trigger.StartAsync(Run, TestContext.Current.CancellationToken);
 
         result.Outcome.ShouldBe(JobStartOutcome.Deferred);
     }
+
+    public static TheoryData<Exception> ResilienceExceptions() =>
+    [
+        new TimeoutRejectedException("The operation didn't complete within the allowed timeout."),
+        new BrokenCircuitException("The circuit is now open and is not allowing calls."),
+        // Still the shape an HttpClient-owned timeout takes, kept in case the handler is ever removed.
+        new TaskCanceledException("timed out"),
+    ];
 
     [Fact]
     public async Task Cancelling_the_sweep_is_not_a_deferral()

@@ -41,12 +41,12 @@ public sealed record CommandRequest
 
     public required IReadOnlyList<string> Arguments { get; init; }
 
-    /// <summary>Host directory bind-mounted into the sandbox as /workspace.</summary>
+    /// <summary>The run's workspace, as an absolute path on the host.</summary>
     public required string WorkingDirectory { get; init; }
 
     /// <summary>
     /// Directory the command actually runs in, relative to <see cref="WorkingDirectory"/>.
-    /// The whole workspace stays mounted, so a step can still reach sibling directories
+    /// The whole workspace stays reachable, so a step can still reach sibling directories
     /// (build writes its tarball into ../artifact) while running inside the package dir.
     /// </summary>
     public string? WorkingSubdirectory { get; init; }
@@ -56,9 +56,10 @@ public sealed record CommandRequest
     public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(10);
 
     /// <summary>
-    /// Environment variables for the command. Values here may include registry tokens, so
-    /// they are passed via an env file rather than the command line — arguments are visible
-    /// in the host process list, environment of a container is not.
+    /// Environment variables for the command. Values here may include registry tokens, which
+    /// is why they travel in the environment rather than on the command line: arguments are
+    /// visible to every user through the process list, the environment only to the process
+    /// itself and to the user it runs as.
     /// </summary>
     public IReadOnlyDictionary<string, string> Environment { get; init; } =
         new Dictionary<string, string>(StringComparer.Ordinal);
