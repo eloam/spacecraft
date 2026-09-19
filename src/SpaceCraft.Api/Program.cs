@@ -1,16 +1,13 @@
-using SpaceCraft.Api.Common;
 using SpaceCraft.Api.Email;
 using SpaceCraft.Api.Extensions;
 using SpaceCraft.Api.Features;
 using SpaceCraft.Api.Jobs;
 using SpaceCraft.Infrastructure;
 using SpaceCraft.Infrastructure.Persistence;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Serilog;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using SpaceCraft.Infrastructure.Security;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Net;

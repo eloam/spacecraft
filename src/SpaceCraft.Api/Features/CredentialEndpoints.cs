@@ -8,7 +8,6 @@ using SpaceCraft.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-using Microsoft.Extensions.Hosting;
 namespace SpaceCraft.Api.Features;
 
 public sealed record CreateCredentialRequest(

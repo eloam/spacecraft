@@ -8,26 +8,11 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace SpaceCraft.Api.Auth;
 
-public sealed record TokenPair(string AccessToken, string RefreshToken, DateTimeOffset AccessTokenExpiresAt);
-
-public interface ITokenService
-{
-    /// <summary>
-    /// Issues an access/refresh pair. <paramref name="sessionId"/> is the refresh token family
-    /// the pair belongs to, carried as the <c>sid</c> claim so a request can tell which of the
-    /// user's sessions made it — that is what lets "sign out everywhere else" spare the caller.
-    /// </summary>
-    TokenPair Issue(SpaceCraftUser user, Guid sessionId);
-
-    /// <summary>SHA-256 of a bearer-style token, for storage. Raw tokens are never persisted.</summary>
-    string HashToken(string token);
-}
-
-public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
+public sealed class TokenFactory(IOptions<JwtOptions> options) : ITokenFactory
 {
     private readonly JwtOptions _options = options.Value;
 
-    public TokenPair Issue(SpaceCraftUser user, Guid sessionId)
+    public TokenPair Create(SpaceCraftUser user, Guid sessionId)
     {
         ArgumentNullException.ThrowIfNull(user);
 
@@ -72,5 +57,5 @@ public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
     }
 
     private static string GenerateRefreshToken() =>
-        Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
+        Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(count: 32));
 }

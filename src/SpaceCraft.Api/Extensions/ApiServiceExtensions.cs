@@ -28,7 +28,7 @@ public static class ApiServiceExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddSingleton<ITokenService, TokenService>();
+        services.AddSingleton<ITokenFactory, TokenFactory>();
         services.AddScoped<IOrganizationAccess, OrganizationAccess>();
 
         var jwt = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
