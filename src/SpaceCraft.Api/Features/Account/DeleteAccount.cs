@@ -42,15 +42,36 @@ public static class DeleteAccount
                 + string.Join(", ", blockers.Select(b => b.OrganizationName)) + ".");
         }
 
-        await Sessions.RevokeAsync(db, user.Id, except: null, ct);
+        // Through each organization rather than by deleting the membership rows, because the
+        // rows alone answer to nobody. The blockers above were counted a query ago; another
+        // owner leaving in between is the case the aggregate and the organization's
+        // concurrency token exist for — the one refuses on what it loaded, the other refuses
+        // a write over what it did not — and neither sees a row removed behind its back.
+        var organizations = await db.Organizations
+            .Include(o => o.Members)
+            .Where(o => o.Members.Any(m => m.UserId == user.Id))
+            .ToListAsync(ct);
 
-        var memberships = await db.OrganizationMembers.Where(m => m.UserId == user.Id).ToListAsync(ct);
-        db.OrganizationMembers.RemoveRange(memberships);
+        foreach (var organization in organizations)
+        {
+            try
+            {
+                organization.RemoveMember(user.Id);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ApiResults.Conflict($"{organization.Name}: {ex.Message}");
+            }
+        }
 
         var resets = await db.PasswordResetTokens.Where(t => t.UserId == user.Id).ToListAsync(ct);
         db.PasswordResetTokens.RemoveRange(resets);
 
-        await db.SaveChangesAsync(ct);
+        // Last, and its save is the one save. Either refusal above — the aggregate's, or the
+        // database's over a write the token no longer covers, answered 409 to reload and try
+        // again — must leave the person signed in to do so: the aggregate's writes nothing,
+        // and the database's takes the revocations back along with the removals.
+        await Sessions.RevokeAsync(db, user.Id, except: null, ct);
         await userManager.DeleteAsync(user);
 
         return TypedResults.NoContent();

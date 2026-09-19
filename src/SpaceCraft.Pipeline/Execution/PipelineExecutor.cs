@@ -56,21 +56,31 @@ public sealed class PipelineExecutor(
         var target = await db.SdkTargets.FirstAsync(t => t.Id == run.SdkTargetId, ct);
         var project = await db.ApiProjects.FirstAsync(p => p.Id == run.ApiProjectId, ct);
 
-        await DriveAsync(run, spec, target, project, ct);
+        var landed = await DriveAsync(run, spec, target, project, ct);
 
         // Outside the drive, because every step that fails returns straight out of it — and a
         // notification raised from inside would have to be raised at each of those exits.
         //
+        // Only an outcome this worker wrote. A run the API cancelled, or the sweep took back
+        // while this worker held it, has an outcome somebody else recorded — and, if anyone
+        // is to be told of it, told of already.
+        //
         // Succeeded and Failed only. A cancelled run finished too, but somebody just pressed
         // the button that cancelled it; telling them what they did is the kind of message
         // that teaches people to ignore the rest.
-        if (run.Status is RunStatus.Succeeded or RunStatus.Failed)
+        if (landed && run.Status is RunStatus.Succeeded or RunStatus.Failed)
         {
             await NotifyAsync(run, project, ct);
         }
     }
 
-    private async Task DriveAsync(
+    /// <summary>
+    /// Drives the run as far as it goes and says whether the outcome now on its row is this
+    /// worker's: true after a Succeed() or Fail() the database accepted, false when the row was
+    /// written by someone else while this worker held it — the API cancelling, the sweep taking
+    /// the run back — and nothing this worker did after that was recorded.
+    /// </summary>
+    private async Task<bool> DriveAsync(
         PipelineRun run,
         SpecVersion spec,
         SdkTarget target,
@@ -83,9 +93,11 @@ public sealed class PipelineExecutor(
         {
             var specFileName = await DownloadSpecAsync(spec, workspace, ct);
 
+            // A step that fails has failed the run and saved it before returning: that
+            // outcome is this worker's.
             if (!await RunValidateStepAsync(run, spec, workspace, specFileName, ct))
             {
-                return;
+                return true;
             }
 
             var version = run.ResolvedVersion
@@ -95,40 +107,42 @@ public sealed class PipelineExecutor(
 
             if (await CancelledAsync(run, ct))
             {
-                return;
+                return false;
             }
 
             if (!await RunGenerateStepAsync(run, spec, target, workspace, specFileName, clientName, version, ct))
             {
-                return;
+                return true;
             }
 
             if (await CancelledAsync(run, ct))
             {
-                return;
+                return false;
             }
 
             if (!await RunBuildStepAsync(run, target, workspace, version, ct))
             {
-                return;
+                return true;
             }
 
             if (await CancelledAsync(run, ct))
             {
-                return;
+                return false;
             }
 
             if (!await RunPublishStepAsync(run, target, workspace, version, ct))
             {
-                return;
+                return true;
             }
 
             run.Succeed();
-            await db.SaveChangesAsync(ct);
+            await SaveAsync(run, ct);
 
             logger.LogInformation(
                 "Run {RunId} succeeded: {Package}@{Version} ({Project})",
                 run.Id, target.PackageName, version, project.Slug);
+
+            return true;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -137,12 +151,81 @@ public sealed class PipelineExecutor(
             logger.LogInformation("Run {RunId} interrupted by shutdown; leaving it to lease expiry", run.Id);
             throw;
         }
-        catch (Exception ex)
+        catch (DbUpdateConcurrencyException)
+        {
+            await StopAfterStaleWriteAsync(run, ct);
+            return false;
+        }
+        // Not when the run already finished in memory: that is the save after Succeed() or
+        // Fail() throwing, and the run refuses to be failed once terminal. Its outcome never
+        // reached the database, so the exception escapes, the runner reports a fault, and the
+        // lease lapses — the same recovery as a crash, on a run whose publish is idempotent:
+        // the next attempt runs the step whose save was refused over again.
+        catch (Exception ex) when (!run.IsTerminal)
         {
             logger.LogError(ex, "Run {RunId} failed unexpectedly", run.Id);
             run.Fail($"Unexpected error: {ex.Message}");
-            await db.SaveChangesAsync(ct);
+
+            try
+            {
+                await SaveAsync(run, ct);
+                return true;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // The fault and the stale row are independent; the row decides.
+                await StopAfterStaleWriteAsync(run, ct);
+                return false;
+            }
         }
+    }
+
+    /// <summary>
+    /// What to do when a save found the run's row changed by someone else since it was loaded.
+    /// </summary>
+    /// <remarks>
+    /// The concurrency token on pipeline_runs turns a write over another process's into an
+    /// exception, and this is the one place that decides what it means. Reloading replaces the
+    /// copy in hand with what is actually in the database, so the log below says what the row
+    /// says; clearing the tracker drops everything this worker still had to write.
+    /// <para>
+    /// Cancelled is the case this exists for: the API stopped the run while a step was under
+    /// way, so the step's result is the one thing nobody wants recorded. Stopping here, with
+    /// <see cref="DriveAsync"/> reporting that the outcome is not this worker's, also keeps
+    /// <see cref="ExecuteAsync"/> from telling anyone the run succeeded —
+    /// <see cref="CancelledAsync"/> only looks between steps, and a Cancel that landed during
+    /// Publish used to sail past it.
+    /// </para>
+    /// <para>
+    /// Anything else means the lease lapsed and the sweep took the run back — requeued it, or
+    /// failed it for good. Either way another worker owns it now, or nobody does, and this one
+    /// has no business writing, nor telling anyone: the sweep's failure and the other worker's
+    /// success are theirs to report. A Warning rather than an Error: the sweep already
+    /// reported the lapse as one, and this is the worker that survived it, late.
+    /// </para>
+    /// </remarks>
+    private async Task StopAfterStaleWriteAsync(PipelineRun run, CancellationToken ct)
+    {
+        await db.Entry(run).ReloadAsync(ct);
+
+        // Reload replaced the run's copy alone. The step this worker was on, and whatever the
+        // step touched beside the run — the spec version, a publication, the credential, the
+        // target — stayed tracked as modified, and none of them carries a token: the next
+        // save on this context would land them over what the API or the other worker wrote.
+        // This worker has no save left to make, so nothing is left for one to find.
+        db.ChangeTracker.Clear();
+
+        if (run.Status is RunStatus.Cancelled)
+        {
+            logger.LogInformation(
+                "Run {RunId} was cancelled while a step was running; its result is discarded", run.Id);
+            return;
+        }
+
+        logger.LogWarning(
+            "Run {RunId} was taken over while this worker held it (now {Status}, claimed by {ClaimedBy}); "
+            + "this worker's result is discarded",
+            run.Id, run.Status, run.ClaimedBy);
     }
 
     /// <summary>
@@ -261,7 +344,7 @@ public sealed class PipelineExecutor(
     {
         var step = run.Step(StepKind.Validate);
         step.Start();
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(run, ct);
 
         await using var stream = File.OpenRead(workspace.HostPath(RunWorkspace.SpecRelativePath(specFileName)));
         // The project's own setting, so a run validates a document exactly the way its
@@ -293,7 +376,7 @@ public sealed class PipelineExecutor(
             var reason = $"Specification is not valid: {result.ErrorCount} error(s).";
             step.Fail(reason, logKey);
             run.Fail(reason);
-            await db.SaveChangesAsync(ct);
+            await SaveAsync(run, ct);
             return false;
         }
 
@@ -302,7 +385,7 @@ public sealed class PipelineExecutor(
             const string Reason = "The specification has no info.version, so the SDK version cannot be resolved.";
             step.Fail(Reason, logKey);
             run.Fail(Reason);
-            await db.SaveChangesAsync(ct);
+            await SaveAsync(run, ct);
             return false;
         }
 
@@ -323,7 +406,7 @@ public sealed class PipelineExecutor(
 
             step.Fail(reason, logKey);
             run.Fail(reason);
-            await db.SaveChangesAsync(ct);
+            await SaveAsync(run, ct);
             return false;
         }
 
@@ -351,7 +434,7 @@ public sealed class PipelineExecutor(
             diagnosticsJson: System.Text.Json.JsonSerializer.Serialize(result.Diagnostics));
 
         step.Succeed(logKey);
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(run, ct);
         return true;
     }
 
@@ -368,7 +451,7 @@ public sealed class PipelineExecutor(
         var step = run.Step(StepKind.Generate);
         step.Start();
         run.RenewLease(DateTimeOffset.UtcNow);
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(run, ct);
 
         var generator = generators.FirstOrDefault(g => g.Language == target.Language);
         if (generator is null)
@@ -414,7 +497,7 @@ public sealed class PipelineExecutor(
         }, ct);
 
         step.Succeed(logKey);
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(run, ct);
         return true;
     }
 
@@ -428,7 +511,7 @@ public sealed class PipelineExecutor(
         var step = run.Step(StepKind.Build);
         step.Start();
         run.RenewLease(DateTimeOffset.UtcNow);
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(run, ct);
 
         var builder = builders.FirstOrDefault(b => b.Language == target.Language);
         if (builder is null)
@@ -468,7 +551,7 @@ public sealed class PipelineExecutor(
 
         run.SetArtifact(artifactKey);
         step.Succeed(logKey);
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(run, ct);
         return true;
     }
 
@@ -489,7 +572,7 @@ public sealed class PipelineExecutor(
 
         step.Start();
         run.RenewLease(DateTimeOffset.UtcNow);
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(run, ct);
 
         // From the run's own snapshot, not from the target as it stands now. The snapshot was
         // taken when the run was queued and exists for exactly this: a target repointed while
@@ -566,7 +649,7 @@ public sealed class PipelineExecutor(
         {
             publication.Retry(run.Id);
         }
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(run, ct);
 
         var artifactFileName = Path.GetFileName(run.ArtifactStorageKey!);
 
@@ -612,7 +695,7 @@ public sealed class PipelineExecutor(
         }
 
         step.Succeed(logKey);
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(run, ct);
         return true;
     }
 
@@ -625,8 +708,24 @@ public sealed class PipelineExecutor(
     {
         step.Fail(reason, logKey);
         run.Fail(reason);
-        await db.SaveChangesAsync(ct);
+        await SaveAsync(run, ct);
         return false;
+    }
+
+    /// <summary>
+    /// Every save the executor makes, with the run in it.
+    /// </summary>
+    /// <remarks>
+    /// The concurrency token is on pipeline_runs alone. A save that changed nothing on the run
+    /// — a step starting, a Generate or a Publish succeeding — carried no token, so it landed
+    /// over the Skipped the API had just written when it cancelled the run, and it was the
+    /// next save with the run in it that was refused. Touching the run puts its token in every
+    /// batch: a save over a cancel is refused whole, its step rows included.
+    /// </remarks>
+    private async Task SaveAsync(PipelineRun run, CancellationToken ct)
+    {
+        run.Touch();
+        await db.SaveChangesAsync(ct);
     }
 
     private async Task<string?> StoreLogAsync(PipelineRun run, StepKind kind, string content, CancellationToken ct)

@@ -7,14 +7,18 @@ public sealed class PipelineOptions
     public const string SectionName = "Pipeline";
 
     /// <summary>
-    /// How long each step may run. Constants rather than settings, and the reason is the
-    /// relation nobody can tune around: <see cref="SpaceCraft.Domain.Pipelines.PipelineRun.LeaseDuration"/>
+    /// How long each step may run, in all. Constants rather than settings, and the reason is
+    /// the relation nobody can tune around: <see cref="SpaceCraft.Domain.Pipelines.PipelineRun.LeaseDuration"/>
     /// has to outlast the longest of these, or a run near its limit is a race with the sweep
     /// that recovers dead workers. A setting could be raised past the lease in one environment
     /// and nothing would say so; a constant is seen by the test that pins the relation.
     /// </summary>
     public static readonly TimeSpan GenerateTimeout = TimeSpan.FromMinutes(5);
 
+    /// <summary>
+    /// The whole build step's budget, shared by its install, compile and pack commands. Each
+    /// gets what the ones before it left, which is what keeps the step under the lease.
+    /// </summary>
     public static readonly TimeSpan BuildTimeout = TimeSpan.FromMinutes(15);
 
     public static readonly TimeSpan PublishTimeout = TimeSpan.FromMinutes(5);

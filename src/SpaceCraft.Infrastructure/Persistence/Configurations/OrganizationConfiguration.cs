@@ -19,6 +19,15 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
 
         builder.HasIndex(o => o.Slug).IsUnique();
 
+        // Postgres's own row version as the concurrency token, as on pipeline_runs. The
+        // aggregate keeps at least one owner by counting the members it loaded, and two
+        // requests that each loaded two owners and each remove one both pass that count —
+        // leaving none. Every mutation goes through Touch(), so the organization row is
+        // written on each of them, and the second write finds the xmin it loaded gone and
+        // fails rather than landing. The API answers that with a 409 to retry, and the retry
+        // loads one owner and is refused by the aggregate.
+        builder.Property<uint>("xmin").IsRowVersion();
+
         builder.HasMany(o => o.Members)
             .WithOne()
             .HasForeignKey(m => m.OrganizationId)

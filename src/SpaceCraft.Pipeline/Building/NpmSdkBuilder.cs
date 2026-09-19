@@ -24,7 +24,19 @@ public sealed partial class NpmSdkBuilder(
         ArgumentNullException.ThrowIfNull(request);
 
         var log = new StringBuilder();
-        var deadline = PipelineOptions.BuildTimeout;
+
+        // One budget for the three commands, not one each. The lease a worker holds on the run
+        // is renewed when a step starts and must outlast the step; the three commands had
+        // fifteen, fifteen and two minutes of their own — thirty-two in all under a
+        // twenty-five minute lease — and a build that slow was swept as abandoned and
+        // executed a second time. Each command gets what the ones before it left, so the
+        // step as a whole cannot exceed BuildTimeout — which is the number the lease is
+        // checked against, in PipelineTimeoutTests.
+        //
+        // Counted from what the runner reports each command took rather than from a clock,
+        // so the accounting is deterministic and the builder's own work between commands,
+        // which is appending to a log, is not what the budget is spent on.
+        var spent = TimeSpan.Zero;
 
         // Step 1 — dependency install. This is the only part of the build that needs egress.
         //
@@ -47,7 +59,7 @@ public sealed partial class NpmSdkBuilder(
             WorkingDirectory = request.WorkspaceRoot,
             WorkingSubdirectory = request.SourceDirectory,
             Network = NetworkPolicy.Registry,
-            Timeout = deadline,
+            Timeout = Remaining(spent),
             Environment = NpmEnvironment(),
         }, ct);
 
@@ -57,10 +69,12 @@ public sealed partial class NpmSdkBuilder(
         {
             return BuildOutcome.Failed(
                 install.TimedOut
-                    ? $"Dependency install timed out after {deadline.TotalMinutes:0.#} minutes."
+                    ? OutOfTime("Dependency install", spent)
                     : $"npm install failed with exit code {install.ExitCode}. {install.Tail(10)}",
                 log.ToString());
         }
+
+        spent += install.Duration;
 
         // Step 2 — compile. No network: everything needed is already on disk.
         var compile = await runner.RunAsync(new CommandRequest
@@ -70,7 +84,7 @@ public sealed partial class NpmSdkBuilder(
             WorkingDirectory = request.WorkspaceRoot,
             WorkingSubdirectory = request.SourceDirectory,
             Network = NetworkPolicy.None,
-            Timeout = deadline,
+            Timeout = Remaining(spent),
             Environment = NpmEnvironment(),
         }, ct);
 
@@ -80,10 +94,12 @@ public sealed partial class NpmSdkBuilder(
         {
             return BuildOutcome.Failed(
                 compile.TimedOut
-                    ? $"Compilation timed out after {deadline.TotalMinutes:0.#} minutes."
+                    ? OutOfTime("Compilation", spent)
                     : $"TypeScript compilation failed with exit code {compile.ExitCode}. {compile.Tail(15)}",
                 log.ToString());
         }
+
+        spent += compile.Duration;
 
         // Step 3 — package. Produces the exact tarball that will later be published, so
         // publish never rebuilds and can never emit something the build did not verify.
@@ -100,7 +116,7 @@ public sealed partial class NpmSdkBuilder(
             WorkingDirectory = request.WorkspaceRoot,
             WorkingSubdirectory = request.SourceDirectory,
             Network = NetworkPolicy.None,
-            Timeout = TimeSpan.FromMinutes(2),
+            Timeout = Remaining(spent),
             Environment = NpmEnvironment(),
         }, ct);
 
@@ -109,7 +125,9 @@ public sealed partial class NpmSdkBuilder(
         if (!pack.Succeeded)
         {
             return BuildOutcome.Failed(
-                $"npm pack failed with exit code {pack.ExitCode}. {pack.Tail(10)}",
+                pack.TimedOut
+                    ? OutOfTime("Packaging", spent)
+                    : $"npm pack failed with exit code {pack.ExitCode}. {pack.Tail(10)}",
                 log.ToString());
         }
 
@@ -126,6 +144,23 @@ public sealed partial class NpmSdkBuilder(
             ArtifactMediaType = "application/gzip",
         };
     }
+
+    /// <summary>
+    /// What is left of the step's budget once <paramref name="spent"/> has gone. Never
+    /// negative: a command that starts with nothing left is started with nothing left, and the
+    /// runner ends it at once as timed out rather than being handed a value it would refuse.
+    /// </summary>
+    private static TimeSpan Remaining(TimeSpan spent) =>
+        spent >= PipelineOptions.BuildTimeout ? TimeSpan.Zero : PipelineOptions.BuildTimeout - spent;
+
+    /// <summary>
+    /// Says which command ran out of time and how much of the step's budget the earlier ones
+    /// had already used, since "timed out after 0.4 minutes" on its own reads as a bug.
+    /// </summary>
+    private static string OutOfTime(string what, TimeSpan spent) =>
+        $"{what} ran out of time: the build step is allowed "
+        + $"{PipelineOptions.BuildTimeout.TotalMinutes:0.#} minutes in all, and the commands before it "
+        + $"had used {spent.TotalMinutes:0.#}.";
 
     /// <summary>
     /// Build steps run with a deliberately bare environment: no registry token is present

@@ -23,11 +23,18 @@ public sealed class PipelineRunConfiguration : IEntityTypeConfiguration<Pipeline
         builder.Property(r => r.TargetRegistryUrl).HasMaxLength(512);
         builder.Property(r => r.TargetCredentialLabel).HasMaxLength(80);
 
-        // No optimistic concurrency token here on purpose. Claiming goes through
-        // SELECT ... FOR UPDATE SKIP LOCKED, so Postgres serialises competing workers at
-        // the row level: a second worker skips the locked row instead of racing for it.
-        // (Npgsql 10 dropped UseXminAsConcurrencyToken; a shadow xmin column would also
-        // collide with the reserved system column name during migration.)
+        // Postgres's own row version as the concurrency token. Claiming is serialised by
+        // FOR UPDATE SKIP LOCKED, but a claim is not the only write: the API cancels a run
+        // while a worker holds it, from another process, and the worker's UPDATE used to
+        // match on id alone — so a Cancel during Publish ended Succeeded, with a "Run
+        // succeeded" notification for a run somebody had stopped. With xmin in the WHERE
+        // clause the stale write matches no row and SaveChanges throws
+        // DbUpdateConcurrencyException, which is where the executor finds out.
+        //
+        // xmin is a system column: Npgsql maps it, skips it in migrations, and never returns
+        // it from SELECT *, so every FromSql on this table names it explicitly.
+        // https://www.npgsql.org/efcore/modeling/concurrency.html
+        builder.Property<uint>("xmin").IsRowVersion();
 
         // The queue read path: "oldest queued run first". Partial index keeps it tiny
         // regardless of how much run history accumulates.
