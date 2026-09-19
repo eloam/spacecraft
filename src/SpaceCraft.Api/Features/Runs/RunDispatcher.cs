@@ -31,13 +31,11 @@ namespace SpaceCraft.Api.Features.Runs;
 /// </remarks>
 public sealed class RunDispatcher(
     IServiceScopeFactory scopeFactory,
-    IJobTrigger trigger,
     PipelineMetrics metrics,
     IOptions<PipelineJobOptions> options,
     ILogger<RunDispatcher> logger) : BackgroundService
 {
     private readonly PipelineJobOptions _options = options.Value;
-
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -68,6 +66,12 @@ public sealed class RunDispatcher(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var queue = scope.ServiceProvider.GetRequiredService<IPipelineRunQueue>();
+
+        // Per sweep, like the queue, and not through the constructor: the trigger is a typed
+        // HttpClient, which is transient so that the factory can rotate its handler. Captured
+        // by a singleton it would keep the first handler for the life of the process, and
+        // with it the DNS answer that handler resolved on the day the API started.
+        var trigger = scope.ServiceProvider.GetRequiredService<IJobTrigger>();
 
         // The claim belongs to the queue, not to this class. Several API instances sweep the
         // same table, and SKIP LOCKED is what makes them share the work instead of each

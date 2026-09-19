@@ -90,6 +90,32 @@ public class RunDispatcherTests
         ]);
     }
 
+    [Fact]
+    public async Task The_trigger_is_resolved_for_each_sweep_not_once_for_the_service()
+    {
+        // The trigger is a typed HttpClient, transient so the factory can rotate its handler.
+        // Captured once by this singleton it would keep the first handler — and its DNS
+        // answer — for the life of the process. So each sweep asks its own scope for one.
+        var queue = new SpyQueue([]);
+        var resolved = 0;
+
+        using var dispatcher = DispatcherFor(
+            queue,
+            _ =>
+            {
+                resolved++;
+                return new StubTrigger(JobStartOutcome.Started);
+            },
+            sweepSeconds: 1);
+
+        await dispatcher.StartAsync(TestContext.Current.CancellationToken);
+        await queue.ClaimedAgain.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        await dispatcher.StopAsync(TestContext.Current.CancellationToken);
+
+        queue.Claims.ShouldBeGreaterThanOrEqualTo(2);
+        resolved.ShouldBe(queue.Claims);
+    }
+
     /// <summary>
     /// Runs the dispatcher through its own hosted-service entry point until the sweep has
     /// handed its release back to the queue, then stops it. The sweep interval is the longest
@@ -100,9 +126,26 @@ public class RunDispatcherTests
     {
         var ct = TestContext.Current.CancellationToken;
 
+        using var dispatcher = DispatcherFor(queue, _ => trigger, sweepSeconds: 300, logger);
+
+        await dispatcher.StartAsync(ct);
+        var released = await queue.Released.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+        // StopAsync waits for the sweep to end, so everything it logged is in by now.
+        await dispatcher.StopAsync(ct);
+
+        return released;
+    }
+
+    private static RunDispatcher DispatcherFor(
+        SpyQueue queue, Func<IServiceProvider, IJobTrigger> trigger, int sweepSeconds,
+        ILogger<RunDispatcher>? logger = null)
+    {
+        // Both resolved from the sweep's scope, as the dispatcher does: the trigger is a
+        // typed HttpClient and must not be captured for the life of the service.
         var services = new ServiceCollection()
             .AddMetrics()
             .AddScoped<IPipelineRunQueue>(_ => queue)
+            .AddScoped(trigger)
             .AddSingleton<PipelineMetrics>()
             .BuildServiceProvider();
 
@@ -112,22 +155,14 @@ public class RunDispatcherTests
             Region = "fr-par",
             JobDefinitionId = "spacecraft-pipeline",
             SecretKey = "key",
-            SweepSeconds = 300,
+            SweepSeconds = sweepSeconds,
         });
 
-        using var dispatcher = new RunDispatcher(
+        return new RunDispatcher(
             services.GetRequiredService<IServiceScopeFactory>(),
-            trigger,
             services.GetRequiredService<PipelineMetrics>(),
             options,
             logger ?? NullLogger<RunDispatcher>.Instance);
-
-        await dispatcher.StartAsync(ct);
-        var released = await queue.Released.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
-        // StopAsync waits for the sweep to end, so everything it logged is in by now.
-        await dispatcher.StopAsync(ct);
-
-        return released;
     }
 
     /// <summary>Keeps the errors, since the question is which exception reached the log.</summary>
@@ -174,7 +209,10 @@ public class RunDispatcherTests
     /// </summary>
     private sealed class SpyQueue(IReadOnlyList<Guid> batch, Exception? releaseFailure = null) : IPipelineRunQueue
     {
-        private bool _claimed;
+        public int Claims { get; private set; }
+
+        public TaskCompletionSource ClaimedAgain { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public TaskCompletionSource<IReadOnlyCollection<Guid>> Released { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -184,13 +222,15 @@ public class RunDispatcherTests
         public Task<IReadOnlyList<Guid>> ClaimForDispatchAsync(
             int batchSize, TimeSpan redispatchAfter, CancellationToken ct = default)
         {
-            if (_claimed)
+            Claims++;
+
+            if (Claims == 1)
             {
-                return Task.FromResult<IReadOnlyList<Guid>>([]);
+                return Task.FromResult(batch);
             }
 
-            _claimed = true;
-            return Task.FromResult(batch);
+            ClaimedAgain.TrySetResult();
+            return Task.FromResult<IReadOnlyList<Guid>>([]);
         }
 
         public Task ReleaseDispatchAsync(IReadOnlyCollection<Guid> runIds, CancellationToken ct = default)
