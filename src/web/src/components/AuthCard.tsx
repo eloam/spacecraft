@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { Orbit } from "lucide-react";
-import { useTheme } from "@/hooks/useTheme";
 import { Card, CardContent } from "@/components/ui/card";
 
 /** Shared frame for the sign-in and sign-up screens. */
@@ -15,9 +14,6 @@ export function AuthCard({
   children: ReactNode;
   footer: ReactNode;
 }) {
-  // The sign-in screens render outside AppShell, so the theme is applied here too.
-  useTheme();
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-10">
       <div className="w-full max-w-sm">

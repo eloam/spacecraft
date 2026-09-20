@@ -1,18 +1,39 @@
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "@/hooks/useTheme";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useTheme } from "@/components/ThemeProvider";
 
+/**
+ * shadcn's mode toggle: light, dark, or whatever the OS says.
+ *
+ * Three choices rather than a switch between two. The switch wrote "light" or "dark" on its
+ * first click, and from then on the page stopped following the OS with no way back short of
+ * clearing storage — "system" was a state nothing could return to.
+ */
 export function ThemeToggle() {
-  const { resolved, setTheme } = useTheme();
+  const { setTheme } = useTheme();
 
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={resolved === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-      onClick={() => setTheme(resolved === "dark" ? "light" : "dark")}
-    >
-      {resolved === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" size="icon-sm">
+            <Sun className="size-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" aria-hidden />
+            <Moon className="absolute size-4 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" aria-hidden />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setTheme("light")}>Light</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("dark")}>Dark</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("system")}>System</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
