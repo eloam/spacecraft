@@ -10,7 +10,9 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle,
 } from "@/components/ui/item";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -410,24 +412,40 @@ export function SpecValidationDialog({
           {ORDER.map((severity) => {
             const Icon = icons[severity];
 
-            // With no list fetched there is nothing to filter, so these stop being buttons
-            // and the specs row's own totals stand in — greyed, because they are the last
-            // thing recorded about this document rather than a reading of it. What must
-            // never appear here is "0 errors" for a list that never arrived.
+            // With no list fetched there is nothing to filter, so the toggles give way to
+            // the specs row's own totals — greyed, because they are the last thing recorded
+            // about this document rather than a reading of it. What must never appear here
+            // is "0 errors" for a list that never arrived.
             if (findingsUnknown) {
+              const figure = recorded
+                ? count(recorded[severity], nouns[severity])
+                : `— ${nouns[severity]}s`;
+              const figureClass =
+                "flex items-center gap-1.5 rounded-[calc(var(--radius)-2px)] px-2.5 py-1 text-xs font-medium text-muted-foreground opacity-70";
+
+              // Worth a word only once the load has failed; while it is in flight the
+              // greyed figures are simply what is known so far.
+              if (!diagnostics.isError) {
+                return (
+                  <span key={severity} className={figureClass}>
+                    <Icon className="size-3.5" aria-hidden />
+                    {figure}
+                  </span>
+                );
+              }
+
+              // The trigger is a button rather than a span, for the reason RelativeTime's
+              // is: the tooltip opens on focus as well as hover, and a span takes no focus.
               return (
-                <span
-                  key={severity}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-muted-foreground opacity-70"
-                  title={
-                    diagnostics.isError
-                      ? "Recorded on the specs table. The findings themselves could not be loaded."
-                      : undefined
-                  }
-                >
-                  <Icon className="size-3.5" aria-hidden />
-                  {recorded ? count(recorded[severity], nouns[severity]) : `— ${nouns[severity]}s`}
-                </span>
+                <Tooltip key={severity}>
+                  <TooltipTrigger className={figureClass}>
+                    <Icon className="size-3.5" aria-hidden />
+                    {figure}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Recorded on the specs table. The findings themselves could not be loaded.
+                  </TooltipContent>
+                </Tooltip>
               );
             }
 
@@ -466,26 +484,51 @@ export function SpecValidationDialog({
             <span className="mr-1 text-xs whitespace-nowrap tabular-nums text-muted-foreground">
               {counter()}
             </span>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label="Previous finding"
-              disabled={visible.length === 0}
-              title="Previous finding (Shift+F8)"
-              onClick={() => step(-1)}
-            >
-              <ChevronUp className="size-4" aria-hidden />
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label="Next finding"
-              disabled={visible.length === 0}
-              title="Next finding (F8)"
-              onClick={() => step(1)}
-            >
-              <ChevronDown className="size-4" aria-hidden />
-            </Button>
+            {/* The shortcut hint rides on the app's tooltip, which opens on focus as well as
+                hover; a native title= never reaches a keyboard. `disabled` sits on the
+                rendered Button, which is where Base UI says it goes. */}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="Previous finding"
+                    disabled={visible.length === 0}
+                    onClick={() => step(-1)}
+                  />
+                }
+              >
+                <ChevronUp className="size-4" aria-hidden />
+              </TooltipTrigger>
+              <TooltipContent>
+                Previous finding
+                <KbdGroup>
+                  <Kbd>Shift</Kbd>
+                  <span>+</span>
+                  <Kbd>F8</Kbd>
+                </KbdGroup>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="Next finding"
+                    disabled={visible.length === 0}
+                    onClick={() => step(1)}
+                  />
+                }
+              >
+                <ChevronDown className="size-4" aria-hidden />
+              </TooltipTrigger>
+              <TooltipContent>
+                Next finding
+                <Kbd>F8</Kbd>
+              </TooltipContent>
+            </Tooltip>
 
             <Button
               size="xs"
@@ -513,20 +556,26 @@ export function SpecValidationDialog({
                 wanted nearly every time, and the chevron opens the one-off — "what would the
                 other mode say about this?" — without making it as easy to reach by accident. */}
             <ButtonGroup>
-              <Button
-                size="xs"
-                variant="outline"
-                className="gap-1.5"
-                disabled={specId === null || revalidate.isPending}
-                title="Re-run validation over this document"
-                onClick={() => run()}
-              >
-                <RefreshCw
-                  className={cn("size-3.5", revalidate.isPending && "animate-spin")}
-                  aria-hidden
-                />
-                Revalidate
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      className="gap-1.5"
+                      disabled={specId === null || revalidate.isPending}
+                      onClick={() => run()}
+                    />
+                  }
+                >
+                  <RefreshCw
+                    className={cn("size-3.5", revalidate.isPending && "animate-spin")}
+                    aria-hidden
+                  />
+                  Revalidate
+                </TooltipTrigger>
+                <TooltipContent>Re-run validation over this document</TooltipContent>
+              </Tooltip>
 
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -572,13 +621,7 @@ export function SpecValidationDialog({
 
             {/* An icon, like the one every other dialog closes with: the word sat in a row
                 of icon buttons and read as one more tool rather than the way out. */}
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label="Close"
-              title="Close"
-              onClick={close}
-            >
+            <Button size="icon-sm" variant="ghost" aria-label="Close" onClick={close}>
               <X className="size-4" aria-hidden />
             </Button>
           </div>
@@ -694,6 +737,11 @@ export function SpecValidationDialog({
                           size="xs"
                           variant="ghost"
                           className={cn("shrink-0 gap-1", finding.line !== null && "font-mono")}
+                          aria-label={
+                            finding.line !== null
+                              ? `Show in source at line ${finding.line}`
+                              : "Show in source, at the top"
+                          }
                           onClick={() => openInSource(finding)}
                         >
                           <SquareCode className="size-3.5" aria-hidden />

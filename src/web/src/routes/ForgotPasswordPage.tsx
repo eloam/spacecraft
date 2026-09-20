@@ -35,49 +35,57 @@ export function ForgotPasswordPage() {
   // reasoning as the API response it mirrors.
   if (forgot.isSuccess) {
     return (
-      <AuthCard
-        title="Check your inbox"
-        description={forgot.data.message}
-        footer={backToSignIn}
-      >
-        <p className="text-sm text-muted-foreground">
-          The link works once and expires in an hour. If it doesn't arrive, check your spam
-          folder before requesting another.
-        </p>
-      </AuthCard>
+      <>
+        <title>Forgot password — SpaceCraft</title>
+
+        <AuthCard
+          title="Check your inbox"
+          description={forgot.data.message}
+          footer={backToSignIn}
+        >
+          <p className="text-sm text-muted-foreground">
+            The link works once and expires in an hour. If it doesn't arrive, check your spam
+            folder before requesting another.
+          </p>
+        </AuthCard>
+      </>
     );
   }
 
   return (
-    <AuthCard
-      title="Reset your password"
-      description="We'll email you a link to choose a new one."
-      footer={backToSignIn}
-    >
-      <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        <Field data-invalid={!!form.formState.errors.email}>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            autoFocus
-            aria-invalid={!!form.formState.errors.email}
-            {...form.register("email")}
-          />
-          <FieldError errors={[form.formState.errors.email]} />
-        </Field>
+    <>
+      <title>Forgot password — SpaceCraft</title>
 
-        {forgot.error && (
-          <p className="text-sm text-destructive" role="alert">
-            {describeError(forgot.error, "Something went wrong. Try again.")}
-          </p>
-        )}
+      <AuthCard
+        title="Reset your password"
+        description="We'll email you a link to choose a new one."
+        footer={backToSignIn}
+      >
+        <form onSubmit={onSubmit} className="space-y-4" noValidate>
+          <Field data-invalid={!!form.formState.errors.email}>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              autoFocus
+              aria-invalid={!!form.formState.errors.email}
+              {...form.register("email")}
+            />
+            <FieldError errors={[form.formState.errors.email]} />
+          </Field>
 
-        <Button type="submit" className="w-full" disabled={forgot.isPending}>
-          {forgot.isPending ? "Sending…" : "Send reset link"}
-        </Button>
-      </form>
-    </AuthCard>
+          {forgot.error && (
+            <p className="text-sm text-destructive" role="alert">
+              {describeError(forgot.error, "Something went wrong. Try again.")}
+            </p>
+          )}
+
+          <Button type="submit" className="w-full" disabled={forgot.isPending}>
+            {forgot.isPending ? "Sending…" : "Send reset link"}
+          </Button>
+        </form>
+      </AuthCard>
+    </>
   );
 }

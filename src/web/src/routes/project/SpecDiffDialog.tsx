@@ -1,7 +1,9 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, ChevronDown, ChevronUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useSpecContent } from "@/api/queries";
 import type { SpecVersion } from "@/api/types";
@@ -123,36 +125,55 @@ export function SpecDiffDialog({
                   ? `${chunkCount} change${chunkCount === 1 ? "" : "s"}`
                   : `${at + 1} / ${chunkCount}`}
             </span>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label="Previous change"
-              title="Previous change (Shift+F8)"
-              disabled={chunkCount === 0}
-              onClick={() => step(-1)}
-            >
-              <ChevronUp className="size-4" aria-hidden />
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label="Next change"
-              title="Next change (F8)"
-              disabled={chunkCount === 0}
-              onClick={() => step(1)}
-            >
-              <ChevronDown className="size-4" aria-hidden />
-            </Button>
+            {/* The shortcut hint rides on the app's tooltip, which opens on focus as well as
+                hover; a native title= never reaches a keyboard. `disabled` sits on the
+                rendered Button, which is where Base UI says it goes. */}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="Previous change"
+                    disabled={chunkCount === 0}
+                    onClick={() => step(-1)}
+                  />
+                }
+              >
+                <ChevronUp className="size-4" aria-hidden />
+              </TooltipTrigger>
+              <TooltipContent>
+                Previous change
+                <KbdGroup>
+                  <Kbd>Shift</Kbd>
+                  <span>+</span>
+                  <Kbd>F8</Kbd>
+                </KbdGroup>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="Next change"
+                    disabled={chunkCount === 0}
+                    onClick={() => step(1)}
+                  />
+                }
+              >
+                <ChevronDown className="size-4" aria-hidden />
+              </TooltipTrigger>
+              <TooltipContent>
+                Next change
+                <Kbd>F8</Kbd>
+              </TooltipContent>
+            </Tooltip>
 
             {/* An icon, like the one every other dialog closes with: the word sat in a row
                 of icon buttons and read as one more tool rather than the way out. */}
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label="Close"
-              title="Close"
-              onClick={onClose}
-            >
+            <Button size="icon-sm" variant="ghost" aria-label="Close" onClick={onClose}>
               <X className="size-4" aria-hidden />
             </Button>
           </div>

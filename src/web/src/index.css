@@ -100,7 +100,9 @@
     --muted-foreground: oklch(0.542 0.034 322.5);
     --accent: oklch(0.96 0.014 325.6);
     --accent-foreground: oklch(0.212 0.019 322.12);
-    --destructive: oklch(0.577 0.245 27.325);
+    /* Darker than the preset's 0.577: the destructive button sets this text on a 10% tint of
+       itself, where the preset's red measured 3.98:1 against the 4.5:1 AA asks of text. */
+    --destructive: oklch(0.53 0.22 27.325);
     --border: oklch(0.922 0.005 325.62);
     --input: oklch(0.922 0.005 325.62);
     /* Darker than the preset's 0.711: the focus ring is the only thing telling a
@@ -182,7 +184,9 @@
     --muted-foreground: oklch(0.711 0.019 323.02);
     --accent: oklch(0.314 0.024 320.12);
     --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
+    /* Lighter than the preset's 0.704, for the reason the light one is darker: on the 20% tint
+       the button uses here, over this card, the preset's red measured 3.98:1. */
+    --destructive: oklch(0.78 0.17 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.542 0.034 322.5);
@@ -219,6 +223,15 @@
   html {
     @apply font-sans;
     }
+  /* Durations cut rather than animations removed, so JS waiting on animationend still fires. */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 /* The preset's pointer option. A <button> is cursor:default by default, which reads as

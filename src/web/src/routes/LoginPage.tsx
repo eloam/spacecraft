@@ -30,66 +30,70 @@ export function LoginPage() {
   const onSubmit = form.handleSubmit((values) => login.mutate(values));
 
   return (
-    <AuthCard
-      title="Sign in to SpaceCraft"
-      description="Generate and publish SDKs from your OpenAPI documents."
-      footer={
-        <>
-          No account?{" "}
-          <Link
-            to={`/register${returnQuery}`}
-            className="font-medium text-foreground underline underline-offset-4"
-          >
-            Create one
-          </Link>
-        </>
-      }
-    >
-      <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        <FieldGroup>
-          <Field data-invalid={!!form.formState.errors.email}>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              aria-invalid={!!form.formState.errors.email}
-              {...form.register("email")}
-            />
-            <FieldError errors={[form.formState.errors.email]} />
-          </Field>
+    <>
+      <title>Sign in — SpaceCraft</title>
 
-          <Field data-invalid={!!form.formState.errors.password}>
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <Link
-                to="/forgot-password"
-                className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-              >
-                Forgot?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              aria-invalid={!!form.formState.errors.password}
-              {...form.register("password")}
-            />
-            <FieldError errors={[form.formState.errors.password]} />
-          </Field>
-        </FieldGroup>
+      <AuthCard
+        title="Sign in to SpaceCraft"
+        description="Generate and publish SDKs from your OpenAPI documents."
+        footer={
+          <>
+            No account?{" "}
+            <Link
+              to={`/register${returnQuery}`}
+              className="font-medium text-foreground underline underline-offset-4"
+            >
+              Create one
+            </Link>
+          </>
+        }
+      >
+        <form onSubmit={onSubmit} className="space-y-4" noValidate>
+          <FieldGroup>
+            <Field data-invalid={!!form.formState.errors.email}>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                aria-invalid={!!form.formState.errors.email}
+                {...form.register("email")}
+              />
+              <FieldError errors={[form.formState.errors.email]} />
+            </Field>
 
-        {login.error && (
-          <p className="text-sm text-destructive" role="alert">
-            {describeError(login.error, "Sign-in failed. Try again.")}
-          </p>
-        )}
+            <Field data-invalid={!!form.formState.errors.password}>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                >
+                  Forgot?
+                </Link>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                aria-invalid={!!form.formState.errors.password}
+                {...form.register("password")}
+              />
+              <FieldError errors={[form.formState.errors.password]} />
+            </Field>
+          </FieldGroup>
 
-        <Button type="submit" className="w-full" disabled={login.isPending}>
-          {login.isPending ? "Signing in…" : "Sign in"}
-        </Button>
-      </form>
-    </AuthCard>
+          {login.error && (
+            <p className="text-sm text-destructive" role="alert">
+              {describeError(login.error, "Sign-in failed. Try again.")}
+            </p>
+          )}
+
+          <Button type="submit" className="w-full" disabled={login.isPending}>
+            {login.isPending ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
+      </AuthCard>
+    </>
   );
 }

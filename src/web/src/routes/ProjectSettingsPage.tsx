@@ -78,6 +78,10 @@ export function ProjectSettingsPage() {
 
   return (
     <div className="space-y-6">
+      <title>
+        {project.data ? `Settings — ${project.data.name} — SpaceCraft` : `Settings — SpaceCraft`}
+      </title>
+
       {/* Everything below is the project's own settings, so none of it may render without
           the project: an empty Name, a Strict mode switch asserting a default it never read,
           and a delete dialog whose typed-name gate is undefined are all worse than saying

@@ -13,6 +13,7 @@ import {
 import { roleLabel } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
 import { withReturnTo } from "@/lib/returnTo";
+import { formatDate } from "@/lib/format";
 import { ApiError, describeError } from "@/api/client";
 
 /**
@@ -49,16 +50,20 @@ export function AcceptInvitationPage() {
 
   if (!token) {
     return (
-      <AuthCard
-        title="This link is incomplete"
-        description="It carries no invitation."
-        footer={backToOrganizations}
-      >
-        <p className="text-sm text-muted-foreground">
-          Open the link from the invitation email exactly as it was sent — a link that was
-          copied by hand often loses its last characters.
-        </p>
-      </AuthCard>
+      <>
+        <title>Invitation — SpaceCraft</title>
+
+        <AuthCard
+          title="This link is incomplete"
+          description="It carries no invitation."
+          footer={backToOrganizations}
+        >
+          <p className="text-sm text-muted-foreground">
+            Open the link from the invitation email exactly as it was sent — a link that was
+            copied by hand often loses its last characters.
+          </p>
+        </AuthCard>
+      </>
     );
   }
 
@@ -66,38 +71,46 @@ export function AcceptInvitationPage() {
   // join it with. The token stays in the URL, so signing in comes back here.
   if (!accessToken) {
     return (
-      <AuthCard
-        title="Sign in to see this invitation"
-        description="An organization has invited you to SpaceCraft."
-        footer={null}
-      >
-        <div className="space-y-3">
-          <Button className="w-full" render={<Link to={withReturnTo("/login", location)} />}>
-            Sign in
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full"
-            render={<Link to={withReturnTo("/register", location)} />}
-          >
-            Create an account
-          </Button>
-        </div>
-      </AuthCard>
+      <>
+        <title>Invitation — SpaceCraft</title>
+
+        <AuthCard
+          title="Sign in to see this invitation"
+          description="An organization has invited you to SpaceCraft."
+          footer={null}
+        >
+          <div className="space-y-3">
+            <Button className="w-full" render={<Link to={withReturnTo("/login", location)} />}>
+              Sign in
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              render={<Link to={withReturnTo("/register", location)} />}
+            >
+              Create an account
+            </Button>
+          </div>
+        </AuthCard>
+      </>
     );
   }
 
   if (declined) {
     return (
-      <AuthCard
-        title="Invitation declined"
-        description="The link no longer works, and nobody has been added to anything."
-        footer={backToOrganizations}
-      >
-        <p className="text-sm text-muted-foreground">
-          If you change your mind, whoever invited you can send another.
-        </p>
-      </AuthCard>
+      <>
+        <title>Invitation — SpaceCraft</title>
+
+        <AuthCard
+          title="Invitation declined"
+          description="The link no longer works, and nobody has been added to anything."
+          footer={backToOrganizations}
+        >
+          <p className="text-sm text-muted-foreground">
+            If you change your mind, whoever invited you can send another.
+          </p>
+        </AuthCard>
+      </>
     );
   }
 
@@ -110,42 +123,54 @@ export function AcceptInvitationPage() {
 
   if (unusable || failure) {
     return (
-      <AuthCard
-        title="This invitation cannot be used"
-        description={
-          failure ?? describeError(preview.error, "It may have been used, withdrawn, or expired.")
-        }
-        footer={backToOrganizations}
-      >
-        <p className="text-sm text-muted-foreground">
-          Invitations work once and expire on their own, and sending a new one puts the
-          previous link out. Ask whoever invited you to send another.
-        </p>
-      </AuthCard>
+      <>
+        <title>Invitation — SpaceCraft</title>
+
+        <AuthCard
+          title="This invitation cannot be used"
+          description={
+            failure ?? describeError(preview.error, "It may have been used, withdrawn, or expired.")
+          }
+          footer={backToOrganizations}
+        >
+          <p className="text-sm text-muted-foreground">
+            Invitations work once and expire on their own, and sending a new one puts the
+            previous link out. Ask whoever invited you to send another.
+          </p>
+        </AuthCard>
+      </>
     );
   }
 
   if (preview.isError) {
     return (
-      <AuthCard
-        title="The invitation could not be checked"
-        description={describeError(preview.error, "The request failed. Try again in a moment.")}
-        footer={backToOrganizations}
-      >
-        <Button className="w-full" onClick={() => preview.refetch()}>
-          Try again
-        </Button>
-      </AuthCard>
+      <>
+        <title>Invitation — SpaceCraft</title>
+
+        <AuthCard
+          title="The invitation could not be checked"
+          description={describeError(preview.error, "The request failed. Try again in a moment.")}
+          footer={backToOrganizations}
+        >
+          <Button className="w-full" onClick={() => preview.refetch()}>
+            Try again
+          </Button>
+        </AuthCard>
+      </>
     );
   }
 
   if (!preview.data) {
     return (
-      <AuthCard title="Reading the invitation…" description="One moment." footer={null}>
-        <div className="flex justify-center py-2">
-          <Spinner className="size-5" />
-        </div>
-      </AuthCard>
+      <>
+        <title>Invitation — SpaceCraft</title>
+
+        <AuthCard title="Reading the invitation…" description="One moment." footer={null}>
+          <div className="flex justify-center py-2">
+            <Spinner className="size-5" />
+          </div>
+        </AuthCard>
+      </>
     );
   }
 
@@ -153,105 +178,113 @@ export function AcceptInvitationPage() {
 
   if (invitation.alreadyMember) {
     return (
-      <AuthCard
-        title={`You are already in ${invitation.organizationName}`}
-        description="Nothing to accept — this invitation is for an organization you have joined."
-        footer={backToOrganizations}
-      >
-        <Button
-          className="w-full"
-          render={<Link to={`/orgs/${invitation.organizationSlug}`} />}
+      <>
+        <title>{`Join ${invitation.organizationName} — SpaceCraft`}</title>
+
+        <AuthCard
+          title={`You are already in ${invitation.organizationName}`}
+          description="Nothing to accept — this invitation is for an organization you have joined."
+          footer={backToOrganizations}
         >
-          Open {invitation.organizationName}
-        </Button>
-      </AuthCard>
+          <Button
+            className="w-full"
+            render={<Link to={`/orgs/${invitation.organizationSlug}`} />}
+          >
+            Open {invitation.organizationName}
+          </Button>
+        </AuthCard>
+      </>
     );
   }
 
   const working = accept.isPending || decline.isPending;
 
   return (
-    <AuthCard
-      title={`Join ${invitation.organizationName}`}
-      description={`${invitation.invitedBy} invited you.`}
-      footer={backToOrganizations}
-    >
-      <div className="space-y-4">
-        <dl className="space-y-2.5 rounded-lg border p-3.5 text-sm">
-          <div className="flex items-center justify-between gap-3">
-            <dt className="flex items-center gap-2 text-muted-foreground">
-              <Building2 className="size-4" aria-hidden />
-              Your role
-            </dt>
-            <dd>
-              <Badge variant="secondary">{roleLabel[invitation.role]}</Badge>
-            </dd>
-          </div>
+    <>
+      <title>{`Join ${invitation.organizationName} — SpaceCraft`}</title>
 
-          <div className="flex items-center justify-between gap-3">
-            <dt className="flex items-center gap-2 text-muted-foreground">
-              <Users className="size-4" aria-hidden />
-              Members
-            </dt>
-            <dd>{invitation.memberCount}</dd>
-          </div>
-
-          {invitation.projects.length > 0 && (
-            <div className="flex items-start justify-between gap-3">
+      <AuthCard
+        title={`Join ${invitation.organizationName}`}
+        description={`${invitation.invitedBy} invited you.`}
+        footer={backToOrganizations}
+      >
+        <div className="space-y-4">
+          <dl className="space-y-2.5 rounded-lg border p-3.5 text-sm">
+            <div className="flex items-center justify-between gap-3">
               <dt className="flex items-center gap-2 text-muted-foreground">
-                <FolderGit2 className="size-4" aria-hidden />
-                Projects
+                <Building2 className="size-4" aria-hidden />
+                Your role
               </dt>
-              {/* Names, so that "is this the right Acme?" has an answer before the decision
-                  rather than after it. */}
-              <dd className="min-w-0 text-right">{invitation.projects.join(", ")}</dd>
+              <dd>
+                <Badge variant="secondary">{roleLabel[invitation.role]}</Badge>
+              </dd>
             </div>
-          )}
-        </dl>
 
-        <p className="text-sm text-muted-foreground">
-          Accepting adds this account to the organization. The link works once, and expires on{" "}
-          {new Date(invitation.expiresAt).toLocaleDateString()}.
-        </p>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="flex items-center gap-2 text-muted-foreground">
+                <Users className="size-4" aria-hidden />
+                Members
+              </dt>
+              <dd>{invitation.memberCount}</dd>
+            </div>
 
-        <div className="space-y-2">
-          <Button
-            className="w-full"
-            disabled={working}
-            onClick={() =>
-              accept.mutate(token, {
-                onSuccess: () => navigate(`/orgs/${invitation.organizationSlug}`, { replace: true }),
-                onError: (error: unknown) =>
-                  setFailure(
-                    describeError(
-                      error,
-                      "The invitation could not be accepted. Ask for a new one.",
+            {invitation.projects.length > 0 && (
+              <div className="flex items-start justify-between gap-3">
+                <dt className="flex items-center gap-2 text-muted-foreground">
+                  <FolderGit2 className="size-4" aria-hidden />
+                  Projects
+                </dt>
+                {/* Names, so that "is this the right Acme?" has an answer before the decision
+                    rather than after it. */}
+                <dd className="min-w-0 text-right">{invitation.projects.join(", ")}</dd>
+              </div>
+            )}
+          </dl>
+
+          <p className="text-sm text-muted-foreground">
+            Accepting adds this account to the organization. The link works once, and expires on{" "}
+            <time dateTime={invitation.expiresAt}>{formatDate(invitation.expiresAt)}</time>.
+          </p>
+
+          <div className="space-y-2">
+            <Button
+              className="w-full"
+              disabled={working}
+              onClick={() =>
+                accept.mutate(token, {
+                  onSuccess: () => navigate(`/orgs/${invitation.organizationSlug}`, { replace: true }),
+                  onError: (error: unknown) =>
+                    setFailure(
+                      describeError(
+                        error,
+                        "The invitation could not be accepted. Ask for a new one.",
+                      ),
                     ),
-                  ),
-              })
-            }
-          >
-            {accept.isPending ? "Joining…" : `Join ${invitation.organizationName}`}
-          </Button>
+                })
+              }
+            >
+              {accept.isPending ? "Joining…" : `Join ${invitation.organizationName}`}
+            </Button>
 
-          {/* Declining is not a way out of a mistake — it puts the link out. Said plainly
-              under the button rather than behind a confirmation nobody reads. */}
-          <Button
-            variant="ghost"
-            className="w-full"
-            disabled={working}
-            onClick={() =>
-              decline.mutate(token, {
-                onSuccess: () => setDeclined(true),
-                onError: (error: unknown) =>
-                  setFailure(describeError(error, "The invitation could not be declined.")),
-              })
-            }
-          >
-            {decline.isPending ? "Declining…" : "Decline"}
-          </Button>
+            {/* Declining is not a way out of a mistake — it puts the link out. Said plainly
+                under the button rather than behind a confirmation nobody reads. */}
+            <Button
+              variant="ghost"
+              className="w-full"
+              disabled={working}
+              onClick={() =>
+                decline.mutate(token, {
+                  onSuccess: () => setDeclined(true),
+                  onError: (error: unknown) =>
+                    setFailure(describeError(error, "The invitation could not be declined.")),
+                })
+              }
+            >
+              {decline.isPending ? "Declining…" : "Decline"}
+            </Button>
+          </div>
         </div>
-      </div>
-    </AuthCard>
+      </AuthCard>
+    </>
   );
 }

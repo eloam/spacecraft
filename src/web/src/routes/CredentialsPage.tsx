@@ -37,10 +37,11 @@ import {
   useCreateCredential,
   useCredentials,
   useDeleteCredential,
+  useOrganizations,
   useRestoreCredential,
   useRevokeCredential,
 } from "@/api/queries";
-import { timeAgo } from "@/lib/format";
+import { RelativeTime } from "@/components/RelativeTime";
 // Credential is named explicitly: the DOM has its own, and the global would win.
 import { RegistryKind, languageLabel, registryLabel, type Credential } from "@/api/types";
 import { ApiError, describeError } from "@/api/client";
@@ -126,6 +127,7 @@ const DEFAULT_REGISTRY = REGISTRIES[0];
 export function CredentialsPage() {
   const { orgId: orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
+  const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const { data, isLoading, error } = useCredentials(orgId);
   const revoke = useRevokeCredential(orgId);
   const restore = useRestoreCredential(orgId);
@@ -148,6 +150,12 @@ export function CredentialsPage() {
 
   return (
     <div className="space-y-6">
+      <title>
+        {organization
+          ? `Credentials — ${organization.name} — SpaceCraft`
+          : `Credentials — SpaceCraft`}
+      </title>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-medium tracking-tight">Credentials</h1>
@@ -186,7 +194,9 @@ export function CredentialsPage() {
                 <TableHead>Token</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last used</TableHead>
-                <TableHead />
+                <TableHead>
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -200,17 +210,10 @@ export function CredentialsPage() {
                       of them widened the table until every other column needed scrolling. */}
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     <Tooltip>
-                      {/* A button, not a span: Base UI's tooltip opens on focus as well as
-                          hover, but a span takes no focus, so the truncated half of the URL
-                          was reachable with a mouse and by no other means. */}
-                      <TooltipTrigger
-                        render={
-                          <button
-                            type="button"
-                            className="block max-w-[14rem] truncate rounded-sm text-left focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none xl:max-w-[24rem]"
-                          />
-                        }
-                      >
+                      {/* The trigger is a button, not a span: Base UI's tooltip opens on
+                          focus as well as hover, but a span takes no focus, so the truncated
+                          half of the URL was reachable with a mouse and by no other means. */}
+                      <TooltipTrigger className="block max-w-[14rem] truncate rounded-sm text-left focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none xl:max-w-[24rem]">
                         {credential.registryUrl}
                       </TooltipTrigger>
                       {/* break-all, because the tooltip exists to show the whole URL: a
@@ -251,18 +254,7 @@ export function CredentialsPage() {
                   {/* Relative, like the specs table: this column is scanned for recency, and
                       a full timestamp on every row cost more width than it was worth. */}
                   <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
-                    {credential.lastUsedAt ? (
-                      <Tooltip>
-                        <TooltipTrigger render={<span />}>
-                          {timeAgo(credential.lastUsedAt)}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {new Date(credential.lastUsedAt).toLocaleString()}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      "—"
-                    )}
+                    {credential.lastUsedAt ? <RelativeTime iso={credential.lastUsedAt} /> : "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -476,37 +468,41 @@ function UsedByList({
       <PanelLabel tone="destructive">{label}</PanelLabel>
       <ItemGroup className="gap-1">
         {usedBy.map((use) => (
-          <Item
-            key={use.targetId}
-            size="xs"
-            render={
-              <Link
-                to={`/orgs/${orgSlug}/projects/${use.projectSlug}/targets`}
-                onClick={onNavigate}
-              />
-            }
-          >
-            <ItemMedia variant="icon">
-              <Package className="size-3.5 text-muted-foreground" aria-hidden />
-            </ItemMedia>
-            <ItemContent className="min-w-0">
-              {/* `max-w-full` against `ItemTitle`'s own `w-fit`: with `truncate`'s nowrap,
-                  fit-content resolves to the whole package name and the row would overflow
-                  instead of ellipsising. */}
-              <ItemTitle className="max-w-full truncate font-mono text-xs">
-                {use.packageName}
-              </ItemTitle>
-              <ItemDescription className="truncate text-xs">
-                {use.projectName} · {languageLabel[use.language]}
-              </ItemDescription>
-            </ItemContent>
-            <ItemActions>
-              <ArrowRight
-                className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/item:translate-x-0.5"
-                aria-hidden
-              />
-            </ItemActions>
-          </Item>
+          // The list item wraps the row rather than being it: the Item is the link, and a
+          // `role="listitem"` on the anchor itself would have replaced "link" in what a
+          // screen reader announces.
+          <div key={use.targetId} role="listitem">
+            <Item
+              size="xs"
+              render={
+                <Link
+                  to={`/orgs/${orgSlug}/projects/${use.projectSlug}/targets`}
+                  onClick={onNavigate}
+                />
+              }
+            >
+              <ItemMedia variant="icon">
+                <Package className="size-3.5 text-muted-foreground" aria-hidden />
+              </ItemMedia>
+              <ItemContent className="min-w-0">
+                {/* `max-w-full` against `ItemTitle`'s own `w-fit`: with `truncate`'s nowrap,
+                    fit-content resolves to the whole package name and the row would overflow
+                    instead of ellipsising. */}
+                <ItemTitle className="max-w-full truncate font-mono text-xs">
+                  {use.packageName}
+                </ItemTitle>
+                <ItemDescription className="truncate text-xs">
+                  {use.projectName} · {languageLabel[use.language]}
+                </ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <ArrowRight
+                  className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/item:translate-x-0.5"
+                  aria-hidden
+                />
+              </ItemActions>
+            </Item>
+          </div>
         ))}
       </ItemGroup>
 

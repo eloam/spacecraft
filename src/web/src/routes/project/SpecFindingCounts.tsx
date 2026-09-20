@@ -51,14 +51,12 @@ export function SpecFindingCounts({
             <TooltipTrigger
               // Zeroes stay in place rather than collapsing: the three always sit in the same
               // order, so a column of rows can be read down instead of decoded row by row.
-              render={
-                <span className={cn("flex items-center gap-1", count > 0 ? tone : "opacity-30")} />
-              }
+              className={cn("flex items-center gap-1", count > 0 ? tone : "opacity-30")}
             >
               <Icon className="size-3.5" aria-hidden />
-              {/* The tooltip needs a pointer to open, and the cell read aloud without it was
-                  "1 0 3" — three bare numbers naming nothing. The sentence is in the markup
-                  too, so the column is legible without hovering anything. */}
+              {/* The cell read aloud was "1 0 3" — three bare numbers naming nothing. The
+                  sentence is in the markup too, so the column is legible without opening
+                  anything. */}
               <span aria-hidden>{count}</span>
               <span className="sr-only">{label}</span>
             </TooltipTrigger>

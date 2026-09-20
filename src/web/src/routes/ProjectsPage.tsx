@@ -26,7 +26,7 @@ import {
 import { LanguageDot } from "@/components/LanguageDot";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
-import { useCreateProject, useProjects } from "@/api/queries";
+import { useCreateProject, useOrganizations, useProjects } from "@/api/queries";
 import { languageLabel } from "@/api/types";
 import { NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { describeError } from "@/api/client";
@@ -35,11 +35,16 @@ import { toast } from "sonner";
 export function ProjectsPage() {
   const { orgId: orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
+  const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const { data, isLoading, error } = useProjects(orgId);
   const [open, setOpen] = useState(false);
 
   return (
     <div className="space-y-6">
+      <title>
+        {organization ? `Projects — ${organization.name} — SpaceCraft` : `Projects — SpaceCraft`}
+      </title>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-medium tracking-tight">Projects</h1>

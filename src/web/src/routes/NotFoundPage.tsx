@@ -12,15 +12,19 @@ import { EmptyState } from "@/components/EmptyState";
  */
 export function NotFoundPage() {
   return (
-    <EmptyState
-      icon={<SearchX />}
-      title="Page not found"
-      description="There is nothing at this address. Check the link, or start again from your organizations."
-      action={
-        <Button variant="outline" render={<Link to="/" />}>
-          Go to your organizations
-        </Button>
-      }
-    />
+    <>
+      <title>Page not found — SpaceCraft</title>
+
+      <EmptyState
+        icon={<SearchX />}
+        title="Page not found"
+        description="There is nothing at this address. Check the link, or start again from your organizations."
+        action={
+          <Button variant="outline" render={<Link to="/" />}>
+            Go to your organizations
+          </Button>
+        }
+      />
+    </>
   );
 }

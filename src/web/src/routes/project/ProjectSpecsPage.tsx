@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { RelativeTime } from "@/components/RelativeTime";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -34,10 +35,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { SpecFindingCounts } from "@/routes/project/SpecFindingCounts";
 import { SpecValidationDialog } from "@/routes/project/SpecValidationDialog";
 import { SpecDiffDialog } from "@/routes/project/SpecDiffDialog";
-import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { describeError } from "@/api/client";
-import { useDeleteSpec, usePublications, useSpecs } from "@/api/queries";
+import { useDeleteSpec, useProject, usePublications, useSpecs } from "@/api/queries";
 import { PublicationStatus, SpecValidationStatus, type SpecVersion } from "@/api/types";
 
 /** Bytes as something readable at a glance; the exact figure is never the point here. */
@@ -86,6 +86,7 @@ export function ProjectSpecsPage() {
   const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const projectId = useProjectId(orgId, projectSlug);
+  const project = useProject(orgId, projectId);
   const specs = useSpecs(orgId, projectId);
   const publications = usePublications(orgId, projectId);
   const remove = useDeleteSpec(orgId, projectId);
@@ -188,6 +189,10 @@ export function ProjectSpecsPage() {
 
   return (
     <div className="space-y-6">
+      <title>
+        {project.data ? `Specs — ${project.data.name} — SpaceCraft` : `Specs — SpaceCraft`}
+      </title>
+
       <SpecUploadCard orgId={orgId} projectId={projectId} onViewFindings={setOpenFor} />
 
       {/* An upload or a delete invalidates this list, so it refetches while a table is on
@@ -367,9 +372,7 @@ export function ProjectSpecsPage() {
                           // One word standing in for the sentence that explains it, so the
                           // sentence is what the tooltip carries.
                           <Tooltip>
-                            <TooltipTrigger render={<span className="text-muted-foreground" />}>
-                              unknown
-                            </TooltipTrigger>
+                            <TooltipTrigger className="text-muted-foreground">unknown</TooltipTrigger>
                             <TooltipContent>The publications could not be loaded</TooltipContent>
                           </Tooltip>
                         ) : publications.isPending ? (
@@ -402,6 +405,7 @@ export function ProjectSpecsPage() {
                                   className="flex items-center gap-1 truncate hover:underline"
                                 >
                                   {inner}
+                                  <span className="sr-only"> (opens in a new tab)</span>
                                 </a>
                               ) : (
                                 <p key={label} className="flex items-center gap-1 truncate">
@@ -414,14 +418,7 @@ export function ProjectSpecsPage() {
                       </TableCell>
 
                       <TableCell className="text-xs text-muted-foreground">
-                        <Tooltip>
-                          <TooltipTrigger render={<span />}>
-                            {timeAgo(spec.createdAt)}
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {new Date(spec.createdAt).toLocaleString()}
-                          </TooltipContent>
-                        </Tooltip>
+                        <RelativeTime iso={spec.createdAt} />
                       </TableCell>
 
                       <TableCell className="text-right">
@@ -432,7 +429,6 @@ export function ProjectSpecsPage() {
                             size="icon-sm"
                             variant="ghost"
                             aria-label={`Runs generated from spec #${spec.sequence}`}
-                            title="Runs generated from this version"
                             // This one navigates, so it renders an anchor. Base UI assumes a
                             // native button unless told, and warns that it is dropping button
                             // semantics — semantics a link should not have had anyway.

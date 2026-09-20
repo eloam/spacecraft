@@ -3,7 +3,8 @@
   "plugins": [
     "react",
     "typescript",
-    "oxc"
+    "oxc",
+    "jsx-a11y"
   ],
   "categories": {
     "correctness": "error"
@@ -17,7 +18,27 @@
         "allowConstantExport": true
       }
     ],
-    "no-duplicate-imports": "error"
+    "no-duplicate-imports": "error",
+    // Not in eslint-plugin-jsx-a11y's recommended set: role="status" on a div is the live
+    // region ARIA in HTML documents, and <output> is a form element.
+    "jsx-a11y/prefer-tag-over-role": "off",
+    // The recommended set's own settings: a first field focused when a dialog opens is
+    // expected, and the Switch is a Base UI control the rule cannot see through.
+    "jsx-a11y/no-autofocus": [
+      "error",
+      {
+        "ignoreNonDOM": true
+      }
+    ],
+    "jsx-a11y/label-has-associated-control": [
+      "error",
+      {
+        "controlComponents": [
+          "Switch"
+        ],
+        "depth": 3
+      }
+    ]
   },
   "overrides": [
     {
@@ -29,11 +50,15 @@
       }
     },
     {
+      // shadcn's own files, replaced by `npx shadcn add`, not written here.
       "files": [
         "src/components/ui/**"
       ],
       "rules": {
-        "react/only-export-components": "off"
+        "react/only-export-components": "off",
+        "jsx-a11y/label-has-associated-control": "off",
+        "jsx-a11y/click-events-have-key-events": "off",
+        "jsx-a11y/no-noninteractive-element-interactions": "off"
       }
     }
   ]

@@ -334,7 +334,10 @@ function GenerateForm({
             refusal here would be quieter — no run, no history, nothing for anyone waiting
             on a publish to find. */}
         {versionRefusal && (
-          <div className="space-y-1.5 rounded-2xl border border-destructive/40 bg-destructive/5 p-3.5 text-sm">
+          <div
+            role="alert"
+            className="space-y-1.5 rounded-2xl border border-destructive/40 bg-destructive/5 p-3.5 text-sm"
+          >
             <p className="text-xs font-medium tracking-wider text-destructive uppercase">
               This run cannot start
             </p>

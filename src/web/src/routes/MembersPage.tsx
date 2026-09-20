@@ -30,12 +30,13 @@ import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { AccountAvatar } from "@/components/AccountAvatar";
-import { timeAgo } from "@/lib/format";
+import { RelativeTime } from "@/components/RelativeTime";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { emailField } from "@/lib/fields";
 import { ApiError, describeError } from "@/api/client";
 import {
-  keys, useChangeMemberRole, useInvitations, useInviteMember, useMembers, useRemoveMember,
-  useRevokeInvitation,
+  keys, useChangeMemberRole, useInvitations, useInviteMember, useMembers, useOrganizations,
+  useRemoveMember, useRevokeInvitation,
 } from "@/api/queries";
 import { OrganizationRole, roleLabel, type Invitation, type Member } from "@/api/types";
 
@@ -54,6 +55,7 @@ const schema = z.object({
 export function MembersPage() {
   const { orgId: orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
+  const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const members = useMembers(orgId);
@@ -73,6 +75,10 @@ export function MembersPage() {
 
   return (
     <div className="space-y-6">
+      <title>
+        {organization ? `Members — ${organization.name} — SpaceCraft` : `Members — SpaceCraft`}
+      </title>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-medium tracking-tight">Members</h1>
@@ -104,7 +110,9 @@ export function MembersPage() {
                     <TableHead>Person</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead className="text-right">Joined</TableHead>
-                    <TableHead className="w-10" />
+                    <TableHead className="w-10">
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -207,15 +215,13 @@ export function MembersPage() {
                         </TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
                           {/* Absolute, unlike the columns scanned for recency: a join date
-                              answers "since when". The exact moment is behind the hover, the
-                              way every other timestamp in the app is. */}
+                              answers "since when". The exact moment is a hover or a focus
+                              away, the way every other timestamp in the app is. */}
                           <Tooltip>
-                            <TooltipTrigger render={<span />}>
-                              {new Date(member.joinedAt).toLocaleDateString()}
+                            <TooltipTrigger>
+                              <time dateTime={member.joinedAt}>{formatDate(member.joinedAt)}</time>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              {new Date(member.joinedAt).toLocaleString()}
-                            </TooltipContent>
+                            <TooltipContent>{formatDateTime(member.joinedAt)}</TooltipContent>
                           </Tooltip>
                         </TableCell>
                         <TableCell className="text-right">
@@ -399,7 +405,9 @@ function PendingInvitations({
                 <TableHead>Address</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead className="text-right">Expires</TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="w-10">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -408,14 +416,14 @@ function PendingInvitations({
                   <TableCell>
                     <span className="text-sm">{invitation.email}</span>
                     <p className="text-xs text-muted-foreground">
-                      Sent {timeAgo(invitation.createdAt)}
+                      Sent <RelativeTime iso={invitation.createdAt} />
                     </p>
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{roleLabel[invitation.role]}</Badge>
                   </TableCell>
                   <TableCell className="text-right text-sm text-muted-foreground">
-                    {new Date(invitation.expiresAt).toLocaleDateString()}
+                    <time dateTime={invitation.expiresAt}>{formatDate(invitation.expiresAt)}</time>
                   </TableCell>
                   <TableCell>
                     {/* No confirmation: nobody has joined anything, and re-inviting is the

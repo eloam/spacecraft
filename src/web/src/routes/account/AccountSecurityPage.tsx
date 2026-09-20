@@ -15,6 +15,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { ApiError, describeError } from "@/api/client";
 import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from "@/api/queries";
 import { newPasswordField } from "@/lib/fields";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 const passwordSchema = z
   .object({
@@ -139,11 +140,16 @@ function SessionsCard() {
                 </ItemMedia>
                 <ItemContent className="min-w-0">
                   <ItemTitle>
-                    Started {new Date(session.startedAt).toLocaleDateString()}
+                    {/* One flex item: split, the title's gap would open between the word and
+                        the date. */}
+                    <span>
+                      Started <time dateTime={session.startedAt}>{formatDate(session.startedAt)}</time>
+                    </span>
                     {session.isCurrent && <Badge variant="secondary">This device</Badge>}
                   </ItemTitle>
                   <ItemDescription>
-                    Last used {new Date(session.lastUsedAt).toLocaleString()}
+                    Last used{" "}
+                    <time dateTime={session.lastUsedAt}>{formatDateTime(session.lastUsedAt)}</time>
                   </ItemDescription>
                 </ItemContent>
                 {!session.isCurrent && (
@@ -199,6 +205,8 @@ function SessionsCard() {
 export function AccountSecurityPage() {
   return (
     <div className="space-y-6">
+      <title>Security — SpaceCraft</title>
+
       <PasswordCard />
       <SessionsCard />
     </div>
