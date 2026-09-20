@@ -10,8 +10,8 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusIcon, StepStatusIcon } from "@/components/StatusBadge";
-import { ApiError, api } from "@/api/client";
-import { useCancelRun, useRun, useStepLog } from "@/api/queries";
+import { ApiError, describeError } from "@/api/client";
+import { useCancelRun, useDownloadArtifact, useRun, useStepLog } from "@/api/queries";
 import {
   RunTrigger,
   StepStatus,
@@ -33,40 +33,8 @@ export function RunPage() {
   const orgId = useOrganizationId(orgSlug);
   const run = useRun(orgId, runId);
   const cancel = useCancelRun(orgId);
+  const download = useDownloadArtifact(orgId);
   const [openStep, setOpenStep] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
-
-  async function download() {
-    setDownloading(true);
-    try {
-      // Fetched through the API rather than from a presigned bucket URL. A presigned URL is
-      // a bearer token in a link — whoever holds it reads the object until it expires, and
-      // the bucket has to be reachable from a browser for it to work at all. Here the bytes
-      // only ever answer a request carrying this session's token.
-      const file = await api.download(`/organizations/${orgId}/runs/${runId}/artifact`);
-
-      // A blob URL and a synthetic click: no popup, so nothing for a blocker to swallow,
-      // and the page the user is reading stays where it is.
-      const href = URL.createObjectURL(file.blob);
-      const link = document.createElement("a");
-      link.href = href;
-      link.download = file.fileName ?? `${run.data?.targetPackageName ?? "artifact"}.tgz`;
-
-      // Attached before clicking: Firefox ignores a click on an anchor that is not in the
-      // document.
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      // Revoked on a later task, not in this one: the save is still reading the blob when
-      // click() returns, and revoking underneath it truncates the file.
-      setTimeout(() => URL.revokeObjectURL(href), 0);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.detail : "Could not fetch the artifact.");
-    } finally {
-      setDownloading(false);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -178,12 +146,25 @@ export function RunPage() {
                 </span>
               )}
               {run.data.hasArtifact && (
-                <Button variant="outline" size="sm" onClick={download} disabled={downloading}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    download.mutate(
+                      { runId, fallbackName: `${run.data?.targetPackageName ?? "artifact"}.tgz` },
+                      {
+                        onError: (error) =>
+                          toast.error(describeError(error, "Could not fetch the artifact.")),
+                      },
+                    )
+                  }
+                  disabled={download.isPending}
+                >
                   {/* The spinner replaces the icon and the label stays put, as on the
                       Generate button: a label that changes is a width that changes, and this
                       one sits next to Cancel in a right-aligned row that would slide sideways
                       for as long as the download takes. */}
-                  {downloading ? <Spinner /> : <Download className="size-4" aria-hidden />}
+                  {download.isPending ? <Spinner /> : <Download className="size-4" aria-hidden />}
                   Artifact
                 </Button>
               )}
@@ -194,10 +175,8 @@ export function RunPage() {
                   onClick={() =>
                     cancel.mutate(runId, {
                       onSuccess: () => toast.success("Run cancelled"),
-                      onError: (err) =>
-                        toast.error(
-                          err instanceof ApiError ? err.detail : "Could not cancel the run.",
-                        ),
+                      onError: (error) =>
+                        toast.error(describeError(error, "Could not cancel the run.")),
                     })
                   }
                   disabled={cancel.isPending}

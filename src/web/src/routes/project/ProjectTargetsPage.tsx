@@ -13,13 +13,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { TargetDialog } from "@/routes/project/TargetDialog";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 import { useCredentials, useDeleteTarget, useProject, usePublications } from "@/api/queries";
 import { LanguageMark } from "@/components/LanguageDot";
 import { PublicationStatus, languageLabel, registryLabel, type SdkTarget } from "@/api/types";
@@ -130,9 +131,11 @@ export function ProjectTargetsPage() {
     <div className="space-y-6">
       {/* hasData: adding, editing and deleting a target all invalidate this query, so a
           refetch that fails would otherwise replace a table the browser still holds with a
-          full-width error. */}
+          full-width error. isPending rather than isLoading: the query is disabled until the
+          project id resolves, and isLoading is `isPending && isFetching`, false while
+          disabled, so every cold load showed "No SDK targets" before the skeleton. */}
       <QueryBoundary
-        isLoading={project.isLoading}
+        isLoading={project.isPending}
         error={project.error}
         hasData={project.data !== undefined}
       >
@@ -277,6 +280,13 @@ export function ProjectTargetsPage() {
                                 return (
                                   <span className="text-muted-foreground">Do not publish</span>
                                 );
+                              }
+
+                              // "Revoked" is a claim about the list, so it waits for the list:
+                              // read off an empty one still on its way, every named target
+                              // opened on a warning that a moment later was not there.
+                              if (credentials.isPending) {
+                                return <Skeleton className="h-4 w-24" />;
                               }
 
                               const named = (credentials.data ?? [])
@@ -464,9 +474,7 @@ export function ProjectTargetsPage() {
                 setDeleteOpen(false);
               },
               onError: (error) =>
-                setDeleteError(
-                  error instanceof ApiError ? error.detail : "Could not delete the target.",
-                ),
+                setDeleteError(describeError(error, "Could not delete the target.")),
             },
           )
         }

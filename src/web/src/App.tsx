@@ -27,6 +27,7 @@ import { ProjectTargetsPage } from "@/routes/project/ProjectTargetsPage";
 import { OrganizationRunsPage } from "@/routes/OrganizationRunsPage";
 import { RunPage } from "@/routes/RunPage";
 import { CredentialsPage } from "@/routes/CredentialsPage";
+import { NotFoundPage } from "@/routes/NotFoundPage";
 import type { ReactNode } from "react";
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -89,9 +90,11 @@ export default function App() {
         </Route>
         <Route path="/orgs/:orgId/runs" element={<OrganizationRunsPage />} />
         <Route path="/orgs/:orgId/runs/:runId" element={<RunPage />} />
+        {/* Inside the shell, so an unknown address is said in the application rather than
+            swallowed by a redirect to the dashboard — and behind RequireAuth, so a signed-out
+            visitor learns nothing about which addresses exist. */}
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
-
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

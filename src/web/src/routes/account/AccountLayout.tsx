@@ -21,8 +21,10 @@ export function AccountLayout() {
             <Skeleton className="h-5 w-40" />
           ) : (
             <>
+              {/* A name even when the account failed to load: the section below says what
+                  went wrong, and a frame with an empty title said nothing at all. */}
               <h1 className="truncate font-heading text-lg font-medium tracking-tight">
-                {account.data?.displayName || account.data?.email}
+                {account.data?.displayName || account.data?.email || "Your account"}
               </h1>
               {account.data?.displayName && (
                 <p className="truncate text-sm text-muted-foreground">{account.data.email}</p>

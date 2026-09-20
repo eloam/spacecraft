@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 import { useCreateOrganization } from "@/api/queries";
 
 export function CreateOrganizationDialog({
@@ -40,8 +40,7 @@ export function CreateOrganizationDialog({
           // switcher can be opened from anywhere, so returning to the list would be wrong.
           navigate(`/orgs/${org.slug}`);
         },
-        onError: (err) =>
-          toast.error(err instanceof ApiError ? err.detail : "Could not create the organization."),
+        onError: (err) => toast.error(describeError(err, "Could not create the organization.")),
       },
     );
   }

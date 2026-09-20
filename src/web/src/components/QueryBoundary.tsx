@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ApiError } from "@/api/client";
+import { ApiError, describeError } from "@/api/client";
 
 /**
  * Renders the three states every query has, so pages don't each reinvent them.
@@ -42,8 +42,7 @@ export function QueryBoundary({
     return (
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground" role="status">
-          {error instanceof ApiError ? error.detail : "Could not refresh."} Showing the last
-          version loaded.
+          {describeError(error, "Could not refresh.")} Showing the last version loaded.
         </p>
         {children}
       </div>
@@ -56,7 +55,7 @@ export function QueryBoundary({
         <AlertCircle className="size-4" aria-hidden />
         <AlertTitle>{error instanceof ApiError ? error.title : "Something went wrong"}</AlertTitle>
         <AlertDescription>
-          {error instanceof ApiError ? error.detail : "The request failed. Try again in a moment."}
+          {describeError(error, "The request failed. Try again in a moment.")}
         </AlertDescription>
       </Alert>
     );

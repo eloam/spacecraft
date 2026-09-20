@@ -31,7 +31,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { timeAgo } from "@/lib/format";
-import { ApiError } from "@/api/client";
+import { ApiError, describeError } from "@/api/client";
 import {
   keys, useChangeMemberRole, useInvitations, useInviteMember, useMembers, useRemoveMember,
   useRevokeInvitation, type Invitation, type Member,
@@ -180,11 +180,7 @@ export function MembersPage() {
                                 {
                                   onSuccess: () => toast.success("Role updated."),
                                   onError: (error) =>
-                                    toast.error(
-                                      error instanceof ApiError
-                                        ? error.detail
-                                        : "Could not change the role.",
-                                    ),
+                                    toast.error(describeError(error, "Could not change the role.")),
                                 },
                               );
                             }}
@@ -281,9 +277,30 @@ export function MembersPage() {
 
       {/* Below the members, and only when there are any: an organization with nothing
           outstanding should not carry an empty box explaining what one would look like. They
-          are deliberately not rows in the table above — nobody here has joined anything. */}
+          are deliberately not rows in the table above — nobody here has joined anything. A
+          list that failed to load is the one thing said here without any: kept quiet, it
+          reads as nothing pending. */}
       {invitations.data && invitations.data.length > 0 && (
         <PendingInvitations orgId={orgId} invitations={invitations.data} />
+      )}
+      {/* Said the way the tables say it: with a list still up from an earlier load, the
+          failure is a refresh that did not happen, not a list that is not there. */}
+      {invitations.isError && (
+        <p className="text-sm text-muted-foreground" role="status">
+          {describeError(
+            invitations.error,
+            invitations.data
+              ? "The pending invitations could not be refreshed."
+              : "The pending invitations could not be loaded.",
+          )}{" "}
+          <button
+            type="button"
+            className="underline underline-offset-4"
+            onClick={() => invitations.refetch()}
+          >
+            Try again
+          </button>
+        </p>
       )}
 
       <InviteDialog orgId={orgId} open={inviteOpen} onOpenChange={setInviteOpen} />
@@ -349,9 +366,7 @@ export function MembersPage() {
               }
             },
             onError: (error) =>
-              setRemoveError(
-                error instanceof ApiError ? error.detail : "Could not remove the member.",
-              ),
+              setRemoveError(describeError(error, "Could not remove the member.")),
           });
         }}
       />
@@ -422,11 +437,7 @@ function PendingInvitations({
                         revoke.mutate(invitation.id, {
                           onSuccess: () => toast.success(`Invitation to ${invitation.email} withdrawn.`),
                           onError: (error) =>
-                            toast.error(
-                              error instanceof ApiError
-                                ? error.detail
-                                : "Could not withdraw the invitation.",
-                            ),
+                            toast.error(describeError(error, "Could not withdraw the invitation.")),
                         })
                       }
                     >
@@ -477,7 +488,7 @@ function InviteDialog({
             form.setError("email", { message: error.errors.Email.join(" ") });
             return;
           }
-          toast.error(error instanceof ApiError ? error.detail : "Could not send the invitation.");
+          toast.error(describeError(error, "Could not send the invitation."));
         },
       },
     ),

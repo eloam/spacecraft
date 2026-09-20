@@ -9,7 +9,11 @@ export type IndexRequest = {
 export type IndexResponse = {
   /** Parallel to the pointers sent in; null where the pointer resolved to nothing. */
   lines: (number | null)[];
-  /** Set when the document could not be parsed at all — the viewer still shows the text. */
+  /**
+   * Set when the parser reported a syntax error — the lines above are then as far as it got,
+   * with a line and column for where it stopped — or when something else threw, in which
+   * case there are no lines at all. The viewer shows the text either way.
+   */
   error?: string;
 };
 
@@ -28,6 +32,10 @@ self.onmessage = (event: MessageEvent<IndexRequest>) => {
 
   let response: IndexResponse;
   try {
+    // A syntax error does not throw: the parser recovers and collects it in `doc.errors`,
+    // which is exactly the case with findings worth reading. So the partial tree is walked
+    // — a pointer that resolves against it is a real line — and the first error is reported
+    // beside the result rather than instead of it.
     const doc = parseDocument(text);
     const starts = lineStarts(text);
 
@@ -38,12 +46,19 @@ self.onmessage = (event: MessageEvent<IndexRequest>) => {
         return offset === null ? null : lineAt(starts, offset);
       }),
     };
+
+    if (doc.errors.length > 0) {
+      // The first line of the message is the sentence with its line and column; the parser
+      // follows it with a code frame of the offending line, which the dialog reading this
+      // already has on screen.
+      response.error = doc.errors[0].message.split("\n", 1)[0].replace(/:$/, "");
+    }
   } catch (error) {
-    // A document that fails to parse is exactly the case with findings worth reading, so
-    // this reports no lines rather than no viewer.
+    // Anything the parser or the walk throws outright, which the recovery above does not
+    // cover. No lines, but still an answer: the alternative is a skeleton that never ends.
     response = {
       lines: pointers.map(() => null),
-      error: error instanceof Error ? error.message : "The document could not be parsed.",
+      error: error instanceof Error ? error.message : "The document could not be indexed.",
     };
   }
 

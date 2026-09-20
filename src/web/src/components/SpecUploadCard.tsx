@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useUploadSpec } from "@/api/queries";
-import { ApiError } from "@/api/client";
+import { ApiError, describeError } from "@/api/client";
 import { toast } from "sonner";
 
 /** Drop zone plus file picker for a new OpenAPI document. */
@@ -63,7 +63,7 @@ export function SpecUploadCard({
           return;
         }
 
-        toast.error(err instanceof ApiError ? err.detail : "The upload failed.");
+        toast.error(describeError(err, "The upload failed."));
       },
     });
   }

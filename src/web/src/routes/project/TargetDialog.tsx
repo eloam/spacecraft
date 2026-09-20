@@ -9,11 +9,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 import { useAddTarget, useCredentials, useUpdateTarget } from "@/api/queries";
 import { SdkLanguage, type SdkTarget, languageLabel, registryLabel } from "@/api/types";
 
@@ -64,9 +65,7 @@ export function TargetDialog({
 
     const onError = (err: unknown) =>
       toast.error(
-        err instanceof ApiError
-          ? err.detail
-          : `Could not ${target ? "save the target" : "add the target"}.`,
+        describeError(err, `Could not ${target ? "save the target" : "add the target"}.`),
       );
 
     if (target) {
@@ -206,12 +205,21 @@ export function TargetDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {usable.length === 0 && (
+              {/* "No credential yet" is a claim about the organization, so it waits for the
+                  list. Said of one still loading, or refused — listing credentials takes an
+                  admin, and a member sees a 403 — it claimed an absence nobody had checked. */}
+              {credentials.isPending ? (
+                <Skeleton className="h-4 w-3/4" />
+              ) : credentials.isError ? (
+                <FieldDescription>
+                  {describeError(credentials.error, "The credentials could not be loaded.")}
+                </FieldDescription>
+              ) : usable.length === 0 ? (
                 <FieldDescription>
                   This organization has no usable npm credential yet. Generating and building
                   work without one; only publishing needs it.
                 </FieldDescription>
-              )}
+              ) : null}
             </Field>
 
             {/* A switch, like every other setting in the app: this takes effect when it is

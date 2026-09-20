@@ -28,6 +28,7 @@ import {
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SpecFindingCounts } from "@/routes/project/SpecFindingCounts";
@@ -35,7 +36,7 @@ import { SpecValidationDialog } from "@/routes/project/SpecValidationDialog";
 import { SpecDiffDialog } from "@/routes/project/SpecDiffDialog";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 import { useDeleteSpec, usePublications, useSpecs } from "@/api/queries";
 import { PublicationStatus, SpecValidationStatus, type SpecVersion } from "@/api/types";
 
@@ -188,9 +189,7 @@ export function ProjectSpecsPage() {
       // in the dialog, next to the button that was just pressed, not in a toast that appears
       // somewhere else and disappears.
       onError: (error) =>
-        setDeleteError(
-          error instanceof ApiError ? error.detail : "The spec version could not be deleted.",
-        ),
+        setDeleteError(describeError(error, "The spec version could not be deleted.")),
     });
   }
 
@@ -200,9 +199,11 @@ export function ProjectSpecsPage() {
 
       {/* An upload or a delete invalidates this list, so it refetches while a table is on
           screen. A failed refetch must not replace the versions someone is reading with a
-          full-width error. */}
+          full-width error. isPending rather than isLoading: the query is disabled until the
+          project id resolves, and isLoading is `isPending && isFetching`, false while
+          disabled, so every cold load showed the empty-list line before the skeleton. */}
       <QueryBoundary
-        isLoading={specs.isLoading}
+        isLoading={specs.isPending}
         error={specs.error}
         hasData={specs.data !== undefined}
       >
@@ -377,6 +378,10 @@ export function ProjectSpecsPage() {
                             </TooltipTrigger>
                             <TooltipContent>The publications could not be loaded</TooltipContent>
                           </Tooltip>
+                        ) : publications.isPending ? (
+                          // Same claim, the other way round: a dash over a list still on its
+                          // way says "nothing published" of a version that may well be.
+                          <Skeleton className="h-4 w-20" />
                         ) : packages.length === 0 ? (
                           <span className="text-muted-foreground">—</span>
                         ) : (

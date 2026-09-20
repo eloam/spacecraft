@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { AuthCard } from "@/components/AuthCard";
 import { useForgotPassword } from "@/api/queries";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -69,9 +69,7 @@ export function ForgotPasswordPage() {
 
         {forgot.error && (
           <p className="text-sm text-destructive" role="alert">
-            {forgot.error instanceof ApiError
-              ? forgot.error.detail
-              : "Something went wrong. Try again."}
+            {describeError(forgot.error, "Something went wrong. Try again.")}
           </p>
         )}
 

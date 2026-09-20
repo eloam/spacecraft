@@ -29,7 +29,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { useCreateProject, useProjects } from "@/api/queries";
 import { languageLabel } from "@/api/types";
 import { NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 import { toast } from "sonner";
 
 export function ProjectsPage() {
@@ -53,7 +53,7 @@ export function ProjectsPage() {
         </Button>
       </div>
 
-      <QueryBoundary isLoading={isLoading} error={error}>
+      <QueryBoundary isLoading={isLoading} error={error} hasData={data !== undefined}>
         {data?.length ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((project) => (
@@ -148,8 +148,7 @@ function CreateProjectDialog({
           setStrictValidation(true);
           onOpenChange(false);
         },
-        onError: (err) =>
-          toast.error(err instanceof ApiError ? err.detail : "Could not create the project."),
+        onError: (err) => toast.error(describeError(err, "Could not create the project.")),
       },
     );
   }

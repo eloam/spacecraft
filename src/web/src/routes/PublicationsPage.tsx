@@ -40,7 +40,7 @@ export function PublicationsPage() {
                 <TableHead>Registry</TableHead>
                 <TableHead>Project</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Published</TableHead>
+                <TableHead className="text-right">Completed</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -71,7 +71,7 @@ export function PublicationsPage() {
                     {publication.failureReason && (
                       // Capped and wrapped against the cell's inherited nowrap: a registry
                       // rejection is a whole npm error, and on one line it made the Status
-                      // column as wide as the message — pushing Published off-screen for
+                      // column as wide as the message — pushing Completed off-screen for
                       // every other row. wrap-anywhere, because the registry URL inside it
                       // has no spaces to break at.
                       <p className="mt-1 max-w-xs text-xs whitespace-normal wrap-anywhere text-destructive">
@@ -80,7 +80,12 @@ export function PublicationsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
-                    {new Date(publication.completedAt ?? publication.createdAt).toLocaleString()}
+                    {/* Null until the registry has answered: a pending publication has no
+                        completion time, and showing createdAt in its place said "published"
+                        about something that might still fail. */}
+                    {publication.completedAt
+                      ? new Date(publication.completedAt).toLocaleString()
+                      : "—"}
                   </TableCell>
                 </TableRow>
               ))}

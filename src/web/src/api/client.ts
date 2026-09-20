@@ -29,6 +29,18 @@ export class ApiError extends Error {
 }
 
 /**
+ * What to tell the user about a failure: the API's own words when it gave some, `fallback`
+ * otherwise.
+ *
+ * Every toast and inline error used to spell this ternary out for itself, and three of them
+ * got it wrong and printed a fixed string over a 403 that explained exactly what was refused.
+ * The server's text is the user's text; this is the one place that rule is written.
+ */
+export function describeError(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.detail : fallback;
+}
+
+/**
  * A single in-flight refresh, shared by every request that hits a 401 at once.
  * Without this, a dashboard firing five parallel queries on a stale token would start five
  * refreshes — and since refresh tokens rotate and are single-use, four of them would be

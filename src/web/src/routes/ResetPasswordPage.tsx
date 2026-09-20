@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { AuthCard } from "@/components/AuthCard";
 import { useResetPassword } from "@/api/queries";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 
 const schema = z
   .object({
@@ -109,9 +109,7 @@ export function ResetPasswordPage() {
 
         {reset.error && (
           <p className="text-sm text-destructive" role="alert">
-            {reset.error instanceof ApiError
-              ? reset.error.detail
-              : "Something went wrong. Try again."}
+            {describeError(reset.error, "Something went wrong. Try again.")}
           </p>
         )}
 

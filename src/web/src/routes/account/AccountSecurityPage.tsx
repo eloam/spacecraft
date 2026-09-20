@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
-import { ApiError } from "@/api/client";
+import { ApiError, describeError } from "@/api/client";
 import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from "@/api/queries";
 
 const passwordSchema = z
@@ -59,10 +59,7 @@ function PasswordCard() {
           // leaving a failure indistinguishable from a click that never registered.
           if (!onAField) {
             form.setError("root", {
-              message:
-                error instanceof ApiError
-                  ? error.detail
-                  : "Could not change your password. Try again.",
+              message: describeError(error, "Could not change your password. Try again."),
             });
           }
         },
@@ -163,11 +160,7 @@ function SessionsCard() {
                           // revoke sessions they do not recognise. They have to be told the
                           // session is still alive.
                           onError: (error) =>
-                            toast.error(
-                              error instanceof ApiError
-                                ? error.detail
-                                : "Could not sign out that session.",
-                            ),
+                            toast.error(describeError(error, "Could not sign out that session.")),
                         })
                       }
                       disabled={revoke.isPending}
@@ -189,11 +182,7 @@ function SessionsCard() {
                 revokeOthers.mutate(undefined, {
                   onSuccess: () => toast.success("Other sessions signed out."),
                   onError: (error) =>
-                    toast.error(
-                      error instanceof ApiError
-                        ? error.detail
-                        : "Could not sign out the other sessions.",
-                    ),
+                    toast.error(describeError(error, "Could not sign out the other sessions.")),
                 })
               }
               disabled={revokeOthers.isPending}

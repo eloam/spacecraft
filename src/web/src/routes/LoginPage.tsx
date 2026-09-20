@@ -8,7 +8,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { AuthCard } from "@/components/AuthCard";
 import { useLogin } from "@/api/queries";
 import { useReturnQuery } from "@/lib/returnTo";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -81,7 +81,7 @@ export function LoginPage() {
 
         {login.error && (
           <p className="text-sm text-destructive" role="alert">
-            {login.error instanceof ApiError ? login.error.detail : "Sign-in failed. Try again."}
+            {describeError(login.error, "Sign-in failed. Try again.")}
           </p>
         )}
 
