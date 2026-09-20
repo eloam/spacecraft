@@ -87,10 +87,11 @@ export function SpecDiffDialog({
 
   const ready = before.data && after.data;
   const identical = ready && before.data.content === after.data.content;
+  const formats = ready ? { before: before.data.format, after: after.data.format } : null;
 
   // The table already refuses to offer this, but the rule belongs with the thing it protects
   // rather than only with the caller that happens to know about it today.
-  const mixedNotations = ready && before.data.format !== after.data.format;
+  const mixedNotations = formats !== null && formats.before !== formats.after;
 
   return (
     <Dialog open={pair !== null} onOpenChange={(open) => !open && onClose()}>
@@ -164,9 +165,9 @@ export function SpecDiffDialog({
             </p>
           ) : mixedNotations ? (
             <p className="p-6 text-sm text-muted-foreground">
-              One document is {before.data!.format.toUpperCase()} and the other is{" "}
-              {after.data!.format.toUpperCase()}. They can describe the same API without sharing
-              a single line, so a line-by-line comparison would mark all of it as changed.
+              One document is {formats.before.toUpperCase()} and the other is{" "}
+              {formats.after.toUpperCase()}. They can describe the same API without sharing a
+              single line, so a line-by-line comparison would mark all of it as changed.
             </p>
           ) : !ready ? (
             <Loading />

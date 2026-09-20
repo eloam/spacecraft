@@ -50,7 +50,7 @@ export function OrganizationsPage() {
               >
                 <ItemContent className="gap-1">
                   <ItemDescription className="text-xs font-medium tracking-wider uppercase">
-                    {roleLabel[org.role] ?? "Member"}
+                    {roleLabel[org.role] ?? "Unknown"}
                   </ItemDescription>
                   <span className="truncate font-heading text-lg font-semibold">{org.name}</span>
                   <span className="truncate font-mono text-xs text-muted-foreground">

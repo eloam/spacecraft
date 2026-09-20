@@ -72,7 +72,8 @@ interface RegistryProfile {
   wired: boolean;
 }
 
-const REGISTRIES: RegistryProfile[] = [
+// A non-empty tuple rather than an array, so the first row can be the default without a check.
+const REGISTRIES = [
   {
     kind: RegistryKind.Npm,
     languages: "TypeScript",
@@ -118,7 +119,7 @@ const REGISTRIES: RegistryProfile[] = [
     privateExamples: "Private Packagist, Satis",
     wired: false,
   },
-];
+] satisfies readonly [RegistryProfile, ...RegistryProfile[]];
 
 const DEFAULT_REGISTRY = REGISTRIES[0];
 
@@ -618,6 +619,9 @@ function AddCredentialForm({
       <Tabs
         value={String(registry)}
         onValueChange={(value) => {
+          // Tabs admit null, "no tab active"; a controlled root never hands one over, but
+          // Number(null) is 0, and no registry is.
+          if (value === null) return;
           setRegistry(Number(value));
           // A rejection recorded against another registry no longer describes anything:
           // its token format and its address were judged by different rules.

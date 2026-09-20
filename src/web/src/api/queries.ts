@@ -1,13 +1,28 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
+import {
+  skipToken,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryOptions,
+} from "@tanstack/react-query";
 import { api } from "./client";
 import {
+  type Account,
+  type Acknowledgement,
   type AuthResponse,
   type Credential,
+  type DeletionBlocker,
+  type Invitation,
+  type InvitationPreview,
+  type Member,
+  type NotificationFeed,
+  type NotificationPreference,
   type Organization,
   type Project,
   type Publication,
   type Run,
   type SdkTarget,
+  type Session,
   type SpecContent,
   type SpecDiagnostic,
   type SpecList,
@@ -60,43 +75,6 @@ export function useLogin() {
   });
 }
 
-export type Account = {
-  id: string;
-  email: string;
-  displayName: string | null;
-  createdAt: string;
-  lastLoginAt: string | null;
-  organizationCount: number;
-};
-
-export type Session = {
-  id: string;
-  startedAt: string;
-  lastUsedAt: string;
-  expiresAt: string;
-  isCurrent: boolean;
-};
-
-export type DeletionBlocker = { organizationName: string; reason: string };
-
-export type Member = {
-  userId: string;
-  email: string;
-  displayName: string | null;
-  role: number;
-  isYou: boolean;
-  joinedAt: string;
-};
-
-/** An invitation that has been sent and not yet accepted, withdrawn or expired. */
-export type Invitation = {
-  id: string;
-  email: string;
-  role: number;
-  expiresAt: string;
-  createdAt: string;
-};
-
 export function usePublications(orgId: string, projectId?: string) {
   return useQuery({
     queryKey: ["publications", orgId, projectId ?? "all"],
@@ -111,12 +89,16 @@ export function usePublications(orgId: string, projectId?: string) {
 export function useSpecDiagnostics(orgId: string, projectId: string, specId: string | null) {
   return useQuery({
     queryKey: keys.specDiagnostics(orgId, projectId, specId),
-    queryFn: () =>
-      api.get<SpecDiagnostic[]>(
-        `/organizations/${orgId}/projects/${projectId}/specs/${specId}/diagnostics`,
-      ),
-    // Only fetched when a spec is actually open: 413 findings is not a payload to prefetch.
-    enabled: Boolean(orgId && projectId && specId),
+    // skipToken rather than `enabled`: the id is part of the URL, and a query function that
+    // cannot be built without it should not exist without it either. Only fetched when a spec
+    // is actually open: 413 findings is not a payload to prefetch.
+    queryFn:
+      orgId && projectId && specId
+        ? () =>
+            api.get<SpecDiagnostic[]>(
+              `/organizations/${orgId}/projects/${projectId}/specs/${specId}/diagnostics`,
+            )
+        : skipToken,
   });
 }
 
@@ -129,11 +111,13 @@ export function useSpecDiagnostics(orgId: string, projectId: string, specId: str
 export function useSpecContent(orgId: string, projectId: string, specId: string | null) {
   return useQuery({
     queryKey: keys.specContent(orgId, projectId, specId),
-    queryFn: () =>
-      api.get<SpecContent>(
-        `/organizations/${orgId}/projects/${projectId}/specs/${specId}/content`,
-      ),
-    enabled: Boolean(orgId && projectId && specId),
+    queryFn:
+      orgId && projectId && specId
+        ? () =>
+            api.get<SpecContent>(
+              `/organizations/${orgId}/projects/${projectId}/specs/${specId}/content`,
+            )
+        : skipToken,
     staleTime: Infinity,
     gcTime: Infinity,
   });
@@ -230,18 +214,6 @@ export function useRevokeInvitation(orgId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invitations", orgId] }),
   });
 }
-
-/** What an invitation is for, read without spending it. */
-export type InvitationPreview = {
-  organizationName: string;
-  organizationSlug: string;
-  role: number;
-  invitedBy: string;
-  expiresAt: string;
-  memberCount: number;
-  projects: string[];
-  alreadyMember: boolean;
-};
 
 /**
  * A POST for a read: the token travels in the body rather than in a path, where it would be
@@ -484,14 +456,14 @@ export function useDeleteAccount() {
 export function useForgotPassword() {
   return useMutation({
     mutationFn: (input: { email: string }) =>
-      api.post<{ message: string }>("/auth/forgot-password", input),
+      api.post<Acknowledgement>("/auth/forgot-password", input),
   });
 }
 
 export function useResetPassword() {
   return useMutation({
     mutationFn: (input: { token: string; newPassword: string }) =>
-      api.post<{ message: string }>("/auth/reset-password", input),
+      api.post<Acknowledgement>("/auth/reset-password", input),
   });
 }
 
@@ -528,41 +500,6 @@ export function useLogout() {
 }
 
 // --- notifications --------------------------------------------------------------------
-
-/** Mirrors SpaceCraft.Domain.Notifications.NotificationKind. */
-export type NotificationKind =
-  | "MemberJoined"
-  | "MemberLeft"
-  | "RunCompleted"
-  | "RemovedFromOrganization"
-  | "InvitationDeclined";
-
-/** Mirrors SpaceCraft.Domain.Notifications.NotificationChannel. */
-export type NotificationChannel = "InApp" | "Email";
-
-export type NotificationItem = {
-  id: string;
-  kind: NotificationKind;
-  organizationId: string;
-  organizationName: string;
-  title: string;
-  summary: string;
-  detail: string | null;
-  /** A path inside the application, built from ids so a rename cannot break it. */
-  link: string;
-  actionLabel: string;
-  createdAt: string;
-  readAt: string | null;
-};
-
-export type NotificationFeed = { unreadCount: number; items: NotificationItem[] };
-
-/** One switch on the settings page: this kind, on this channel. */
-export type NotificationPreference = {
-  kind: NotificationKind;
-  channel: NotificationChannel;
-  enabled: boolean;
-};
 
 /**
  * The bell's contents.

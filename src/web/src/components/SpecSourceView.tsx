@@ -5,15 +5,9 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { json } from "@codemirror/lang-json";
 import { yaml } from "@codemirror/lang-yaml";
 import { tags } from "@lezer/highlight";
-import { DiagnosticSeverity } from "@/api/types";
+import { DiagnosticSeverity, type IdentifiedDiagnostic } from "@/api/types";
 
-export type Finding = {
-  id: number;
-  severity: number;
-  message: string;
-};
-
-export type LocatedFinding = Finding & { line: number };
+export type LocatedFinding = IdentifiedDiagnostic & { line: number };
 
 const severityClass: Record<number, string> = {
   [DiagnosticSeverity.Error]: "sc-error",
@@ -22,7 +16,7 @@ const severityClass: Record<number, string> = {
 };
 
 /** The most serious severity in a group — a line with an error is an error line. */
-function worst(findings: Finding[]): number {
+function worst(findings: IdentifiedDiagnostic[]): number {
   let highest: number = DiagnosticSeverity.Information;
   for (const finding of findings) {
     if (finding.severity > highest) highest = finding.severity;
@@ -31,11 +25,15 @@ function worst(findings: Finding[]): number {
 }
 
 class MessageWidget extends WidgetType {
-  readonly findings: Finding[];
+  readonly findings: IdentifiedDiagnostic[];
   readonly currentId: number | null;
   readonly heading: string | null;
 
-  constructor(findings: Finding[], currentId: number | null, heading: string | null = null) {
+  constructor(
+    findings: IdentifiedDiagnostic[],
+    currentId: number | null,
+    heading: string | null = null,
+  ) {
     super();
     this.findings = findings;
     this.currentId = currentId;
@@ -44,7 +42,7 @@ class MessageWidget extends WidgetType {
 
   // Identity comparison is enough: the arrays are rebuilt only when findings change, so an
   // unchanged group keeps its DOM instead of being torn down on every scroll.
-  eq(other: MessageWidget) {
+  override eq(other: MessageWidget) {
     return (
       other.findings === this.findings &&
       other.currentId === this.currentId &&
@@ -83,11 +81,11 @@ class SeverityMarker extends GutterMarker {
     this.severity = severity;
   }
 
-  eq(other: SeverityMarker) {
+  override eq(other: SeverityMarker) {
     return other.severity === this.severity;
   }
 
-  toDOM() {
+  override toDOM() {
     const dot = document.createElement("div");
     dot.className = `sc-dot ${severityClass[this.severity] ?? "sc-info"}`;
     return dot;
@@ -96,7 +94,7 @@ class SeverityMarker extends GutterMarker {
 
 type ViewState = {
   findings: LocatedFinding[];
-  unlocated: Finding[];
+  unlocated: IdentifiedDiagnostic[];
   currentId: number | null;
 };
 
@@ -249,7 +247,7 @@ export function SpecSourceView({
   content: string;
   format: string;
   findings: LocatedFinding[];
-  unlocated: Finding[];
+  unlocated: IdentifiedDiagnostic[];
   currentId: number | null;
   /** line 0 means the block above the first line, where unlocated findings live. */
   scrollTo: { line: number; nonce: number } | null;

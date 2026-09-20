@@ -88,7 +88,12 @@ export function OrganizationRunsPage() {
         <div className="flex items-center gap-2">
         <Select
           value={projectFilter ?? ALL}
-          onValueChange={(value) => setParam("project", value === ALL ? null : String(value))}
+          onValueChange={(value) => {
+            // null is Base UI's "cleared", which this select does not offer; coerced to a
+            // string it put ?project=null in the address.
+            if (value === null) return;
+            setParam("project", value === ALL ? null : value);
+          }}
         >
           <SelectTrigger size="sm" className="w-56" aria-label="Filter by project">
             {/* The label is computed rather than left to SelectValue: Base UI falls back to

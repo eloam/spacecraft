@@ -27,41 +27,33 @@ import { PublicationStatus, languageLabel, registryLabel, type SdkTarget } from 
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/**
- * The one thing that tells two rows apart at a glance, since every other cell is words.
- * Brand hues rather than theme tokens: they carry the same meaning in either theme, and a
- * palette drawn from the theme would give six languages six shades of the same colour.
- */
-type Filter = "all" | "automatic" | "manual";
+/** In the order the strip shows them; the union below is derived from it. */
+const FILTER_IDS = ["all", "automatic", "manual"] as const;
+type Filter = (typeof FILTER_IDS)[number];
 
 /**
  * The same icons the publishing column uses, so a filter and what it selects look alike —
  * and, once selected, the same colour too. Unselected they stay monochrome: coloured icons
  * competing at once is what the segmented control was meant to quieten.
  */
-const filters: {
-  id: Filter;
-  label: string;
-  Icon: typeof Layers;
-  tone: string;
-  matches: (t: SdkTarget) => boolean;
-}[] = [
-  { id: "all", label: "All", Icon: Layers, tone: "text-[var(--filter-all)]", matches: () => true },
-  {
-    id: "automatic",
+const filters: Record<
+  Filter,
+  { label: string; Icon: typeof Layers; tone: string; matches: (t: SdkTarget) => boolean }
+> = {
+  all: { label: "All", Icon: Layers, tone: "text-[var(--filter-all)]", matches: () => true },
+  automatic: {
     label: "Automatic",
     Icon: Zap,
     tone: "text-[var(--code-warning)]",
     matches: (t) => t.autoPublish,
   },
-  {
-    id: "manual",
+  manual: {
     label: "Manual",
     Icon: Hand,
     tone: "text-[var(--success)]",
     matches: (t) => !t.autoPublish,
   },
-];
+};
 
 /** One SDK per language and registry, and what each has published. */
 export function ProjectTargetsPage() {
@@ -116,10 +108,7 @@ export function ProjectTargetsPage() {
     return map;
   }, [publications.data]);
 
-  const visible = useMemo(
-    () => targets.filter(filters.find((f) => f.id === filter)!.matches),
-    [targets, filter],
-  );
+  const visible = useMemo(() => targets.filter(filters[filter].matches), [targets, filter]);
 
   function openDialog(target?: SdkTarget) {
     setEditing(target);
@@ -165,7 +154,8 @@ export function ProjectTargetsPage() {
               {/* One control rather than loose buttons: a segmented set says the choices are
                   exclusive before anything is clicked. */}
               <div className="ml-auto flex items-center rounded-lg border bg-card p-0.5">
-                {filters.map(({ id, label, Icon, tone, matches }) => {
+                {FILTER_IDS.map((id) => {
+                  const { label, Icon, tone, matches } = filters[id];
                   const count = targets.filter(matches).length;
 
                   return (

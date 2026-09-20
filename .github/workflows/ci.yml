@@ -96,6 +96,17 @@ jobs:
       - name: Start the stack
         run: docker compose -f compose.e2e.yaml up -d --build --wait
 
+      # The client's types are generated from the API's OpenAPI document and committed. Once
+      # the stack is up, the document is a request away: regenerate and refuse a difference,
+      # so a contract change that skipped `npm run gen:api` fails here rather than in a browser.
+      # The generator is the exact version `gen:api` in src/web/package.json runs — it pins
+      # a peer of TypeScript 5 and cannot be a devDependency of a TypeScript 6 project.
+      - name: Check the committed API schema is current
+        run: |
+          npx --yes openapi-typescript@7.13.0 http://127.0.0.1:58080/openapi/v1.json -o src/api/schema.d.ts
+          git diff --exit-code -- src/api/schema.d.ts
+        working-directory: src/web
+
       - name: End-to-end tests
         run: npm run test:e2e
         working-directory: src/web

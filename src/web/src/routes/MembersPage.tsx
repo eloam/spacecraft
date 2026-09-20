@@ -34,29 +34,20 @@ import { timeAgo } from "@/lib/format";
 import { ApiError, describeError } from "@/api/client";
 import {
   keys, useChangeMemberRole, useInvitations, useInviteMember, useMembers, useRemoveMember,
-  useRevokeInvitation, type Invitation, type Member,
+  useRevokeInvitation,
 } from "@/api/queries";
-
-/** Mirrors SpaceCraft.Domain.Organizations.OrganizationRole. */
-const Role = { Viewer: 1, Member: 2, Admin: 3, Owner: 4 } as const;
-
-const roleLabel: Record<number, string> = {
-  [Role.Viewer]: "Viewer",
-  [Role.Member]: "Member",
-  [Role.Admin]: "Admin",
-  [Role.Owner]: "Owner",
-};
+import { OrganizationRole, roleLabel, type Invitation, type Member } from "@/api/types";
 
 const roleHelp: Record<number, string> = {
-  [Role.Viewer]: "Can look at projects, specs and runs.",
-  [Role.Member]: "Can upload specs and generate SDKs.",
-  [Role.Admin]: "Can also publish, manage credentials and add people.",
-  [Role.Owner]: "Full control, including deleting the organization.",
-};
+  [OrganizationRole.Viewer]: "Can look at projects, specs and runs.",
+  [OrganizationRole.Member]: "Can upload specs and generate SDKs.",
+  [OrganizationRole.Admin]: "Can also publish, manage credentials and add people.",
+  [OrganizationRole.Owner]: "Full control, including deleting the organization.",
+} satisfies Record<OrganizationRole, string>;
 
 const schema = z.object({
   email: z.string().email("Enter a valid email address."),
-  role: z.coerce.number(),
+  role: z.number(),
 });
 
 export function MembersPage() {
@@ -71,7 +62,7 @@ export function MembersPage() {
   // Only an admin may see who has been asked to join, so only an admin asks. Read from the
   // list already on screen rather than fetched again: the row for you is in it.
   const yours = members.data?.find((member) => member.isYou);
-  const invitations = useInvitations(orgId, (yours?.role ?? 0) >= Role.Admin);
+  const invitations = useInvitations(orgId, (yours?.role ?? 0) >= OrganizationRole.Admin);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   // Kept apart from whether the dialog is open: the row has to outlive the close, or the
@@ -172,9 +163,10 @@ export function MembersPage() {
                           <Select
                             value={shownRole}
                             disabled={savingRole !== undefined}
-                            onValueChange={(value) => {
-                              const role = Number(value);
-                              if (role === member.role) return;
+                            onValueChange={(role) => {
+                              // Base UI reports a cleared selection as `null`. Nothing here
+                              // can clear this select, and null is not a role to send.
+                              if (role === null || role === member.role) return;
                               changeRole.mutate(
                                 { userId: member.userId, role },
                                 {
@@ -467,14 +459,14 @@ function InviteDialog({
   const invite = useInviteMember(orgId);
   const form = useForm<z.input<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "", role: Role.Member },
+    defaultValues: { email: "", role: OrganizationRole.Member },
   });
 
-  const selectedRole = Number(useWatch({ control: form.control, name: "role" }));
+  const selectedRole = useWatch({ control: form.control, name: "role" });
 
   const onSubmit = form.handleSubmit((values) =>
     invite.mutate(
-      { email: values.email, role: Number(values.role) },
+      { email: values.email, role: values.role },
       {
         onSuccess: () => {
           // Sent, not added. Saying "member added" would describe something that has not
@@ -532,9 +524,11 @@ function InviteDialog({
                   so the form holds the value and the component reports the choice back. */}
               <Select
                 value={selectedRole}
-                onValueChange={(value) =>
-                  form.setValue("role", Number(value), { shouldDirty: true })
-                }
+                onValueChange={(role) => {
+                  // The same `null` as the table's select: the form holds a role, never no role.
+                  if (role === null) return;
+                  form.setValue("role", role, { shouldDirty: true });
+                }}
               >
                 <SelectTrigger id="member-role" className="w-full">
                   {roleLabel[selectedRole]}

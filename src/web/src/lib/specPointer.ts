@@ -1,4 +1,4 @@
-import { isMap, isSeq, isScalar, type Document } from "yaml";
+import { isMap, isNode, isScalar, isSeq, type Document } from "yaml";
 
 /**
  * Turns a JSON pointer into its segments.
@@ -25,8 +25,7 @@ function pairFor(node: unknown, key: string) {
 }
 
 function startOffset(node: unknown): number | null {
-  const range = (node as { range?: [number, number, number] } | null)?.range;
-  return range ? range[0] : null;
+  return isNode(node) ? (node.range?.[0] ?? null) : null;
 }
 
 /**
@@ -93,7 +92,9 @@ export function lineAt(starts: number[], offset: number): number {
 
   while (low < high) {
     const mid = Math.ceil((low + high) / 2);
-    if (starts[mid] <= offset) low = mid;
+    // `mid` is always inside the array; the index type says it may not be, so the fallback
+    // only keeps the search honest for the checker.
+    if ((starts[mid] ?? Infinity) <= offset) low = mid;
     else high = mid - 1;
   }
 

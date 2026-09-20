@@ -94,6 +94,24 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Locked */
+                423: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         delete?: never;
@@ -132,6 +150,15 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["AuthResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                     };
                 };
                 /** @description Unauthorized */
@@ -238,7 +265,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"] | components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -279,6 +306,15 @@ export interface paths {
                     };
                     content?: never;
                 };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
             };
         };
         delete?: never;
@@ -311,6 +347,15 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["UserResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -406,7 +451,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"] | components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -579,6 +624,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Conflict */
                 409: {
                     headers: {
@@ -635,6 +689,24 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         trace?: never;
@@ -667,8 +739,8 @@ export interface paths {
                         "application/json": components["schemas"]["ProjectResponse"][];
                     };
                 };
-                /** @description Forbidden */
-                403: {
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -722,6 +794,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Conflict */
                 409: {
                     headers: {
@@ -768,15 +849,6 @@ export interface paths {
                         "application/json": components["schemas"]["ProjectResponse"];
                     };
                 };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
                 /** @description Not Found */
                 404: {
                     headers: {
@@ -814,8 +886,26 @@ export interface paths {
                     };
                     content?: never;
                 };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
                 /** @description Forbidden */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -880,6 +970,24 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         trace?: never;
@@ -930,6 +1038,15 @@ export interface paths {
                 };
                 /** @description Forbidden */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1050,8 +1167,26 @@ export interface paths {
                     };
                     content?: never;
                 };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
                 /** @description Forbidden */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1168,8 +1303,8 @@ export interface paths {
                         "application/json": components["schemas"]["SpecListResponse"];
                     };
                 };
-                /** @description Forbidden */
-                403: {
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1226,6 +1361,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Conflict */
                 409: {
                     headers: {
@@ -1271,15 +1415,6 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["SpecDiagnostic"][];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
                 /** @description Not Found */
@@ -1329,15 +1464,6 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["SpecContentResponse"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
                 /** @description Not Found */
@@ -1517,8 +1643,8 @@ export interface paths {
                         "application/json": components["schemas"]["RunResponse"][];
                     };
                 };
-                /** @description Forbidden */
-                403: {
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1618,15 +1744,6 @@ export interface paths {
                         "application/json": components["schemas"]["RunResponse"];
                     };
                 };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
                 /** @description Not Found */
                 404: {
                     headers: {
@@ -1686,6 +1803,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Conflict */
                 409: {
                     headers: {
@@ -1733,13 +1859,13 @@ export interface paths {
                         "text/plain": string;
                     };
                 };
-                /** @description Forbidden */
-                403: {
+                /** @description Bad Request */
+                400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                     };
                 };
                 /** @description Not Found */
@@ -1786,15 +1912,8 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
                     content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                        "application/octet-stream": components["schemas"]["Stream"];
                     };
                 };
                 /** @description Not Found */
@@ -1853,6 +1972,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         put?: never;
@@ -1892,6 +2020,15 @@ export interface paths {
                 };
                 /** @description Forbidden */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2109,6 +2246,15 @@ export interface paths {
                         "application/json": components["schemas"]["AccountResponse"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         put?: never;
@@ -2141,6 +2287,15 @@ export interface paths {
                     };
                     content: {
                         "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
                 /** @description Conflict */
@@ -2188,6 +2343,24 @@ export interface paths {
                         "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         trace?: never;
@@ -2229,6 +2402,15 @@ export interface paths {
                     };
                     content: {
                         "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -2405,8 +2587,8 @@ export interface paths {
                         "application/json": components["schemas"]["PublicationResponse"][];
                     };
                 };
-                /** @description Forbidden */
-                403: {
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2452,8 +2634,8 @@ export interface paths {
                         "application/json": components["schemas"]["MemberResponse"][];
                     };
                 };
-                /** @description Forbidden */
-                403: {
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2507,8 +2689,8 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
-                /** @description Conflict */
-                409: {
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2554,6 +2736,15 @@ export interface paths {
                 };
                 /** @description Forbidden */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2665,6 +2856,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Conflict */
                 409: {
                     headers: {
@@ -2704,8 +2904,26 @@ export interface paths {
                         "application/json": components["schemas"]["MemberResponse"];
                     };
                 };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
                 /** @description Forbidden */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2724,6 +2942,120 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/api/v1/invitations/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Describes the organization an invitation is for, without spending it. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AcceptInvitationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvitationPreviewResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invitations/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Turns an invitation down, which puts its link out. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AcceptInvitationRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/invitations/accept": {
@@ -2756,6 +3088,15 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["MemberResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                     };
                 };
                 /** @description Not Found */
@@ -3055,6 +3396,10 @@ export interface components {
             /** Format: int32 */
             organizationCount: number;
         };
+        /**
+         * @description Deliberately says nothing about whether the address is registered. The message is the
+         *     same either way, because a difference here is a way to test who has an account.
+         */
         AcknowledgementResponse: {
             message: string;
         };
@@ -3063,11 +3408,17 @@ export interface components {
             role: components["schemas"]["OrganizationRole"];
         };
         AddTargetRequest: {
+            /** @description The language to generate. */
             language: components["schemas"]["SdkLanguage"];
+            /** @description The package name at the registry. */
             packageName: string;
             registry: null | components["schemas"]["RegistryKind"];
+            /** @description Whether every generatable spec upload queues a publishing run. */
             autoPublish: boolean;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Which credential publishes it. Null while the organization has only one.
+             */
             registryCredentialId?: null | string;
         };
         AuthResponse: {
@@ -3084,22 +3435,43 @@ export interface components {
         ChangeRoleRequest: {
             role: components["schemas"]["OrganizationRole"];
         };
+        /**
+         * @description Typing the name back is the confirmation. Shared by project and target deletion so the
+         *     two read identically, and named for what it is rather than for either one.
+         */
         ConfirmByNameRequest: {
             name: string;
         };
         CreateCredentialRequest: {
+            /** @description The kind of registry the token is for. */
             registry: components["schemas"]["RegistryKind"];
+            /** @description How the credential is told apart from the others. */
             label: string;
+            /** @description The secret itself, stored encrypted and never returned. */
             token: string;
+            /**
+             * @description Half of the credential wherever a registry wants one — Maven, Nexus, Artifactory, and
+             *     PyPI where it is the literal "__token__". Absent for npm and NuGet, which authenticate
+             *     with the token alone.
+             */
             username: null | string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the registry will stop accepting the token, if known.
+             */
             expiresAt: null | string;
+            /** @description Where this token publishes. Empty means the public registry for its kind. */
             registryUrl?: null | string;
         };
         CreateOrganizationRequest: {
             name: string;
             slug: null | string;
         };
+        /**
+         * @description StrictValidation is nullable so that omitting it means "whatever the
+         *     default is" rather than "off" — a caller that predates the option should not silently
+         *     create projects without it.
+         */
         CreateProjectRequest: {
             name: string;
             slug: null | string;
@@ -3112,22 +3484,48 @@ export interface components {
             sdkTargetId: string;
             publish: boolean;
         };
+        /**
+         * @description Deliberately has no token field. There is no endpoint anywhere that returns a stored
+         *     credential: once written, it is only ever read by the publish step.
+         */
         CredentialResponse: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The credential's id.
+             */
             id: string;
+            /** @description The kind of registry the token is for. */
             registry: components["schemas"]["RegistryKind"];
+            /** @description Where it publishes. */
             registryUrl: string;
+            /** @description How it is told apart from the others. */
             label: string;
+            /** @description The token's last four characters, to recognise it by. */
             lastFour: string;
+            /** @description Whether it has been revoked. */
             isRevoked: boolean;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the registry will stop accepting the token, if known.
+             */
             expiresAt: null | string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When a publish last used it.
+             */
             lastUsedAt: null | string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When it was stored.
+             */
             createdAt: string;
+            /**
+             * @description The SDK targets that publish with it, with the project each belongs to — what deleting
+             *     this credential would break, named rather than counted.
+             */
             usedBy: components["schemas"]["CredentialUsageResponse"][];
         };
+        /** @description One SDK target that publishes with a credential, and where it lives. */
         CredentialUsageResponse: {
             /** Format: uuid */
             targetId: string;
@@ -3144,6 +3542,7 @@ export interface components {
         DeleteOrganizationRequest: {
             name: string;
         };
+        /** @description Blockers that must be cleared before an account can be deleted. */
         DeletionBlocker: {
             organizationName: string;
             reason: string;
@@ -3165,6 +3564,32 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
+        /** @description What somebody holding an invitation is shown before deciding. */
+        InvitationPreviewResponse: {
+            /** @description The organization's name. */
+            organizationName: string;
+            /** @description Its address. */
+            organizationSlug: string;
+            /** @description The role accepting would grant. */
+            role: components["schemas"]["OrganizationRole"];
+            /** @description The name the inviter goes by, or the address they signed up with. */
+            invitedBy: string;
+            /**
+             * Format: date-time
+             * @description When the invitation stops working.
+             */
+            expiresAt: string;
+            /**
+             * Format: int32
+             * @description How many people are in the organization.
+             */
+            memberCount: number;
+            /** @description The names of its newest projects, a few of them. */
+            projects: string[];
+            /** @description Whether the signed-in account is already in this organization. */
+            alreadyMember: boolean;
+        };
+        /** @description What an outstanding invitation looks like to the admin who sent it. */
         InvitationResponse: {
             /** Format: uuid */
             id: string;
@@ -3197,11 +3622,13 @@ export interface components {
         NotificationPreferencesRequest: {
             preferences: components["schemas"]["NotificationPreferenceState"][];
         };
+        /** @description One switch on the settings page: this kind, on this channel. */
         NotificationPreferenceState: {
             kind: string;
             channel: string;
             enabled: boolean;
         };
+        /** @description One entry in the reader's list. */
         NotificationResponse: {
             /** Format: uuid */
             id: string;
@@ -3256,26 +3683,55 @@ export interface components {
             createdAt: string;
         };
         PublicationResponse: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The publication's id.
+             */
             id: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The run that produced the package.
+             */
             pipelineRunId: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The document this package was generated from. Carried so a caller can say which spec
+             *     version is live without joining publications to runs itself.
+             */
             specVersionId: null | string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The target it was published for.
+             */
             sdkTargetId: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The project that target belongs to, when it still exists.
+             */
             apiProjectId: null | string;
+            /** @description That project's name. */
             projectName: null | string;
+            /** @description The registry it went to. */
             registry: components["schemas"]["RegistryKind"];
+            /** @description The package name there. */
             packageName: string;
+            /** @description The version pushed. */
             version: string;
+            /** @description Whether the push succeeded, failed or is still under way. */
             status: components["schemas"]["PublicationStatus"];
+            /** @description Where the package lives, once it does. */
             registryUrl: null | string;
+            /** @description Why the push failed, when it did. */
             failureReason: null | string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the publication started.
+             */
             createdAt: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When it finished, either way.
+             */
             completedAt: null | string;
         };
         PublicationStatus: number;
@@ -3298,46 +3754,102 @@ export interface components {
             token: string;
             newPassword: string;
         };
+        /**
+         * @description Strict is nullable so that omitting it means "whatever the project is
+         *     set to" rather than "off": a caller that just wants today's rules replayed should not have
+         *     to know which mode the project runs in to ask for it.
+         */
         RevalidateRequest: {
             strict: null | boolean;
         };
         RunResponse: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The run's id.
+             */
             id: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The project it belongs to.
+             */
             apiProjectId: string;
+            /** @description Carried so a caller can name the project without a second request. */
             projectName: null | string;
+            /**
+             * @description And its slug, so a caller can link to the project without one either. The id above is
+             *     how the API is addressed; the slug is how the client is, and a link built from the id
+             *     would put a guid in front of somebody.
+             */
             projectSlug: null | string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The document it was generated from.
+             */
             specVersionId: string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Which version of the document, as the project numbers them.
+             */
             specSequence: number;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The target it was generated for.
+             */
             sdkTargetId: string;
+            /**
+             * @description What the SDK target said when this run was queued, not what it says now. A target
+             *     renamed or repointed since would otherwise rewrite the history of every run before it.
+             */
             targetLanguage: components["schemas"]["SdkLanguage"];
+            /** @description The package name, as the target read when this run was queued. */
             targetPackageName: string;
+            /** @description The registry, as the target read when this run was queued. */
             targetRegistry: components["schemas"]["RegistryKind"];
+            /** @description The auto-publish setting, as the target read when this run was queued. */
             targetAutoPublish: boolean;
+            /** @description Where its credential pointed then; null when it had none. */
             targetRegistryUrl: null | string;
+            /** @description The credential's label as it read then; null when the target had none. */
             targetCredentialLabel: null | string;
+            /** @description Where the run is in its life. */
             status: components["schemas"]["RunStatus"];
+            /** @description What queued it. */
             trigger: components["schemas"]["RunTrigger"];
+            /** @description Whether it was asked to publish as well as build. */
             publishRequested: boolean;
+            /** @description The version the package took, once it was decided. */
             resolvedVersion: null | string;
+            /** @description Why it failed, when it did. */
             failureReason: null | string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description How many times a worker has picked it up.
+             */
             attemptCount: number;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When it was queued.
+             */
             queuedAt: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When a worker first took it.
+             */
             startedAt: null | string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When it reached a terminal status.
+             */
             completedAt: null | string;
+            /** @description Whether a packaged SDK can be downloaded for it. */
             hasArtifact: boolean;
+            /** @description Its steps, in pipeline order. */
             steps: components["schemas"]["StepResponse"][];
         };
         RunStatus: number;
+        /** @description Why a run exists, which drives what the UI shows and what auto-publish allows. */
         RunTrigger: number;
+        /** @description Languages SpaceCraft can emit. Values are pinned so persisted rows survive reordering. */
         SdkLanguage: number;
         SessionResponse: {
             /** Format: uuid */
@@ -3350,21 +3862,38 @@ export interface components {
             expiresAt: string;
             isCurrent: boolean;
         };
+        /**
+         * @description The document as uploaded, so findings can be shown against the source they came from.
+         *     Served through the API rather than as a presigned URL: it saves a CORS policy on the
+         *     bucket, and the upload cap already bounds what this can return.
+         */
         SpecContentResponse: {
             content: string;
             format: string;
         };
+        /** @description One parser or policy finding, addressed to the operator who uploaded the spec. */
         SpecDiagnostic: {
             severity: components["schemas"]["DiagnosticSeverity"];
             message: string;
             jsonPointer?: null | string;
         };
+        /**
+         * @description A page of versions and how many exist. Without the total, a project past the cap would be
+         *     shown its hundred most recent as though that were all of them.
+         */
         SpecListResponse: {
             items: components["schemas"]["SpecVersionResponse"][];
             /** Format: int32 */
             total: number;
         };
+        /** @description Where a project's OpenAPI document comes from. */
         SpecSource: number;
+        /**
+         * @description Strict reports the mode these findings were produced under, rather than
+         *     leaving the caller to assume the one it asked for: revalidation can be asked to run the
+         *     other way, and a client that reports its own request describes a run that may not have
+         *     happened.
+         */
         SpecUploadResponse: {
             specVersion: components["schemas"]["SpecVersionResponse"];
             diagnostics: components["schemas"]["SpecDiagnostic"][];
@@ -3373,28 +3902,66 @@ export interface components {
         };
         SpecValidationStatus: number;
         SpecVersionResponse: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The version's id.
+             */
             id: string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Its number, as the project counts uploads.
+             */
             sequence: number;
+            /** @description The verdict validation reached. */
             validationStatus: components["schemas"]["SpecValidationStatus"];
+            /** @description info.title, when the document could be read. */
             apiTitle: null | string;
+            /** @description info.version, when the document could be read. */
             apiVersion: null | string;
+            /** @description The OpenAPI version the document declares. */
             openApiVersion: null | string;
+            /** @description "yaml" or "json" — the notation the document was uploaded in. */
             format: string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description How many findings were informational.
+             */
             informationCount: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description How many were warnings.
+             */
             warningCount: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description How many were errors.
+             */
             errorCount: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description The document's size.
+             */
             sizeInBytes: number;
+            /** @description How the document arrived. */
             source: components["schemas"]["SpecSource"];
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When it was uploaded.
+             */
             createdAt: string;
+            /**
+             * @description What this document's version becomes at each registry, or why it would be refused.
+             *     Computed here rather than in the client because the rules belong to the domain and a
+             *     second implementation would drift from it. It also lets a target say what it will
+             *     publish before a run is started, which is the moment an unpublishable version is
+             *     cheapest to fix.
+             */
             publishesAs: components["schemas"]["VersionRenderingResponse"][];
         };
+        /**
+         * @description The four stages the landing page promises. They always run in this order, and
+         *     StepKind.Publish is the only one that ever sees a registry credential.
+         */
         StepKind: number;
         StepResponse: {
             kind: components["schemas"]["StepKind"];
@@ -3409,6 +3976,8 @@ export interface components {
             hasLog: boolean;
         };
         StepStatus: number;
+        /** Format: binary */
+        Stream: string;
         StrictValidationRequest: {
             enabled: boolean;
         };
@@ -3428,6 +3997,11 @@ export interface components {
         UpdateProfileRequest: {
             displayName: null | string;
         };
+        /**
+         * @description What a target can still be changed to. Language and registry are not here: they decide
+         *     which generator runs and where the result goes, so changing either would make the row
+         *     describe something that was never built.
+         */
         UpdateTargetRequest: {
             packageName: string;
             autoPublish: boolean;
@@ -3440,6 +4014,7 @@ export interface components {
             email: string;
             displayName: null | string;
         };
+        /** @description One registry's reading of an info.version. */
         VersionRenderingResponse: {
             registry: components["schemas"]["RegistryKind"];
             version: null | string;

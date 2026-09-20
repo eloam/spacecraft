@@ -44,7 +44,7 @@ export function TargetDialog({
   // Seeded from the row this was opened on. The caller remounts on every opening, so these
   // initial values are read again each time rather than surviving from the last one.
   const [packageName, setPackageName] = useState(target?.packageName ?? "");
-  // "" means this target does not publish. Naming that rather than leaving it as an absence
+  // NO_PUBLISH means this target does not publish. Naming that rather than leaving it as an absence
   // is what lets the switch below be disabled honestly: a target with nowhere to publish
   // cannot publish automatically.
   const [credentialId, setCredentialId] = useState(target?.registryCredentialId ?? NO_PUBLISH);
@@ -145,7 +145,10 @@ export function TargetDialog({
               <Select
                 value={credentialId}
                 onValueChange={(value) => {
-                  const chosen = (value as string | null) ?? NO_PUBLISH;
+                  // Base UI nulls the value only when the chosen item leaves an open list —
+                  // a credential revoked while the picker is up. A credential that has gone
+                  // has nowhere to publish to, so that reads as "Do not publish".
+                  const chosen = value ?? NO_PUBLISH;
                   setCredentialId(chosen);
                   // Nowhere to publish means nothing to publish automatically. Left on, the
                   // switch would promise something every run would then fail to do.
