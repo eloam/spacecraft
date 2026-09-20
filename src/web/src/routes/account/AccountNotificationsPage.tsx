@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Bell, Hash, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -6,9 +5,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { describeError } from "@/api/client";
-import { useAuthStore } from "@/stores/auth";
-import { useNotificationPreferences, useSaveNotificationPreferences } from "@/api/queries";
-import type { NotificationChannel, NotificationKind, NotificationPreference } from "@/api/types";
+import {
+  useAccount,
+  useNotificationPreferences,
+  useSaveNotificationPreferences,
+} from "@/api/queries";
+import type { NotificationChannel, NotificationKind } from "@/api/types";
 
 /**
  * What each event is, in the reader's terms rather than the enum's.
@@ -103,32 +105,29 @@ function PlannedChannel({
 }
 
 export function AccountNotificationsPage() {
-  const email = useAuthStore((s) => s.user?.email);
+  const email = useAccount().data?.email;
   const query = useNotificationPreferences();
   const save = useSaveNotificationPreferences();
 
-  // Held locally so a switch moves under the finger rather than after a round trip, and
-  // derived during render rather than copied into state by an effect — the server is the
-  // source of truth until somebody touches a switch, and the local answer afterwards. A
-  // failed save puts the previous value back: a switch that stays where you left it while
-  // the save failed is a lie.
-  const [draft, setDraft] = useState<NotificationPreference[] | null>(null);
-  const matrix = draft ?? query.data ?? [];
+  // A switch moves under the finger rather than after a round trip: while a save is in
+  // flight, the matrix shown is the one being saved — the mutation's own variables, the way
+  // React Query documents optimistic updates via the UI. Nothing is copied into state, so
+  // there is nothing to reset: a success writes the response to the cache and the switches
+  // read it from there; a failure lets the variables go, and the switches fall back to what
+  // the server last confirmed. A switch that stays where you left it while the save failed
+  // is a lie.
+  const matrix = save.isPending ? save.variables : (query.data ?? []);
 
   const isOn = (kind: NotificationKind, channel: NotificationChannel) =>
     matrix.find((p) => p.kind === kind && p.channel === channel)?.enabled ?? false;
 
   const toggle = (kind: NotificationKind, channel: NotificationChannel, enabled: boolean) => {
-    const previous = matrix;
-    const next = previous.map((p) =>
+    const next = matrix.map((p) =>
       p.kind === kind && p.channel === channel ? { ...p, enabled } : p,
     );
 
-    setDraft(next);
-
     save.mutate(next, {
       onError: (error) => {
-        setDraft(previous);
         toast.error(describeError(error, "Could not save your notification settings."));
       },
     });
