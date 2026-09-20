@@ -174,7 +174,13 @@ function ConfirmDeleteBody({
         </Field>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {/* Announced like every other error in the app: without it, a refused delete is a red
+          line a screen reader never reaches, under a button that looks to have done nothing. */}
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
 
       <DialogFooter>
         <DialogClose render={<Button ref={cancelRef} variant="outline">Cancel</Button>} />
