@@ -15,29 +15,8 @@ import { useAccount, useDeleteAccount, useDeletionBlockers } from "@/api/queries
 
 function DangerZone({ organizationCount }: { organizationCount: number }) {
   const blockers = useDeletionBlockers();
-  const remove = useDeleteAccount();
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
   const blocked = (blockers.data?.length ?? 0) > 0;
-
-  const onDelete = () =>
-    remove.mutate(
-      { password },
-      {
-        onSuccess: () => {
-          // The store is cleared by the mutation; a full reload drops any in-memory state
-          // that a client-side route change would leave behind.
-          window.location.href = "/login";
-        },
-        onError: (e) =>
-          setError(
-            e instanceof ApiError
-              ? e.errors?.Password?.join(" ") ?? e.detail
-              : "Could not delete the account.",
-          ),
-      },
-    );
 
   return (
     <DangerSection
@@ -87,39 +66,70 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
             }
           />
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete your account?</DialogTitle>
-              <DialogDescription>
-                This removes your account permanently. Enter your password to confirm.
-              </DialogDescription>
-            </DialogHeader>
-
-            <Field data-invalid={!!error}>
-              <FieldLabel htmlFor="confirm-password">Password</FieldLabel>
-              <Input
-                id="confirm-password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                aria-invalid={!!error}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setError(null);
-                }}
-              />
-              <FieldError>{error}</FieldError>
-            </Field>
-
-            <DialogFooter>
-              <DialogClose render={<Button variant="outline">Cancel</Button>} />
-              <Button variant="destructive" onClick={onDelete} disabled={!password || remove.isPending}>
-                {remove.isPending ? "Deleting…" : "Delete permanently"}
-              </Button>
-            </DialogFooter>
+            <DeleteAccountForm />
           </DialogContent>
         </Dialog>
       </div>
     </DangerSection>
+  );
+}
+
+/**
+ * The password lives in a child of the content, which Base UI unmounts once the dialog has
+ * closed, so it is discarded on every close and each opening starts blank. Held by DangerZone
+ * instead, which stays mounted for the life of the page, a cancelled attempt left it in state
+ * and pre-filled the next time the dialog opened.
+ */
+function DeleteAccountForm() {
+  const remove = useDeleteAccount();
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const onDelete = () =>
+    remove.mutate(
+      { password },
+      {
+        onError: (e) =>
+          setError(
+            e instanceof ApiError
+              ? e.errors?.Password?.join(" ") ?? e.detail
+              : "Could not delete the account.",
+          ),
+      },
+    );
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Delete your account?</DialogTitle>
+        <DialogDescription>
+          This removes your account permanently. Enter your password to confirm.
+        </DialogDescription>
+      </DialogHeader>
+
+      <Field data-invalid={!!error}>
+        <FieldLabel htmlFor="confirm-password">Password</FieldLabel>
+        <Input
+          id="confirm-password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          aria-invalid={!!error}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError(null);
+          }}
+        />
+        <FieldError>{error}</FieldError>
+      </Field>
+
+      <DialogFooter>
+        <DialogClose render={<Button variant="outline">Cancel</Button>} />
+        <Button variant="destructive" onClick={onDelete} disabled={!password || remove.isPending}>
+          {remove.isPending ? "Deleting…" : "Delete permanently"}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 

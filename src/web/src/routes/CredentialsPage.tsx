@@ -524,6 +524,29 @@ function AddCredentialDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <AddCredentialForm orgId={orgId} onDone={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * The form is a child of the content, which Base UI unmounts once the dialog has closed, so
+ * the token typed into it goes with the rest of the state on every close — Cancel and Escape
+ * included — and each opening starts blank. Held by the dialog component instead, a registry
+ * token survived a cancelled attempt and came back pre-filled the next time it opened.
+ */
+function AddCredentialForm({
+  orgId,
+  onDone,
+}: {
+  orgId: string;
+  /** Closes the dialog, after a save or on Cancel. */
+  onDone: () => void;
+}) {
   const [label, setLabel] = useState("");
   const [token, setToken] = useState("");
   const [registry, setRegistry] = useState<number>(DEFAULT_REGISTRY.kind);
@@ -555,12 +578,8 @@ function AddCredentialDialog({
       {
         onSuccess: () => {
           toast.success("Credential stored");
-          setLabel("");
-          setToken("");
-          setRegistry(DEFAULT_REGISTRY.kind);
-          setPrivateRegistry(false);
-          setRegistryUrl("");
-          onOpenChange(false);
+          // No field is reset here: closing unmounts this form, and its state with it.
+          onDone();
         },
         onError: (err) => {
           if (!(err instanceof ApiError)) {
@@ -584,176 +603,172 @@ function AddCredentialDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={submit}>
-          <DialogHeader>
-            <DialogTitle>Add a registry credential</DialogTitle>
-            <DialogDescription>
-              The token is encrypted immediately and only decrypted inside the publish step.
-            </DialogDescription>
-          </DialogHeader>
+    <form onSubmit={submit}>
+      <DialogHeader>
+        <DialogTitle>Add a registry credential</DialogTitle>
+        <DialogDescription>
+          The token is encrypted immediately and only decrypted inside the publish step.
+        </DialogDescription>
+      </DialogHeader>
 
-          {/* The registry is chosen first because it decides what the rest of the form means:
-              what the secret is called, what it looks like, and where it goes when no address
-              is given. Only the active panel is mounted, so the field ids below stay unique. */}
-          <Tabs
-            value={String(registry)}
-            onValueChange={(value) => {
-              setRegistry(Number(value));
-              // A rejection recorded against another registry no longer describes anything:
-              // its token format and its address were judged by different rules.
-              setErrors((current) => ({ ...current, token: undefined, registryUrl: undefined }));
-            }}
-            className="pt-4"
-          >
-            {/* Scrolls rather than breaks: the dialog is 448px wide and five registry names
-                fit only just, so a longer one arriving later must not push the strip out of
-                the panel. */}
-            <TabsList className="w-full overflow-x-auto">
-              {REGISTRIES.map((entry) => (
-                // Shown but not selectable until the pipeline can publish there. Hiding them
-                // would say the product is npm-only; enabling them would store a credential
-                // no target could use.
-                <TabsTrigger key={entry.kind} value={String(entry.kind)} disabled={!entry.wired}>
-                  {registryLabel[entry.kind]}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+      {/* The registry is chosen first because it decides what the rest of the form means:
+          what the secret is called, what it looks like, and where it goes when no address
+          is given. Only the active panel is mounted, so the field ids below stay unique. */}
+      <Tabs
+        value={String(registry)}
+        onValueChange={(value) => {
+          setRegistry(Number(value));
+          // A rejection recorded against another registry no longer describes anything:
+          // its token format and its address were judged by different rules.
+          setErrors((current) => ({ ...current, token: undefined, registryUrl: undefined }));
+        }}
+        className="pt-4"
+      >
+        {/* Scrolls rather than breaks: the dialog is 448px wide and five registry names
+            fit only just, so a longer one arriving later must not push the strip out of
+            the panel. */}
+        <TabsList className="w-full overflow-x-auto">
+          {REGISTRIES.map((entry) => (
+            // Shown but not selectable until the pipeline can publish there. Hiding them
+            // would say the product is npm-only; enabling them would store a credential
+            // no target could use.
+            <TabsTrigger key={entry.kind} value={String(entry.kind)} disabled={!entry.wired}>
+              {registryLabel[entry.kind]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-            {REGISTRIES.map((entry) => (
-              <TabsContent key={entry.kind} value={String(entry.kind)}>
-                <FieldGroup className="py-4">
-                  <p className="text-sm text-muted-foreground">
-                    {entry.languages} publishes to {registryLabel[entry.kind]}.
-                    {REGISTRIES.some((r) => !r.wired)
-                      && " The greyed-out registries are modelled but not yet wired up."}
-                  </p>
+        {REGISTRIES.map((entry) => (
+          <TabsContent key={entry.kind} value={String(entry.kind)}>
+            <FieldGroup className="py-4">
+              <p className="text-sm text-muted-foreground">
+                {entry.languages} publishes to {registryLabel[entry.kind]}.
+                {REGISTRIES.some((r) => !r.wired)
+                  && " The greyed-out registries are modelled but not yet wired up."}
+              </p>
 
-                  <Field data-invalid={Boolean(errors.label)}>
-                    <FieldLabel htmlFor="label">Label</FieldLabel>
-                    <Input
-                      id="label"
-                      value={label}
-                      onChange={(e) => {
-                        setLabel(e.target.value);
-                        setErrors((current) => ({ ...current, label: undefined }));
-                      }}
-                      placeholder="npm automation token (acme)"
-                      aria-invalid={Boolean(errors.label)}
-                      aria-describedby={errors.label ? "label-error" : undefined}
-                    />
-                    {/* The id is what `aria-describedby` above points at, so it stays on the
-                        error itself: `FieldError` renders nothing while there is no message. */}
-                    <FieldError id="label-error">{errors.label}</FieldError>
-                  </Field>
+              <Field data-invalid={Boolean(errors.label)}>
+                <FieldLabel htmlFor="label">Label</FieldLabel>
+                <Input
+                  id="label"
+                  value={label}
+                  onChange={(e) => {
+                    setLabel(e.target.value);
+                    setErrors((current) => ({ ...current, label: undefined }));
+                  }}
+                  placeholder="npm automation token (acme)"
+                  aria-invalid={Boolean(errors.label)}
+                  aria-describedby={errors.label ? "label-error" : undefined}
+                />
+                {/* The id is what `aria-describedby` above points at, so it stays on the
+                    error itself: `FieldError` renders nothing while there is no message. */}
+                <FieldError id="label-error">{errors.label}</FieldError>
+              </Field>
 
-                  <Field data-invalid={Boolean(errors.token)}>
-                    <FieldLabel htmlFor="token">{entry.secretLabel}</FieldLabel>
-                    <Input
-                      id="token"
-                      type="password"
-                      value={token}
-                      onChange={(e) => {
-                        // Cleared as it is retyped: leaving the field red while somebody
-                        // corrects it says the new value is wrong too, which nothing has
-                        // checked yet.
-                        setToken(e.target.value);
-                        setErrors((current) => ({ ...current, token: undefined }));
-                      }}
-                      placeholder={entry.secretPlaceholder}
-                      aria-invalid={Boolean(errors.token)}
-                      aria-describedby={errors.token ? "token-error" : undefined}
-                      autoComplete="off"
-                    />
-                    <FieldError id="token-error">{errors.token}</FieldError>
-                  </Field>
+              <Field data-invalid={Boolean(errors.token)}>
+                <FieldLabel htmlFor="token">{entry.secretLabel}</FieldLabel>
+                <Input
+                  id="token"
+                  type="password"
+                  value={token}
+                  onChange={(e) => {
+                    // Cleared as it is retyped: leaving the field red while somebody
+                    // corrects it says the new value is wrong too, which nothing has
+                    // checked yet.
+                    setToken(e.target.value);
+                    setErrors((current) => ({ ...current, token: undefined }));
+                  }}
+                  placeholder={entry.secretPlaceholder}
+                  aria-invalid={Boolean(errors.token)}
+                  aria-describedby={errors.token ? "token-error" : undefined}
+                  autoComplete="off"
+                />
+                <FieldError id="token-error">{errors.token}</FieldError>
+              </Field>
 
-                  <Field orientation="horizontal" className="justify-between gap-6">
-                    <FieldContent>
-                      <FieldLabel htmlFor="private-registry">Private registry</FieldLabel>
-                      <FieldDescription>
-                        {privateRegistry
-                          ? `Give the address of your own server — ${entry.privateExamples}.`
-                          : `Publishes to ${entry.publicUrl}.`}
-                      </FieldDescription>
-                    </FieldContent>
-                    <Switch
-                      id="private-registry"
-                      checked={privateRegistry}
-                      onCheckedChange={(checked) => {
-                        setPrivateRegistry(checked);
-                        // The address is what decides how the token is judged, so a rejection
-                        // recorded under the other setting no longer describes anything.
-                        setErrors((current) => ({
-                          ...current, registryUrl: undefined, token: undefined,
-                        }));
-                      }}
-                    />
-                  </Field>
+              <Field orientation="horizontal" className="justify-between gap-6">
+                <FieldContent>
+                  <FieldLabel htmlFor="private-registry">Private registry</FieldLabel>
+                  <FieldDescription>
+                    {privateRegistry
+                      ? `Give the address of your own server — ${entry.privateExamples}.`
+                      : `Publishes to ${entry.publicUrl}.`}
+                  </FieldDescription>
+                </FieldContent>
+                <Switch
+                  id="private-registry"
+                  checked={privateRegistry}
+                  onCheckedChange={(checked) => {
+                    setPrivateRegistry(checked);
+                    // The address is what decides how the token is judged, so a rejection
+                    // recorded under the other setting no longer describes anything.
+                    setErrors((current) => ({
+                      ...current, registryUrl: undefined, token: undefined,
+                    }));
+                  }}
+                />
+              </Field>
 
-                  {/* Only while the switch is on. Absent rather than disabled: a greyed-out
-                      field still reads as something to fill in, and there is nothing to. */}
-                  {privateRegistry && (
-                    <Field data-invalid={Boolean(errors.registryUrl)}>
-                      <FieldLabel htmlFor="registry-url">Address</FieldLabel>
-                      <Input
-                        id="registry-url"
-                        value={registryUrl}
-                        onChange={(e) => {
-                          setRegistryUrl(e.target.value);
-                          setErrors((current) => ({ ...current, registryUrl: undefined }));
-                        }}
-                        placeholder="https://npm.acme.internal"
-                        aria-invalid={Boolean(errors.registryUrl)}
-                        aria-describedby={errors.registryUrl ? "registry-url-error" : undefined}
-                        autoComplete="off"
-                        autoFocus
-                      />
-                      {/* Still one or the other: the hint explains what the field is for, and
-                          once a value has been rejected the reason is the more useful line. */}
-                      {errors.registryUrl ? (
-                        <FieldError id="registry-url-error">{errors.registryUrl}</FieldError>
-                      ) : (
-                        <FieldDescription>
-                          Where packages using this token are published, instead of the public
-                          registry. The token is the one this server issued.
-                        </FieldDescription>
-                      )}
-                    </Field>
+              {/* Only while the switch is on. Absent rather than disabled: a greyed-out
+                  field still reads as something to fill in, and there is nothing to. */}
+              {privateRegistry && (
+                <Field data-invalid={Boolean(errors.registryUrl)}>
+                  <FieldLabel htmlFor="registry-url">Address</FieldLabel>
+                  <Input
+                    id="registry-url"
+                    value={registryUrl}
+                    onChange={(e) => {
+                      setRegistryUrl(e.target.value);
+                      setErrors((current) => ({ ...current, registryUrl: undefined }));
+                    }}
+                    placeholder="https://npm.acme.internal"
+                    aria-invalid={Boolean(errors.registryUrl)}
+                    aria-describedby={errors.registryUrl ? "registry-url-error" : undefined}
+                    autoComplete="off"
+                    autoFocus
+                  />
+                  {/* Still one or the other: the hint explains what the field is for, and
+                      once a value has been rejected the reason is the more useful line. */}
+                  {errors.registryUrl ? (
+                    <FieldError id="registry-url-error">{errors.registryUrl}</FieldError>
+                  ) : (
+                    <FieldDescription>
+                      Where packages using this token are published, instead of the public
+                      registry. The token is the one this server issued.
+                    </FieldDescription>
                   )}
+                </Field>
+              )}
 
-                  {/* Announced like every other error in the app: silent, the only sign the
-                      save was refused is a red line a screen reader never reaches, and the
-                      dialog looks as though the click did nothing. */}
-                  {errors.form && (
-                    <p className="text-sm text-destructive" role="alert">
-                      {errors.form}
-                    </p>
-                  )}
-                </FieldGroup>
-              </TabsContent>
-            ))}
-          </Tabs>
+              {/* Announced like every other error in the app: silent, the only sign the
+                  save was refused is a red line a screen reader never reaches, and the
+                  dialog looks as though the click did nothing. */}
+              {errors.form && (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.form}
+                </p>
+              )}
+            </FieldGroup>
+          </TabsContent>
+        ))}
+      </Tabs>
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={
-                !label.trim()
-                || !token.trim()
-                || (privateRegistry && !registryUrl.trim())
-                || create.isPending
-              }
-            >
-              {create.isPending ? "Saving…" : "Save credential"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={
+            !label.trim()
+            || !token.trim()
+            || (privateRegistry && !registryUrl.trim())
+            || create.isPending
+          }
+        >
+          {create.isPending ? "Saving…" : "Save credential"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

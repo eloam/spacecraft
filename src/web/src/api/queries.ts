@@ -471,7 +471,13 @@ export function useDeleteAccount() {
   return useMutation({
     mutationFn: (input: { password: string }) =>
       api.delete<void>("/account", input),
-    onSuccess: () => clear(),
+    onSuccess: () => {
+      clear();
+      // A full reload rather than a route change: it drops any in-memory state a client-side
+      // navigation would leave behind. Done here, on the hook, because the dialog that asked
+      // is unmounted the moment it closes, and a callback handed to `mutate` goes with it.
+      window.location.href = "/login";
+    },
   });
 }
 
