@@ -5,14 +5,19 @@
     "typescript",
     "oxc"
   ],
+  "categories": {
+    "correctness": "error"
+  },
   "rules": {
     "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
     "react/only-export-components": [
-      "warn",
+      "error",
       {
         "allowConstantExport": true
       }
-    ]
+    ],
+    "no-duplicate-imports": "error"
   },
   "overrides": [
     {
@@ -21,6 +26,14 @@
       ],
       "rules": {
         "react/rules-of-hooks": "off"
+      }
+    },
+    {
+      "files": [
+        "src/components/ui/**"
+      ],
+      "rules": {
+        "react/only-export-components": "off"
       }
     }
   ]

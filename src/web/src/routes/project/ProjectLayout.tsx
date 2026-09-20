@@ -146,6 +146,7 @@ export function ProjectLayout() {
       <Outlet />
 
       <GenerateDialog
+        key={projectSlug}
         orgId={orgId}
         orgSlug={orgSlug}
         projectSlug={projectSlug}

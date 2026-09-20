@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "lint": "oxlint --deny-warnings",
     "preview": "vite preview",
     "gen:api": "npx --yes openapi-typescript@7 http://localhost:8080/openapi/v1.json -o src/api/schema.d.ts",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",

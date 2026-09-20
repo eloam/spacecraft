@@ -1,6 +1,5 @@
-import { useParams } from "react-router-dom";
+import { NavLink, useLocation, useParams } from "react-router-dom";
 import { FileCode2, Package, Settings } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 /**

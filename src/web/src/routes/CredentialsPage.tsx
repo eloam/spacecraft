@@ -41,9 +41,8 @@ import {
   useRevokeCredential,
 } from "@/api/queries";
 import { timeAgo } from "@/lib/format";
-import { RegistryKind, languageLabel, registryLabel } from "@/api/types";
-// Named explicitly: the DOM has its own Credential, and the global would win.
-import type { Credential } from "@/api/types";
+// Credential is named explicitly: the DOM has its own, and the global would win.
+import { RegistryKind, languageLabel, registryLabel, type Credential } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 
@@ -131,6 +130,7 @@ export function CredentialsPage() {
   const restore = useRestoreCredential(orgId);
   const remove = useDeleteCredential(orgId);
   const [deleting, setDeleting] = useState<Credential | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<Credential | null>(null);
   const [open, setOpen] = useState(false);
@@ -311,6 +311,7 @@ export function CredentialsPage() {
                           onClick={() => {
                             setDeleteError(null);
                             setDeleting(credential);
+                            setDeleteOpen(true);
                           }}
                         >
                           <Trash2 className="size-4" aria-hidden />
@@ -343,8 +344,9 @@ export function CredentialsPage() {
       <AddCredentialDialog orgId={orgId} open={open} onOpenChange={setOpen} />
 
       <ConfirmDeleteDialog
-        open={deleting !== null}
-        onOpenChange={(next) => {
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(next) => {
           if (!next) {
             setDeleting(null);
             setDeleteError(null);
@@ -363,9 +365,8 @@ export function CredentialsPage() {
           "The stored token, which no one can read back — publishing here again needs a new one",
           "Its label and registry address",
         ]}
-        // The count is safe to read directly now: the dialog holds the last values it was
-        // given for the length of its close animation, so `deleting` going null mid-exit no
-        // longer flips this to the wrong branch.
+        // The row is kept until the dialog has left the screen (`onOpenChangeComplete`), so
+        // `deleting` is never null while this is visible and the count can be read directly.
         reassurances={[
           "Packages already published stay in their registries",
           ...(deleting?.usedBy.length === 0 ? ["No SDK target publishes with it"] : []),
@@ -377,7 +378,7 @@ export function CredentialsPage() {
               usedBy={deleting.usedBy}
               label="Still publishing"
               note="Deletion is refused until each of these moves to another credential."
-              onNavigate={() => setDeleting(null)}
+              onNavigate={() => setDeleteOpen(false)}
             />
           ) : null
         }
@@ -388,7 +389,7 @@ export function CredentialsPage() {
           remove.mutate(deleting.id, {
             onSuccess: () => {
               toast.success("Credential deleted");
-              setDeleting(null);
+              setDeleteOpen(false);
             },
             onError: (error) =>
               setDeleteError(

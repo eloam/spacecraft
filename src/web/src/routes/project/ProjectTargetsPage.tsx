@@ -22,8 +22,7 @@ import { TargetDialog } from "@/routes/project/TargetDialog";
 import { ApiError } from "@/api/client";
 import { useCredentials, useDeleteTarget, useProject, usePublications } from "@/api/queries";
 import { LanguageMark } from "@/components/LanguageDot";
-import { PublicationStatus, languageLabel, registryLabel } from "@/api/types";
-import type { SdkTarget } from "@/api/types";
+import { PublicationStatus, languageLabel, registryLabel, type SdkTarget } from "@/api/types";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -78,7 +77,13 @@ export function ProjectTargetsPage() {
   // Bumped on every opening and used as the dialog's key: the form takes its values from the
   // row it was opened on, and a remount is what makes it read them again.
   const [opening, setOpening] = useState(0);
-  const [targetToDelete, setTargetToDelete] = useState<string | null>(null);
+  // The row itself rather than its id: looked up in `targets` on each render, it vanished
+  // as soon as the delete succeeded and the project refetched, and the package name the
+  // dialog asks to type flipped to nothing while it was still fading out. Kept until
+  // `onOpenChangeComplete(false)`, Base UI's after-close-animation callback, so nothing the
+  // dialog shows can change while it leaves.
+  const [deleting, setDeleting] = useState<SdkTarget | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -114,8 +119,6 @@ export function ProjectTargetsPage() {
     () => targets.filter(filters.find((f) => f.id === filter)!.matches),
     [targets, filter],
   );
-
-  const deleting = targets.find((t) => t.id === targetToDelete);
 
   function openDialog(target?: SdkTarget) {
     setEditing(target);
@@ -386,7 +389,8 @@ export function ProjectTargetsPage() {
                                     variant="destructive"
                                     onClick={() => {
                                       setDeleteError(null);
-                                      setTargetToDelete(target.id);
+                                      setDeleting(target);
+                                      setDeleteOpen(true);
                                     }}
                                   >
                                     <Trash2 className="size-4" aria-hidden />
@@ -435,10 +439,11 @@ export function ProjectTargetsPage() {
       />
 
       <ConfirmDeleteDialog
-        open={targetToDelete !== null}
-        onOpenChange={(open) => {
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) {
-            setTargetToDelete(null);
+            setDeleting(null);
             setDeleteError(null);
           }
         }}
@@ -450,13 +455,13 @@ export function ProjectTargetsPage() {
         isPending={deleteTarget.isPending}
         error={deleteError}
         onConfirm={() =>
-          targetToDelete &&
+          deleting &&
           deleteTarget.mutate(
-            { targetId: targetToDelete, packageName: deleting?.packageName ?? "" },
+            { targetId: deleting.id, packageName: deleting.packageName },
             {
               onSuccess: () => {
                 toast.success("SDK target deleted.");
-                setTargetToDelete(null);
+                setDeleteOpen(false);
               },
               onError: (error) =>
                 setDeleteError(

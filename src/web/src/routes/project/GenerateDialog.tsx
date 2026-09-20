@@ -1,5 +1,5 @@
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProjectId } from "@/hooks/useRouteIdentity";
 import { Check, CircleAlert, Minus } from "lucide-react";
@@ -44,6 +44,13 @@ export function GenerateDialog({
    * What the project field starts on. A project page always has one; the runs list has one
    * only when its filter names one. Either way the field is shown and can be changed — this
    * chooses its initial value, it does not hide it.
+   *
+   * Callers key this component on it. The project route swaps its params without replacing
+   * the layout that holds this dialog, so a selection made on one project once survived onto
+   * the next: opening it from a second project offered — and would have queued — a run for
+   * the first, with a spec and a target that belong to neither the page nor the picker. A
+   * `key` remounts it with fresh state instead, which is React's way of resetting state when
+   * a prop changes.
    */
   projectSlug?: string;
   open: boolean;
@@ -65,23 +72,6 @@ export function GenerateDialog({
   // are built from. The queries just underneath ask by id.
   const activeProject = pickedProject || (projectSlug ?? "");
 
-  // Cleared when the project this dialog was opened for changes.
-  //
-  // Nothing remounts it: the project route swaps its params without replacing the layout that
-  // holds this component, so a selection made on one project survived onto the next. Opening
-  // it from a second project offered — and would have queued — a run for the first, with a
-  // spec and a target that belong to neither the page nor the picker. The API cannot catch
-  // it either: the pairing it validates is internally consistent, just not the one on screen,
-  // and for an auto-publishing target that is an irreversible push to a registry.
-  const openedFor = useRef(projectSlug);
-  if (openedFor.current !== projectSlug) {
-    openedFor.current = projectSlug;
-
-    if (pickedProject) setPickedProject("");
-    if (specId) setSpecId("");
-    if (targetId) setTargetId("");
-    if (publish !== null) setPublish(null);
-  }
   // Only fetched when the dialog has to ask; a project page already knows the answer.
   const projects = useProjects(orgId);
 

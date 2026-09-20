@@ -1,18 +1,18 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { api } from "./client";
-import { isTerminal } from "./types";
-import type {
-  AuthResponse,
-  Credential,
-  Organization,
-  Project,
-  Publication,
-  Run,
-  SdkTarget,
-  SpecContent,
-  SpecDiagnostic,
-  SpecList,
-  SpecUpload,
+import {
+  type AuthResponse,
+  type Credential,
+  type Organization,
+  type Project,
+  type Publication,
+  type Run,
+  type SdkTarget,
+  type SpecContent,
+  type SpecDiagnostic,
+  type SpecList,
+  type SpecUpload,
+  isTerminal,
 } from "./types";
 import { useAuthStore } from "@/stores/auth";
 

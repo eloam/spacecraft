@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useOrganizationId } from "@/hooks/useRouteIdentity";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -34,9 +34,8 @@ import { timeAgo } from "@/lib/format";
 import { ApiError } from "@/api/client";
 import {
   keys, useChangeMemberRole, useInvitations, useInviteMember, useMembers, useRemoveMember,
-  useRevokeInvitation,
+  useRevokeInvitation, type Invitation, type Member,
 } from "@/api/queries";
-import type { Invitation, Member } from "@/api/queries";
 
 /** Mirrors SpaceCraft.Domain.Organizations.OrganizationRole. */
 const Role = { Viewer: 1, Member: 2, Admin: 3, Owner: 4 } as const;
@@ -74,6 +73,9 @@ export function MembersPage() {
   const yours = members.data?.find((member) => member.isYou);
   const invitations = useInvitations(orgId, (yours?.role ?? 0) >= Role.Admin);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  // Kept apart from whether the dialog is open: the row has to outlive the close, or the
+  // title fades out reading "Remove undefined?".
   const [removing, setRemoving] = useState<Member | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
@@ -248,6 +250,7 @@ export function MembersPage() {
                                 onClick={() => {
                                   setRemoveError(null);
                                   setRemoving(member);
+                                  setRemoveOpen(true);
                                 }}
                               >
                                 {member.isYou ? (
@@ -286,8 +289,9 @@ export function MembersPage() {
       <InviteDialog orgId={orgId} open={inviteOpen} onOpenChange={setInviteOpen} />
 
       <ConfirmDeleteDialog
-        open={removing !== null}
-        onOpenChange={(open) => {
+        open={removeOpen}
+        onOpenChange={setRemoveOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) {
             setRemoving(null);
             setRemoveError(null);
@@ -334,7 +338,7 @@ export function MembersPage() {
           remove.mutate(removing.userId, {
             onSuccess: () => {
               toast.success(left ? "You left the organization." : "Member removed.");
-              setRemoving(null);
+              setRemoveOpen(false);
               if (left) {
                 // Every query on this page answers 403 from here on, so go somewhere that
                 // still loads. `exact`: the keys under this one belong to the organization
@@ -455,7 +459,7 @@ function InviteDialog({
     defaultValues: { email: "", role: Role.Member },
   });
 
-  const selectedRole = Number(form.watch("role"));
+  const selectedRole = Number(useWatch({ control: form.control, name: "role" }));
 
   const onSubmit = form.handleSubmit((values) =>
     invite.mutate(
