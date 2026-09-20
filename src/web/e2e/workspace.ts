@@ -1,4 +1,13 @@
 import { expect, type APIRequestContext } from "@playwright/test";
+import {
+  OrganizationRole,
+  RegistryKind,
+  SdkLanguage,
+  isTerminal,
+  type Organization,
+  type Project,
+  type Run,
+} from "../src/api/types";
 import { anEmail, as, register, type Account } from "./fixtures";
 import { linkIn, waitForMessage } from "./mailpit";
 
@@ -8,16 +17,13 @@ import { linkIn, waitForMessage } from "./mailpit";
  * Doing this through the interface would make every test a copy of the one that already walks
  * that path, and ten times slower for it.
  */
-export type Organization = { id: string; slug: string; name: string };
-export type Project = { id: string; slug: string; name: string };
-
 export async function createOrganization(
   api: APIRequestContext,
   account: Account,
   name = `E2E ${crypto.randomUUID().slice(0, 8)}`,
 ): Promise<Organization> {
   const response = await api.post("/api/v1/organizations", { data: { name }, ...as(account) });
-  expect(response.ok(), `creating an organization: ${response.status()}`).toBeTruthy();
+  await expect(response, "creating an organization").toBeOK();
   return response.json();
 }
 
@@ -32,7 +38,7 @@ export async function createProject(
     ...as(account),
   });
 
-  expect(response.ok(), `creating a project: ${response.status()}`).toBeTruthy();
+  await expect(response, "creating a project").toBeOK();
   return response.json();
 }
 
@@ -123,7 +129,7 @@ export async function uploadSpec(
     },
   );
 
-  expect(response.ok(), `uploading a specification: ${response.status()}`).toBeTruthy();
+  await expect(response, "uploading a specification").toBeOK();
   return (await response.json()).specVersion.id;
 }
 
@@ -138,12 +144,17 @@ export async function createTarget(
   const response = await api.post(
     `/api/v1/organizations/${organizationId}/projects/${projectId}/targets`,
     {
-      data: { language: 1, packageName, autoPublish: false, registryCredentialId },
+      data: {
+        language: SdkLanguage.TypeScript,
+        packageName,
+        autoPublish: false,
+        registryCredentialId,
+      },
       ...as(account),
     },
   );
 
-  expect(response.ok(), `creating a target: ${response.status()}`).toBeTruthy();
+  await expect(response, "creating a target").toBeOK();
   return (await response.json()).id;
 }
 
@@ -160,7 +171,7 @@ export async function queueRun(
     ...as(account),
   });
 
-  expect(response.ok(), `queueing a run: ${response.status()}`).toBeTruthy();
+  await expect(response, "queueing a run").toBeOK();
   return (await response.json()).id;
 }
 
@@ -175,32 +186,42 @@ export async function queuedRun(api: APIRequestContext, account: Account) {
   return { organization, project, runId };
 }
 
-/** Waits for the runner to pick a run up and finish it, without watching a page do it. */
+/**
+ * Waits for the runner to pick a run up and finish it, without watching a page do it, and
+ * answers the failure reason — empty when it succeeded.
+ */
 export async function waitForRunToFinish(
   api: APIRequestContext,
   account: Account,
   organizationId: string,
   runId: string,
-  attempts = 120,
+  { timeout = 60_000 }: { timeout?: number } = {},
 ): Promise<string> {
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    const response = await api.get(
-      `/api/v1/organizations/${organizationId}/runs/${runId}`,
-      as(account),
-    );
+  let run: Run | undefined;
 
-    expect(response.ok(), `reading a run: ${response.status()}`).toBeTruthy();
+  await expect
+    .poll(
+      async () => {
+        const response = await api.get(
+          `/api/v1/organizations/${organizationId}/runs/${runId}`,
+          as(account),
+        );
 
-    // 3 succeeded, 4 failed, 5 cancelled — see SpaceCraft.Domain.Pipelines.RunStatus.
-    const run = await response.json();
-    if ([3, 4, 5].includes(run.status)) {
-      return run.failureReason ?? "";
-    }
+        await expect(response, "reading a run").toBeOK();
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
+        const current: Run = await response.json();
+        run = current;
+        return isTerminal(current.status);
+      },
+      {
+        message: `run ${runId} to finish — is the runner in compose.e2e.yaml running?`,
+        timeout,
+        intervals: [500],
+      },
+    )
+    .toBe(true);
 
-  throw new Error(`run ${runId} never finished — is the runner in compose.e2e.yaml running?`);
+  return run?.failureReason ?? "";
 }
 
 /**
@@ -212,7 +233,7 @@ export async function joinByInvitation(
   api: APIRequestContext,
   inviter: Account,
   organizationId: string,
-  role = 2,
+  role: number = OrganizationRole.Member,
 ): Promise<Account> {
   const email = anEmail("member");
 
@@ -221,17 +242,17 @@ export async function joinByInvitation(
     ...as(inviter),
   });
 
-  expect(invited.ok(), `inviting ${email}: ${invited.status()}`).toBeTruthy();
+  await expect(invited, `inviting ${email}`).toBeOK();
 
   const account = await register(api, email);
-  const token = new URL(`http://x${linkIn(await waitForMessage(api, email, "invited"))}`).searchParams.get("token");
+  const token = linkIn(await waitForMessage(api, email, "invited")).searchParams.get("token");
 
   const accepted = await api.post("/api/v1/invitations/accept", {
     data: { token },
     ...as(account),
   });
 
-  expect(accepted.ok(), `accepting an invitation: ${accepted.status()}`).toBeTruthy();
+  await expect(accepted, "accepting an invitation").toBeOK();
   return account;
 }
 
@@ -250,7 +271,7 @@ export async function createCredential(
 ): Promise<string> {
   const response = await api.post(`/api/v1/organizations/${organizationId}/credentials`, {
     data: {
-      registry: 1,
+      registry: RegistryKind.Npm,
       label: "Verdaccio",
       token: `e2e-${crypto.randomUUID()}`,
       username: null,
@@ -260,7 +281,7 @@ export async function createCredential(
     ...as(account),
   });
 
-  expect(response.ok(), `creating a credential: ${response.status()}`).toBeTruthy();
+  await expect(response, "creating a credential").toBeOK();
   return (await response.json()).id;
 }
 
@@ -276,5 +297,5 @@ export async function revokeCredential(
     as(account),
   );
 
-  expect(response.ok(), `revoking a credential: ${response.status()}`).toBeTruthy();
+  await expect(response, "revoking a credential").toBeOK();
 }

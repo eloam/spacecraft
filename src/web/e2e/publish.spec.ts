@@ -55,7 +55,9 @@ test("a run publishes the SDK to a registry, and the registry has it", { tag: "@
     true,
   );
 
-  const failureReason = await waitForRunToFinish(api, account, organization.id, runId, 600);
+  const failureReason = await waitForRunToFinish(api, account, organization.id, runId, {
+    timeout: 300_000,
+  });
   expect(failureReason, "the run should have published without a failure").toBe("");
 
   await owner.goto(`/orgs/${organization.slug}/publications`);
@@ -66,6 +68,6 @@ test("a run publishes the SDK to a registry, and the registry has it", { tag: "@
   // this is the one question asked of somebody else.
   const published = await api.get(`${REGISTRY_URL}/${encodeURIComponent(packageName)}`);
 
-  expect(published.ok(), `${packageName} is not on the registry`).toBeTruthy();
+  await expect(published, `${packageName} on the registry`).toBeOK();
   expect(Object.keys((await published.json()).versions)).toContain("2.0.0");
 });

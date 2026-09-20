@@ -35,22 +35,31 @@ test("a document becomes an SDK that can be downloaded", { tag: "@slow" }, async
   const sdkTargetId = await createTarget(api, account, organization.id, project.id, "ledger-sdk");
   const runId = await queueRun(api, account, organization.id, specVersionId, sdkTargetId);
 
-  const failureReason = await waitForRunToFinish(
-    api,
-    account,
-    organization.id,
-    runId,
-    600,
-  );
+  const failureReason = await waitForRunToFinish(api, account, organization.id, runId, {
+    timeout: 300_000,
+  });
 
   expect(failureReason, "the run should have finished without a failure").toBe("");
 
   await owner.goto(`/orgs/${organization.slug}/runs/${runId}`);
-  await expect(owner.getByText("Succeeded").first()).toBeVisible();
 
   // Every step, not just the outcome: a run that skipped generation would still say
-  // Succeeded if publishing was the only thing left to do.
-  await expect(owner.getByText("2.0.0").first()).toBeVisible();
+  // Succeeded if publishing was the only thing left to do. So each row of the Steps card,
+  // in pipeline order, with the status it shows next to its name — Publish is the one step
+  // this run was not asked for, and the page says so rather than counting it as done.
+  //
+  // The rows are shadcn Items, which carry no role of their own; data-slot is shadcn's own
+  // hook on its parts, so it is a steadier handle than a class. Scoped to the Steps card, so
+  // the count is about the steps and not about whatever else the page renders as an Item.
+  const steps = owner
+    .locator("[data-slot=card]", { has: owner.getByText("Steps", { exact: true }) })
+    .locator("[data-slot=item]");
+  await expect(steps).toHaveText([
+    /^Validate\s*Succeeded/,
+    /^Generate\s*Succeeded/,
+    /^Build\s*Succeeded/,
+    /^Publish\s*Skipped/,
+  ]);
 
   // And the artifact is really there. The download used to reach for the bucket directly,
   // which meant it worked in exactly one deployment; it goes through the API now, and this is

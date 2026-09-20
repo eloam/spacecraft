@@ -1,4 +1,4 @@
-import { test, expect, register, signIn } from "./fixtures";
+import { test, expect, register } from "./fixtures";
 import { createOrganization } from "./workspace";
 
 /**
@@ -11,20 +11,16 @@ import { createOrganization } from "./workspace";
 test("an organization you are not in shows you nothing, and says so", async ({
   api,
   account,
-  browser,
+  pageAs,
 }) => {
   const organization = await createOrganization(api, account);
 
   const stranger = await register(api);
-  const context = await browser.newContext();
-  const theirs = await context.newPage();
-  await signIn(theirs, stranger);
+  const theirs = await pageAs(stranger);
 
   await theirs.goto(`/orgs/${organization.slug}/members`);
 
   // Not the members, and not a spinner: something a person can act on.
   await expect(theirs.getByText("Organization not found")).toBeVisible();
   await expect(theirs.getByRole("table")).toHaveCount(0);
-
-  await context.close();
 });

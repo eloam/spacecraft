@@ -15,34 +15,43 @@ export async function waitForMessage(
   to: string,
   subjectContains: string,
 ): Promise<string> {
+  let match: Message | undefined;
+
   // Matched on the subject as well as the address: registering already sends a welcome to the
   // same mailbox, and waiting on the address alone hands back whichever arrived first.
-  for (let attempt = 0; attempt < 60; attempt++) {
+  await expect(async () => {
     const response = await api.get(`${MAILPIT_URL}/api/v1/messages?limit=100`);
     const messages: Message[] = (await response.json()).messages ?? [];
 
-    const match = messages.find(
+    match = messages.find(
       (m) =>
         m.To.some((recipient) => recipient.Address.toLowerCase() === to.toLowerCase()) &&
         m.Subject.toLowerCase().includes(subjectContains.toLowerCase()),
     );
 
-    if (match) {
-      const body = await api.get(`${MAILPIT_URL}/api/v1/message/${match.ID}`);
-      return (await body.json()).Text ?? "";
-    }
+    expect(match, `a message matching "${subjectContains}" reaching ${to}`).toBeDefined();
+  }).toPass({ timeout: 30_000, intervals: [500] });
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  if (!match) {
+    throw new Error(`no message matching "${subjectContains}" ever reached ${to}`);
   }
 
-  throw new Error(`no message matching "${subjectContains}" ever reached ${to}`);
+  const body = await api.get(`${MAILPIT_URL}/api/v1/message/${match.ID}`);
+  return (await body.json()).Text ?? "";
 }
 
-/** The first link in a message, as a path this application can be told to open. */
-export function linkIn(body: string): string {
+/**
+ * The first link in a message, parsed.
+ *
+ * A test opens its path against the base URL or reads a token off its query; the origin is
+ * whatever the stack was told to print into mail, which is not necessarily where the browser
+ * under test is pointed.
+ */
+export function linkIn(body: string): URL {
   const match = /https?:\/\/\S+/.exec(body);
-  expect(match, "the message carries a link").not.toBeNull();
+  if (!match) {
+    throw new Error("the message carries no link");
+  }
 
-  const url = new URL(match![0]);
-  return `${url.pathname}${url.search}`;
+  return new URL(match[0]);
 }

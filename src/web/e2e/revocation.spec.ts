@@ -48,7 +48,9 @@ test("revoking the credential stops the publish, and nothing else", { tag: "@slo
   await revokeCredential(api, account, organization.id, credentialId);
 
   const runId = await queueRun(api, account, organization.id, specVersionId, sdkTargetId, true);
-  const failureReason = await waitForRunToFinish(api, account, organization.id, runId, 600);
+  const failureReason = await waitForRunToFinish(api, account, organization.id, runId, {
+    timeout: 300_000,
+  });
 
   expect(failureReason).toContain("has been revoked");
 

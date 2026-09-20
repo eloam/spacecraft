@@ -121,6 +121,7 @@ git config core.hooksPath .githooks
 dotnet run --project tests/SpaceCraft.UnitTests
 dotnet run --project tests/SpaceCraft.IntegrationTests   # needs Docker
 npm run typecheck --prefix src/web
+npm test --prefix src/web
 ```
 
 End to end, against a stack of its own on ports the development stack does not use:
