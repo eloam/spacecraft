@@ -13,7 +13,7 @@ import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { DangerSection, SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { NAME_MAX_LENGTH, NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 import {
   useDeleteOrganization, useOrganization, useProjects, useRenameOrganization,
 } from "@/api/queries";
@@ -66,8 +66,7 @@ export function OrganizationSettingsPage() {
           navigate(`/orgs/${updated.slug}/settings`, { replace: true });
         }
       },
-      onError: (error) =>
-        toast.error(error instanceof ApiError ? error.detail : "Could not rename the organization."),
+      onError: (error) => toast.error(describeError(error, "Could not rename the organization.")),
     }),
   );
 
@@ -181,9 +180,7 @@ export function OrganizationSettingsPage() {
                   navigate("/");
                 },
                 onError: (error) =>
-                  setDeleteError(
-                    error instanceof ApiError ? error.detail : "Could not delete the organization.",
-                  ),
+                  setDeleteError(describeError(error, "Could not delete the organization.")),
               },
             )
           }

@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Link, Outlet, useParams } from "react-router-dom";
 import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
-import { Play } from "lucide-react";
+import { Play, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { BackLink } from "@/components/BackLink";
+import { EmptyState } from "@/components/EmptyState";
+import { QueryBoundary } from "@/components/QueryBoundary";
 import { ProjectNav } from "@/components/layout/ProjectNav";
 import { GenerateDialog } from "@/routes/project/GenerateDialog";
-import { useProject, useSpecs } from "@/api/queries";
+import { useProject, useProjects, useSpecs } from "@/api/queries";
 import { SpecValidationStatus } from "@/api/types";
 
 /**
@@ -19,6 +21,7 @@ import { SpecValidationStatus } from "@/api/types";
 export function ProjectLayout() {
   const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
+  const projects = useProjects(orgId);
   const projectId = useProjectId(orgId, projectSlug);
   const project = useProject(orgId, projectId);
   const specs = useSpecs(orgId, projectId);
@@ -28,9 +31,23 @@ export function ProjectLayout() {
   const base = `/orgs/${orgSlug}/projects/${projectSlug}`;
   const linkClass = "font-medium text-foreground underline underline-offset-4";
 
-  // Unresolved is not the same as absent: until the project list has arrived, projectId is
-  // empty, its queries are disabled, and an action fired now would name no project at all.
-  const loading = !projectId || project.isLoading || specs.isLoading;
+  // Unresolved is not the same as absent, and absent is not the same as unknown. Until the
+  // project list has arrived, projectId is empty, its queries are disabled, and an action
+  // fired now would name no project at all. Once the list is here and the slug is still not
+  // in it, nothing will ever enable them: judged on `!projectId` alone, that was a spinner
+  // turning for ever over sections bound to a project called "". An address that carries the
+  // id is passed through as it is, so an unknown id is not caught here — it reaches the
+  // project query and comes back as its 404, through the error path below.
+  const resolvingProject = !projectId && projects.isPending;
+  const unknownProject = !projectId && projects.isSuccess;
+  // And a list that never loaded says nothing about the slug: neither resolving nor unknown,
+  // it is the failure itself, shown in the frame's place.
+  const failedProjects = !projectId && projects.isError;
+
+  // `isPending` rather than `isLoading`: a disabled query is pending and not fetching, and
+  // isLoading is the two together — false for the project queries while the id is still on
+  // its way, which is exactly when the spinner has to stay on.
+  const loading = resolvingProject || project.isPending || specs.isPending;
   const hasTarget = (project.data?.targets.length ?? 0) > 0;
   const hasUsableSpec =
     specs.data?.items.some((s) => s.validationStatus !== SpecValidationStatus.Invalid) ?? false;
@@ -99,6 +116,37 @@ export function ProjectLayout() {
 
     return null;
   })();
+
+  // Nothing inside is rendered until the slug has an id behind it, as the shell does for the
+  // organization: the sections take the id as a prop, and the specs tab mounted its drop zone
+  // bound to a project called "" for the length of the lookup.
+  if (resolvingProject) {
+    return (
+      <div className="flex justify-center py-16">
+        <Spinner className="size-5" />
+      </div>
+    );
+  }
+
+  // Worded for the two things a stale link can mean; the organization's Projects tab above
+  // is the way back to the list.
+  if (failedProjects) {
+    return (
+      <QueryBoundary isLoading={false} error={projects.error}>
+        {null}
+      </QueryBoundary>
+    );
+  }
+
+  if (unknownProject) {
+    return (
+      <EmptyState
+        icon={<SearchX />}
+        title="Project not found"
+        description="It does not exist in this organization, or it was renamed."
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">

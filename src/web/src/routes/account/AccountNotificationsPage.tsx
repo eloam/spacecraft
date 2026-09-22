@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 import { useAuthStore } from "@/stores/auth";
 import {
   useNotificationPreferences,
@@ -134,9 +134,7 @@ export function AccountNotificationsPage() {
     save.mutate(next, {
       onError: (error) => {
         setDraft(previous);
-        toast.error(
-          error instanceof ApiError ? error.detail : "Could not save your notification settings.",
-        );
+        toast.error(describeError(error, "Could not save your notification settings."));
       },
     });
   };

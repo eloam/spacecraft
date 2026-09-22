@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bell, CheckCheck, Settings2, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -21,6 +22,7 @@ import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/
 import { Switch } from "@/components/ui/switch";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { describeError } from "@/api/client";
 import {
   useClearNotifications,
   useDeleteNotification,
@@ -55,7 +57,10 @@ export function NotificationBell() {
 
   const open = (notification: NotificationItem) => {
     if (!notification.readAt) {
-      markRead.mutate(notification.id);
+      markRead.mutate(notification.id, {
+        onError: (error) =>
+          toast.error(describeError(error, "Could not mark the notification as read.")),
+      });
     }
 
     navigate(notification.link);
@@ -67,7 +72,9 @@ export function NotificationBell() {
     // Nothing unread means nothing to lose: these have all been read, and a dialog that only
     // ever gets one answer is a click, not a safeguard.
     if (unread === 0) {
-      clear.mutate(false);
+      clear.mutate(false, {
+        onError: (error) => toast.error(describeError(error, "Could not clear the notifications.")),
+      });
       return;
     }
 
@@ -120,7 +127,12 @@ export function NotificationBell() {
                 variant="ghost"
                 size="sm"
                 className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
-                onClick={() => markAll.mutate()}
+                onClick={() =>
+                  markAll.mutate(undefined, {
+                    onError: (error) =>
+                      toast.error(describeError(error, "Could not mark everything as read.")),
+                  })
+                }
                 disabled={markAll.isPending}
               >
                 <CheckCheck className="size-3.5" aria-hidden />
@@ -196,7 +208,12 @@ export function NotificationBell() {
                     way, so a row does not shift under the pointer as it appears. */}
                 <button
                   type="button"
-                  onClick={() => remove.mutate(notification.id)}
+                  onClick={() =>
+                    remove.mutate(notification.id, {
+                      onError: (error) =>
+                        toast.error(describeError(error, "Could not dismiss the notification.")),
+                    })
+                  }
                   aria-label={`Dismiss "${notification.title}"`}
                   className="mt-2.5 mr-1.5 rounded p-1 text-muted-foreground/60 opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-background hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                 >
@@ -246,7 +263,11 @@ export function NotificationBell() {
           <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
           <Button
             onClick={() =>
-              clear.mutate(alsoUnread, { onSuccess: () => setConfirmingClear(false) })
+              clear.mutate(alsoUnread, {
+                onSuccess: () => setConfirmingClear(false),
+                onError: (error) =>
+                  toast.error(describeError(error, "Could not clear the notifications.")),
+              })
             }
             disabled={clear.isPending}
           >

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { LocatedFinding, Finding as SourceFinding } from "@/components/SpecSourceView";
 import { cn } from "@/lib/utils";
+import { describeError } from "@/api/client";
 import { useProject, useRevalidateSpec, useSpecContent, useSpecDiagnostics } from "@/api/queries";
 import { DiagnosticSeverity } from "@/api/types";
 import type { IndexResponse } from "@/workers/specIndex.worker";
@@ -80,13 +81,15 @@ const tones: Record<number, string> = {
 /**
  * Resolves every finding's pointer to a line in a worker, once per document.
  *
- * Returns null while it is working so callers can tell "not indexed yet" from "indexed, and
- * this finding has no line" — the second is a normal outcome for a finding whose pointer
- * addresses something the document does not contain.
+ * `lines` is null while it is working so callers can tell "not indexed yet" from "indexed,
+ * and this finding has no line" — the second is a normal outcome for a finding whose pointer
+ * addresses something the document does not contain. `error` is what cut the indexing short:
+ * the worker's own report about a document it could not fully parse, or the reason it never
+ * answered. Either way the lines it did find are real, and the rest go unplaced.
  */
 function useFindingLines(text: string | undefined, pointers: (string | null | undefined)[]) {
   const [indexed, setIndexed] = useState<
-    { text: string; key: string; lines: (number | null)[] } | null
+    { text: string; key: string; lines: (number | null)[]; error: string | null } | null
   >(null);
 
   // The document alone did not identify the answer. Revalidating leaves the text untouched
@@ -102,10 +105,23 @@ function useFindingLines(text: string | undefined, pointers: (string | null | un
       type: "module",
     });
 
-    worker.onmessage = (event: MessageEvent<IndexResponse>) => {
-      setIndexed({ text, key, lines: event.data.lines });
+    // One outcome for the three ways a worker can come back. Only `message` used to be
+    // wired, so a worker script that failed to load — a chunk gone after a deploy — never
+    // settled this state, and the skeleton it holds up stayed up for good.
+    const settle = (lines: (number | null)[], error: string | null) => {
+      setIndexed({ text, key, lines, error });
       worker.terminate();
     };
+
+    worker.onmessage = (event: MessageEvent<IndexResponse>) =>
+      settle(event.data.lines, event.data.error ?? null);
+    // An uncaught throw inside the worker, or a script that never loaded. The message can be
+    // empty when the browser withholds the detail, and an empty banner explains nothing.
+    worker.onerror = (event) =>
+      settle(pointers.map(() => null), event.message || "The indexer could not be started.");
+    // Deserialising the answer failed on this side: nothing usable crossed.
+    worker.onmessageerror = () =>
+      settle(pointers.map(() => null), "The indexer's answer could not be read.");
 
     worker.postMessage({ text, pointers });
 
@@ -114,9 +130,10 @@ function useFindingLines(text: string | undefined, pointers: (string | null | un
 
   // Carrying the document it was computed for means "not indexed yet" is derived from the
   // state rather than written into it when the document changes.
-  return indexed !== null && indexed.text === text && indexed.key === key
-    ? indexed.lines
-    : null;
+  const current =
+    indexed !== null && indexed.text === text && indexed.key === key ? indexed : null;
+
+  return { lines: current?.lines ?? null, error: current?.error ?? null };
 }
 
 /** Ragged lines, so the wait reads as a document arriving rather than as a stalled panel. */
@@ -187,7 +204,8 @@ export function SpecValidationDialog({
               + `${result.strict ? "in strict mode" : "without strict mode"}.`,
             );
           },
-          onError: () => toast.error("The document could not be revalidated."),
+          onError: (error) =>
+            toast.error(describeError(error, "The document could not be revalidated.")),
         },
       );
     },
@@ -198,7 +216,7 @@ export function SpecValidationDialog({
     () => (diagnostics.data ?? []).map((d) => d.jsonPointer),
     [diagnostics.data],
   );
-  const lines = useFindingLines(source.data?.content, pointers);
+  const { lines, error: indexError } = useFindingLines(source.data?.content, pointers);
 
   /**
    * Findings in document order, which is the order "next" should walk. Anything the pointer
@@ -589,6 +607,18 @@ export function SpecValidationDialog({
                   Try again
                 </Button>
               </AlertAction>
+            </Alert>
+          )}
+
+          {/* Not destructive, and not stacked under the findings alert: with the list
+              missing there are no pointers to place, so that failure is the one to say. No
+              action either — it is the document, and the parser recovers by design, so the
+              lines it found are real and the rest are simply unplaced. */}
+          {!diagnostics.isError && indexError !== null && (
+            <Alert className="shrink-0 rounded-none border-x-0 border-t-0">
+              <TriangleAlert className="size-4" aria-hidden />
+              <AlertTitle>The document could not be indexed</AlertTitle>
+              <AlertDescription>{indexError}</AlertDescription>
             </Alert>
           )}
 

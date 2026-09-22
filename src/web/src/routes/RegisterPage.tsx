@@ -8,7 +8,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { AuthCard } from "@/components/AuthCard";
 import { useRegister } from "@/api/queries";
 import { useReturnQuery } from "@/lib/returnTo";
-import { ApiError } from "@/api/client";
+import { ApiError, describeError } from "@/api/client";
 
 const schema = z.object({
   displayName: z.string().trim().max(80, "Use 80 characters or fewer.").optional(),
@@ -100,9 +100,7 @@ export function RegisterPage() {
             the submit happened. */}
         {register.error && !emailError && !passwordError && (
           <p className="text-sm text-destructive" role="alert">
-            {register.error instanceof ApiError
-              ? register.error.detail
-              : "Something went wrong. Try again."}
+            {describeError(register.error, "Something went wrong. Try again.")}
           </p>
         )}
 

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Panel, PanelLine, PanelSection } from "@/components/Panel";
+import { QueryBoundary } from "@/components/QueryBoundary";
 import {
   Field, FieldContent, FieldDescription, FieldGroup, FieldLabel,
 } from "@/components/ui/field";
@@ -17,7 +18,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 import { useCreateRun, useOrganizations, useProject, useProjects, useSpecs } from "@/api/queries";
 import {
   OrganizationRole, SpecValidationStatus, StepKind, languageLabel, registryLabel, stepKindLabel,
@@ -155,8 +156,7 @@ export function GenerateDialog({
           // started from means the thing they asked for happens somewhere they cannot see.
           navigate(`/orgs/${orgSlug}/runs/${run.id}`);
         },
-        onError: (err) =>
-          toast.error(err instanceof ApiError ? err.detail : "Could not queue the run."),
+        onError: (err) => toast.error(describeError(err, "Could not queue the run.")),
       },
     );
   }
@@ -205,64 +205,85 @@ export function GenerateDialog({
                 </Select>
             </Field>
 
-            <Field data-disabled={!activeProject || undefined}>
-              <FieldLabel htmlFor="spec">Spec version</FieldLabel>
-              <Select
-                value={selectedSpec}
-                disabled={!activeProject}
-                onValueChange={(value) => setSpecId(String(value))}
-              >
-                <SelectTrigger id="spec" className="w-full">
-                  <SelectValue>{specLabel(usableSpecs.find((s) => s.id === selectedSpec))}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {usableSpecs.map((spec) => (
-                    <SelectItem key={spec.id} value={spec.id}>
-                      {specLabel(spec)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+            {/* The two fields below are the chosen project's, so they wait for it the way a
+                page waits for its query, and a refusal says so where the empty lists would
+                otherwise stand unexplained. isPending rather than isLoading: both queries are
+                disabled until the slug resolves to an id, and in that window nothing is
+                fetching yet either. With no project chosen there is nothing to load, so the
+                fields stay as they are — disabled — rather than pretending to arrive. The
+                projects query is in the chain because the slug resolves through it, and the
+                skeleton waits on that list rather than on the id: a refused list never
+                yields one, and two queries disabled for good would hold the skeleton up with
+                the refusal never shown. A list that answers without the slug — a project it
+                does not contain — leaves the fields disabled, not loading. */}
+            <QueryBoundary
+              isLoading={
+                Boolean(activeProject)
+                && (projects.isPending
+                  || (Boolean(activeProjectId) && (project.isPending || specs.isPending)))
+              }
+              error={project.error ?? specs.error ?? projects.error}
+              rows={2}
+            >
+              <Field data-disabled={!activeProject || undefined}>
+                <FieldLabel htmlFor="spec">Spec version</FieldLabel>
+                <Select
+                  value={selectedSpec}
+                  disabled={!activeProject}
+                  onValueChange={(value) => setSpecId(String(value))}
+                >
+                  <SelectTrigger id="spec" className="w-full">
+                    <SelectValue>{specLabel(usableSpecs.find((s) => s.id === selectedSpec))}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {usableSpecs.map((spec) => (
+                      <SelectItem key={spec.id} value={spec.id}>
+                        {specLabel(spec)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
 
-            <Field data-disabled={!activeProject || undefined}>
-              <FieldLabel htmlFor="target">Target</FieldLabel>
-              <Select
-                value={selectedTarget}
-                disabled={!activeProject}
-                onValueChange={(value) => {
-                  setTargetId(String(value));
-                  // Back to following the new target: an override belongs to the target it
-                  // was set against, not to the dialog.
-                  setPublish(null);
-                }}
-              >
-                <SelectTrigger id="target" className="w-full">
-                  <SelectValue>
-                    {target
-                      ? `${languageLabel[target.language]} — ${target.packageName} · ${target.autoPublish ? "Automatic" : "Manual"}`
-                      : ""}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {targets.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate">
-                          {languageLabel[t.language]} — {t.packageName}
+              <Field data-disabled={!activeProject || undefined}>
+                <FieldLabel htmlFor="target">Target</FieldLabel>
+                <Select
+                  value={selectedTarget}
+                  disabled={!activeProject}
+                  onValueChange={(value) => {
+                    setTargetId(String(value));
+                    // Back to following the new target: an override belongs to the target it
+                    // was set against, not to the dialog.
+                    setPublish(null);
+                  }}
+                >
+                  <SelectTrigger id="target" className="w-full">
+                    <SelectValue>
+                      {target
+                        ? `${languageLabel[target.language]} — ${target.packageName} · ${target.autoPublish ? "Automatic" : "Manual"}`
+                        : ""}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {targets.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate">
+                            {languageLabel[t.language]} — {t.packageName}
+                          </span>
+                          {/* How this target publishes, where it is chosen: it decides what
+                              the switch below arrives set to, and picking blind then finding
+                              the switch already on reads as the dialog deciding for you. */}
+                          <Badge variant="outline" className="shrink-0 text-[10px]">
+                            {t.autoPublish ? "Automatic" : "Manual"}
+                          </Badge>
                         </span>
-                        {/* How this target publishes, where it is chosen: it decides what
-                            the switch below arrives set to, and picking blind then finding
-                            the switch already on reads as the dialog deciding for you. */}
-                        <Badge variant="outline" className="shrink-0 text-[10px]">
-                          {t.autoPublish ? "Automatic" : "Manual"}
-                        </Badge>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </QueryBoundary>
 
             {/* What the run will do, in the shape the delete dialogs use for what a delete
                 costs. The steps were only ever named in one line of prose at the top, and

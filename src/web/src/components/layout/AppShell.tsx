@@ -1,12 +1,15 @@
-import { Link, Outlet, useParams } from "react-router-dom";
+import { Link, Outlet, useLocation, useParams } from "react-router-dom";
+import { ErrorBoundary } from "react-error-boundary";
 import { LogOut, Orbit, SearchX, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useLogout, useOrganizations } from "@/api/queries";
-import { useCanonicalRoute, useOrganizationId } from "@/hooks/useRouteIdentity";
+import { useCanonicalRoute } from "@/hooks/useRouteIdentity";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/EmptyState";
+import { ErrorFallback } from "@/components/ErrorFallback";
+import { QueryBoundary } from "@/components/QueryBoundary";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { AccountAvatar } from "@/components/AccountAvatar";
@@ -24,31 +27,41 @@ export function AppShell() {
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
   const { orgId } = useParams();
+  const location = useLocation();
 
   // Here rather than on each page: every route that names an organization or a project passes
   // through this frame, and an address reached by id should not stay spelled that way.
   useCanonicalRoute();
 
-  // And nothing inside is rendered until the slug in the address has an id behind it.
+  // And nothing inside is rendered until the list of your organizations has arrived and been
+  // looked through for the one in the address.
   //
-  // The pages ask the API by id, and the id comes from a list that takes a moment to arrive.
-  // Their queries wait for it on their own, but their buttons did not: pressing one early
-  // sent a request to /organizations//members, which the API answered 404 and the interface
-  // reported as nothing at all. Rare by hand and reliable under load, which is where the
-  // end-to-end tests found it.
+  // The pages ask the API by id, and a slug becomes an id through that list, which takes a
+  // moment to arrive. Their queries wait for it on their own, but their buttons did not:
+  // pressing one early sent a request to /organizations//members, which the API answered 404
+  // and the interface reported as nothing at all. Rare by hand and reliable under load, which
+  // is where the end-to-end tests found it.
+  //
+  // An address that carries the id needs no lookup, and used to skip the wait — and with it
+  // the check below: the id of an organization you are not in rendered this frame with the
+  // guid for a name and the section nav around each page's own refusal. So both forms wait
+  // for the list, and both are looked for in it.
   const organizations = useOrganizations();
-  const organizationId = useOrganizationId(orgId ?? "");
-  const resolvingOrganization =
-    Boolean(orgId) && !organizationId && !organizations.isSuccess && !organizations.isError;
+  const resolvingOrganization = Boolean(orgId) && organizations.isPending;
+  const known = organizations.data?.some((o) => o.slug === orgId || o.id === orgId) ?? false;
 
   // The list arrived and this address is not in it. Before the pages asked by id, the slug
   // went straight to the API, which answered 404 and the page said so; now their queries are
   // simply never enabled, and what a stranger following a link got was a spinner that would
   // have turned for ever.
   //
+  // Only once the list did arrive: a list that failed to load says nothing about who is a
+  // member of what, and used to be reported in these words too — "not found" over a network
+  // fault. That case shows the failure itself, below.
+  //
   // Worded like the API's own refusal, which does not distinguish "no such organization" from
   // "not yours" — telling those apart would confirm which ids are real to anyone who asks.
-  const unknownOrganization = Boolean(orgId) && !organizationId && !resolvingOrganization;
+  const unknownOrganization = Boolean(orgId) && organizations.isSuccess && !known;
 
   return (
     <div className="min-h-screen">
@@ -128,14 +141,33 @@ export function AppShell() {
           <div className="flex justify-center py-16">
             <Spinner className="size-5" />
           </div>
-        ) : unknownOrganization ? (
-          <EmptyState
-            icon={<SearchX />}
-            title="Organization not found"
-            description="It does not exist, or you are not a member of it."
-          />
         ) : (
-          <Outlet />
+          /* The list never loaded: the alert every page shows for a failed query, in the
+             page's place, since both forms of the address wait for that list before a page
+             is rendered at all. A list that loaded once and then failed to refresh is not
+             that: the pages still have their id, and carry on under the boundary's quiet
+             note. Outside an organization the list is nobody's business here, and the
+             boundary lets through. */
+          <QueryBoundary
+            isLoading={false}
+            error={orgId ? organizations.error : null}
+            hasData={organizations.data !== undefined}
+          >
+            {unknownOrganization ? (
+              <EmptyState
+                icon={<SearchX />}
+                title="Organization not found"
+                description="It does not exist, or you are not a member of it."
+              />
+            ) : (
+              /* A page that throws while rendering loses only its own space: the bar and the
+                 sections stay, so there is still somewhere to go, and the next address
+                 renders afresh instead of inheriting the fallback from the last one. */
+              <ErrorBoundary FallbackComponent={ErrorFallback} resetKeys={[location.pathname]}>
+                <Outlet />
+              </ErrorBoundary>
+            )}
+          </QueryBoundary>
         )}
       </main>
     </div>

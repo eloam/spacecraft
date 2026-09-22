@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { SettingsSection } from "@/components/SettingsSections";
-import { ApiError } from "@/api/client";
+import { QueryBoundary } from "@/components/QueryBoundary";
+import { describeError } from "@/api/client";
 import { useAccount, useUpdateProfile } from "@/api/queries";
 
 const profileSchema = z.object({
@@ -37,10 +37,7 @@ function ProfileCard({
         onSuccess: () => toast.success("Profile updated."),
         // The field keeps the typed name whether the save worked or not, so without this a
         // failure looks exactly like a success.
-        onError: (error) =>
-          toast.error(
-            error instanceof ApiError ? error.detail : "Could not save your profile.",
-          ),
+        onError: (error) => toast.error(describeError(error, "Could not save your profile.")),
       },
     ),
   );
@@ -96,24 +93,23 @@ function ProfileCard({
   );
 }
 
-
 export function AccountProfilePage() {
   const account = useAccount();
 
-  if (account.isPending) {
-    return <Skeleton className="h-64 w-full" />;
-  }
-
-  if (account.isError || !account.data) {
-    return <p className="text-sm text-destructive">Could not load your account.</p>;
-  }
-
   return (
-    <ProfileCard
-      displayName={account.data.displayName}
-      email={account.data.email}
-      createdAt={account.data.createdAt}
-      lastLoginAt={account.data.lastLoginAt}
-    />
+    <QueryBoundary
+      isLoading={account.isPending}
+      error={account.error}
+      hasData={account.data !== undefined}
+    >
+      {account.data && (
+        <ProfileCard
+          displayName={account.data.displayName}
+          email={account.data.email}
+          createdAt={account.data.createdAt}
+          lastLoginAt={account.data.lastLoginAt}
+        />
+      )}
+    </QueryBoundary>
   );
 }

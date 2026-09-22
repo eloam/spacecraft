@@ -16,7 +16,7 @@ import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { DangerSection, SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { NAME_MAX_LENGTH, NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
-import { ApiError } from "@/api/client";
+import { describeError } from "@/api/client";
 import {
   useDeleteProject, useProject, useRenameProject, useSetStrictValidation,
 } from "@/api/queries";
@@ -65,8 +65,7 @@ export function ProjectSettingsPage() {
           navigate(`/orgs/${orgSlug}/projects/${updated.slug}/settings`, { replace: true });
         }
       },
-      onError: (error) =>
-        toast.error(error instanceof ApiError ? error.detail : "Could not rename the project."),
+      onError: (error) => toast.error(describeError(error, "Could not rename the project.")),
     }),
   );
 
@@ -168,9 +167,7 @@ export function ProjectSettingsPage() {
                         : "Strict mode off. Revalidate a spec to apply it to what is already uploaded.",
                     ),
                   onError: (error) =>
-                    toast.error(
-                      error instanceof ApiError ? error.detail : "Could not change the setting.",
-                    ),
+                    toast.error(describeError(error, "Could not change the setting.")),
                 })
               }
             />
@@ -215,9 +212,7 @@ export function ProjectSettingsPage() {
                 navigate(`/orgs/${orgSlug}`);
               },
               onError: (error) =>
-                setDeleteError(
-                  error instanceof ApiError ? error.detail : "Could not delete the project.",
-                ),
+                setDeleteError(describeError(error, "Could not delete the project.")),
             })
           }
         />

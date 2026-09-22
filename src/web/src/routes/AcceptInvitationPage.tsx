@@ -13,7 +13,7 @@ import {
 import { roleLabel } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
 import { withReturnTo } from "@/lib/returnTo";
-import { ApiError } from "@/api/client";
+import { ApiError, describeError } from "@/api/client";
 
 /**
  * Where an invitation link lands.
@@ -102,16 +102,18 @@ export function AcceptInvitationPage() {
   }
 
   // One answer for a token that never existed, one already used, one withdrawn and one that
-  // lapsed — the API does not tell them apart, and neither does this.
-  if (preview.isError || failure) {
+  // lapsed — the API does not tell them apart, and neither does this. A 404 is the only
+  // status the preview route declares, so it is the only one that is a verdict on the
+  // invitation; anything else is the request failing, and gets another go rather than a
+  // sentence about a link that may be fine.
+  const unusable = preview.error instanceof ApiError && preview.error.status === 404;
+
+  if (unusable || failure) {
     return (
       <AuthCard
         title="This invitation cannot be used"
         description={
-          failure ??
-          (preview.error instanceof ApiError
-            ? preview.error.detail
-            : "It may have been used, withdrawn, or expired.")
+          failure ?? describeError(preview.error, "It may have been used, withdrawn, or expired.")
         }
         footer={backToOrganizations}
       >
@@ -119,6 +121,20 @@ export function AcceptInvitationPage() {
           Invitations work once and expire on their own, and sending a new one puts the
           previous link out. Ask whoever invited you to send another.
         </p>
+      </AuthCard>
+    );
+  }
+
+  if (preview.isError) {
+    return (
+      <AuthCard
+        title="The invitation could not be checked"
+        description={describeError(preview.error, "The request failed. Try again in a moment.")}
+        footer={backToOrganizations}
+      >
+        <Button className="w-full" onClick={() => preview.refetch()}>
+          Try again
+        </Button>
       </AuthCard>
     );
   }
@@ -207,9 +223,10 @@ export function AcceptInvitationPage() {
                 onSuccess: () => navigate(`/orgs/${invitation.organizationSlug}`, { replace: true }),
                 onError: (error: unknown) =>
                   setFailure(
-                    error instanceof ApiError
-                      ? error.detail
-                      : "The invitation could not be accepted. Ask for a new one.",
+                    describeError(
+                      error,
+                      "The invitation could not be accepted. Ask for a new one.",
+                    ),
                   ),
               })
             }
@@ -227,11 +244,7 @@ export function AcceptInvitationPage() {
               decline.mutate(token, {
                 onSuccess: () => setDeclined(true),
                 onError: (error: unknown) =>
-                  setFailure(
-                    error instanceof ApiError
-                      ? error.detail
-                      : "The invitation could not be declined.",
-                  ),
+                  setFailure(describeError(error, "The invitation could not be declined.")),
               })
             }
           >

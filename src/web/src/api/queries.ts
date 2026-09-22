@@ -788,6 +788,42 @@ export function useCancelRun(orgId: string) {
   });
 }
 
+/**
+ * The artifact of a run, fetched through the API and handed to the browser as a download.
+ *
+ * Through the API rather than from a presigned bucket URL. A presigned URL is a bearer token in
+ * a link — whoever holds it reads the object until it expires, and the bucket has to be
+ * reachable from a browser for it to work at all. Here the bytes only ever answer a request
+ * carrying this session's token.
+ *
+ * A mutation, not a query: it is an action with a pending state and a failure to report, and
+ * nothing should cache a tarball.
+ */
+export function useDownloadArtifact(orgId: string) {
+  return useMutation({
+    mutationFn: async ({ runId, fallbackName }: { runId: string; fallbackName: string }) => {
+      const file = await api.download(`/organizations/${orgId}/runs/${runId}/artifact`);
+
+      // A blob URL and a synthetic click: no popup, so nothing for a blocker to swallow, and
+      // the page the user is reading stays where it is.
+      const href = URL.createObjectURL(file.blob);
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = file.fileName ?? fallbackName;
+
+      // Attached before clicking: Firefox ignores a click on an anchor that is not in the
+      // document.
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // Revoked on a later task, not in this one: the save is still reading the blob when
+      // click() returns, and revoking underneath it truncates the file.
+      setTimeout(() => URL.revokeObjectURL(href), 0);
+    },
+  });
+}
+
 export function useStepLog(orgId: string, runId: string, step: string, enabled: boolean) {
   return useQuery({
     queryKey: keys.stepLog(orgId, runId, step),

@@ -43,7 +43,7 @@ import {
 import { timeAgo } from "@/lib/format";
 // Credential is named explicitly: the DOM has its own, and the global would win.
 import { RegistryKind, languageLabel, registryLabel, type Credential } from "@/api/types";
-import { ApiError } from "@/api/client";
+import { ApiError, describeError } from "@/api/client";
 import { toast } from "sonner";
 
 /**
@@ -141,7 +141,7 @@ export function CredentialsPage() {
         toast.success("Credential revoked");
         setRevoking(null);
       },
-      onError: () => toast.error("Could not revoke the credential."),
+      onError: (error) => toast.error(describeError(error, "Could not revoke the credential.")),
     });
   }
 
@@ -278,7 +278,10 @@ export function CredentialsPage() {
                             onClick={() =>
                               restore.mutate(credential.id, {
                                 onSuccess: () => toast.success("Credential restored"),
-                                onError: () => toast.error("Could not restore the credential."),
+                                onError: (error) =>
+                                  toast.error(
+                                    describeError(error, "Could not restore the credential."),
+                                  ),
                               })
                             }
                           >
@@ -392,9 +395,7 @@ export function CredentialsPage() {
               setDeleteOpen(false);
             },
             onError: (error) =>
-              setDeleteError(
-                error instanceof ApiError ? error.detail : "Could not delete the credential.",
-              ),
+              setDeleteError(describeError(error, "Could not delete the credential.")),
           })
         }
       />

@@ -3,20 +3,23 @@ import { CircleAlert, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/skeleton";
 import { DangerSection } from "@/components/SettingsSections";
 import { Panel, PanelLine, PanelSection } from "@/components/Panel";
+import { QueryBoundary } from "@/components/QueryBoundary";
 import {
   Dialog, DialogClose, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { ApiError } from "@/api/client";
+import { ApiError, describeError } from "@/api/client";
 import { useAccount, useDeleteAccount, useDeletionBlockers } from "@/api/queries";
 
 function DangerZone({ organizationCount }: { organizationCount: number }) {
   const blockers = useDeletionBlockers();
 
   const blocked = (blockers.data?.length ?? 0) > 0;
+  // Unknown is not none: while the check has not answered, or answered with a failure, the
+  // button stays off rather than offer a delete the server would refuse.
+  const unchecked = blockers.isPending || blockers.isError;
 
   return (
     <DangerSection
@@ -51,6 +54,12 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
           </Panel>
         )}
 
+        {blockers.isError && (
+          <p className="text-sm text-destructive" role="alert">
+            {describeError(blockers.error, "Could not check what stands in the way.")}
+          </p>
+        )}
+
         <p className="text-sm text-muted-foreground">
           SDKs you have already published stay in their registries — SpaceCraft cannot
           unpublish them on your behalf.
@@ -59,7 +68,7 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
         <Dialog>
           <DialogTrigger
             render={
-              <Button variant="destructive" disabled={blocked || blockers.isPending}>
+              <Button variant="destructive" disabled={blocked || unchecked}>
                 <Trash2 className="size-4" aria-hidden />
                 Delete my account
               </Button>
@@ -136,9 +145,13 @@ function DeleteAccountForm() {
 export function AccountDangerPage() {
   const account = useAccount();
 
-  if (account.isPending) {
-    return <Skeleton className="h-48 w-full" />;
-  }
-
-  return <DangerZone organizationCount={account.data?.organizationCount ?? 0} />;
+  return (
+    <QueryBoundary
+      isLoading={account.isPending}
+      error={account.error}
+      hasData={account.data !== undefined}
+    >
+      {account.data && <DangerZone organizationCount={account.data.organizationCount} />}
+    </QueryBoundary>
+  );
 }
