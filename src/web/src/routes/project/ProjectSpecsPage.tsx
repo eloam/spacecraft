@@ -37,8 +37,7 @@ import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/api/client";
 import { useDeleteSpec, usePublications, useSpecs } from "@/api/queries";
-import { PublicationStatus, SpecValidationStatus } from "@/api/types";
-import type { SpecVersion } from "@/api/types";
+import { PublicationStatus, SpecValidationStatus, type SpecVersion } from "@/api/types";
 
 /** Bytes as something readable at a glance; the exact figure is never the point here. */
 function fileSize(bytes: number) {
@@ -99,6 +98,7 @@ export function ProjectSpecsPage() {
   const [openFor, setOpenFor] = useState<string | null>(null);
   const [comparing, setComparing] = useState<[SpecVersion, SpecVersion] | null>(null);
   const [deleting, setDeleting] = useState<SpecVersion | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const items = useMemo(() => specs.data?.items ?? [], [specs.data]);
@@ -182,7 +182,7 @@ export function ProjectSpecsPage() {
       onSuccess: () => {
         toast.success(`Deleted spec #${deleting.sequence}`);
         setSelected((current) => current.filter((id) => id !== deleting.id));
-        setDeleting(null);
+        setDeleteOpen(false);
       },
       // A refusal is the server saying a package was published from this document. It belongs
       // in the dialog, next to the button that was just pressed, not in a toast that appears
@@ -463,6 +463,7 @@ export function ProjectSpecsPage() {
                                 onClick={() => {
                                   setDeleteError(null);
                                   setDeleting(spec);
+                                  setDeleteOpen(true);
                                 }}
                               >
                                 <Trash2 className="size-4" aria-hidden />
@@ -533,8 +534,9 @@ export function ProjectSpecsPage() {
       />
 
       <ConfirmDeleteDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) {
             setDeleting(null);
             setDeleteError(null);

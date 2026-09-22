@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { FolderGit2, ShieldCheck, Trash2 } from "lucide-react";
@@ -52,8 +52,9 @@ export function ProjectSettingsPage() {
     }
   }, [project.data, form]);
 
+  const name = useWatch({ control: form.control, name: "name" });
   const currentSlug = project.data?.slug ?? "";
-  const nextSlug = slugPreview(form.watch("name") || "") || currentSlug;
+  const nextSlug = slugPreview(name || "") || currentSlug;
   const slugWillChange = Boolean(currentSlug) && nextSlug !== currentSlug;
 
   const onSubmit = form.handleSubmit((values) =>
@@ -191,8 +192,8 @@ export function ProjectSettingsPage() {
 
         <ConfirmDeleteDialog
           open={deleteOpen}
-          onOpenChange={(open) => {
-            setDeleteOpen(open);
+          onOpenChange={setDeleteOpen}
+          onOpenChangeComplete={(open) => {
             if (!open) setDeleteError(null);
           }}
           title={`Delete ${project.data?.name ?? "this project"}?`}

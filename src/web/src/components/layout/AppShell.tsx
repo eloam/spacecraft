@@ -1,5 +1,5 @@
 import { Link, Outlet, useParams } from "react-router-dom";
-import { LogOut, Orbit, Settings } from "lucide-react";
+import { LogOut, Orbit, SearchX, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
@@ -7,7 +7,6 @@ import { useLogout, useOrganizations } from "@/api/queries";
 import { useCanonicalRoute, useOrganizationId } from "@/hooks/useRouteIdentity";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/EmptyState";
-import { SearchX } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { AccountAvatar } from "@/components/AccountAvatar";

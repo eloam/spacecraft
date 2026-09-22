@@ -221,6 +221,7 @@ export function OrganizationRunsPage() {
       </QueryBoundary>
 
       <GenerateDialog
+        key={projectFilter ?? ""}
         orgId={orgId}
         orgSlug={orgSlug}
         // undefined, not "": the dialog reads undefined as "no project fixed, ask for one".

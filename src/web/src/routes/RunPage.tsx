@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusIcon, StepStatusIcon } from "@/components/StatusBadge";
-import { api } from "@/api/client";
+import { ApiError, api } from "@/api/client";
 import { useCancelRun, useRun, useStepLog } from "@/api/queries";
 import {
   RunTrigger,
@@ -22,7 +22,6 @@ import {
   stepKindLabel,
   stepStatusLabel,
 } from "@/api/types";
-import { ApiError } from "@/api/client";
 import { toast } from "sonner";
 import { LanguageDot } from "@/components/LanguageDot";
 import { timeAgo } from "@/lib/format";

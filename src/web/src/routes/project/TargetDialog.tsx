@@ -15,8 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { ApiError } from "@/api/client";
 import { useAddTarget, useCredentials, useUpdateTarget } from "@/api/queries";
-import { SdkLanguage, languageLabel, registryLabel } from "@/api/types";
-import type { SdkTarget } from "@/api/types";
+import { SdkLanguage, type SdkTarget, languageLabel, registryLabel } from "@/api/types";
 
 /** The empty choice, named: a target that publishes nowhere. */
 const NO_PUBLISH = "none";
