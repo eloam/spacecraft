@@ -7,8 +7,13 @@ import { Separator } from "@/components/ui/separator";
 import { Panel, PanelLine, PanelSection } from "@/components/Panel";
 import { describeError } from "@/api/client";
 import {
-  Dialog, DialogClose, DialogContent, DialogDescription,
-  DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 
 interface ConfirmDeleteProps {
@@ -132,8 +137,7 @@ function ConfirmDeleteBody({
 
           Same muted surface as the "still publishing" panel below, which says the same
           kind of thing and had no reason to look like a different component. */}
-      {((consequences && consequences.length > 0) ||
-        (reassurances && reassurances.length > 0)) && (
+      {((consequences && consequences.length > 0) || (reassurances && reassurances.length > 0)) && (
         <Panel>
           {consequences && consequences.length > 0 && (
             <PanelSection label="This removes" tone="destructive">
@@ -200,13 +204,13 @@ function ConfirmDeleteBody({
       <DialogFooter>
         <DialogClose
           disabled={isPending}
-          render={<Button ref={cancelRef} variant="outline">Cancel</Button>}
+          render={
+            <Button ref={cancelRef} variant="outline">
+              Cancel
+            </Button>
+          }
         />
-        <Button
-          variant="destructive"
-          onClick={onConfirm}
-          disabled={!confirmed || isPending}
-        >
+        <Button variant="destructive" onClick={onConfirm} disabled={!confirmed || isPending}>
           {confirmIcon}
           {isPending ? `${confirmLabel}…` : confirmLabel}
         </Button>

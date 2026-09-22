@@ -156,8 +156,7 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { displayName: string | null }) =>
-      api.patch<Account>("/account", input),
+    mutationFn: (input: { displayName: string | null }) => api.patch<Account>("/account", input),
     // The response is the account: written where everything that shows a name reads it.
     onSuccess: (account) => queryClient.setQueryData(keys.account, account),
   });
@@ -210,8 +209,7 @@ export function useDeleteAccount() {
   const clear = useAuthStore((s) => s.clear);
 
   return useMutation({
-    mutationFn: (input: { password: string }) =>
-      api.delete<void>("/account", input),
+    mutationFn: (input: { password: string }) => api.delete<void>("/account", input),
     onSuccess: () => {
       clear();
       // A full reload rather than a route change: it drops any in-memory state a client-side
@@ -498,10 +496,9 @@ export function useSetStrictValidation(orgId: string, projectId: string) {
 
   return useMutation({
     mutationFn: (enabled: boolean) =>
-      api.put<Project>(
-        `/organizations/${orgId}/projects/${projectId}/strict-validation`,
-        { enabled },
-      ),
+      api.put<Project>(`/organizations/${orgId}/projects/${projectId}/strict-validation`, {
+        enabled,
+      }),
     onSuccess: (project) => {
       // The response is the project: written before the refetch, so the switch reads the
       // new value the moment the mutation settles rather than the old one for a round trip.
@@ -568,10 +565,9 @@ export function useDeleteTarget(orgId: string, projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { targetId: string; packageName: string }) =>
-      api.delete<void>(
-        `/organizations/${orgId}/projects/${projectId}/targets/${input.targetId}`,
-        { name: input.packageName },
-      ),
+      api.delete<void>(`/organizations/${orgId}/projects/${projectId}/targets/${input.targetId}`, {
+        name: input.packageName,
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.project(orgId, projectId) }),
   });
 }
@@ -592,7 +588,10 @@ export function useUploadSpec(orgId: string, projectId: string) {
     mutationFn: (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      return api.upload<SpecUpload>(`/organizations/${orgId}/projects/${projectId}/specs`, formData);
+      return api.upload<SpecUpload>(
+        `/organizations/${orgId}/projects/${projectId}/specs`,
+        formData,
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.specs(orgId, projectId) });
@@ -694,9 +693,7 @@ export function useRuns(orgId: string, projectId?: string) {
   return useQuery({
     queryKey: keys.runList(orgId, projectId),
     queryFn: () =>
-      api.get<Run[]>(
-        `/organizations/${orgId}/runs${projectId ? `?projectId=${projectId}` : ""}`,
-      ),
+      api.get<Run[]>(`/organizations/${orgId}/runs${projectId ? `?projectId=${projectId}` : ""}`),
     // `undefined` asks for every run; `""` is a project filter whose id has not resolved yet,
     // and asking then answered "no filter" for a moment before answering the filter.
     enabled: Boolean(orgId) && projectId !== "",

@@ -44,11 +44,7 @@ export type ValidationProblem = Schemas["HttpValidationProblemDetails"];
  * not the response's shape: an item of a kind added later still arrives and still renders.
  */
 export type NotificationKind =
-  | "MemberJoined"
-  | "MemberLeft"
-  | "RunCompleted"
-  | "RemovedFromOrganization"
-  | "InvitationDeclined";
+  "MemberJoined" | "MemberLeft" | "RunCompleted" | "RemovedFromOrganization" | "InvitationDeclined";
 export type NotificationChannel = "InApp" | "Email";
 
 /** A diagnostic once the dialog has numbered it, which is how the list and the gutter agree. */
@@ -208,7 +204,9 @@ export function isGeneratable(spec: { validationStatus: number }): boolean {
 
 /** A run in one of these states will not change again; stop polling it. */
 export function isTerminal(status: number): boolean {
-  return status === RunStatus.Succeeded || status === RunStatus.Failed || status === RunStatus.Cancelled;
+  return (
+    status === RunStatus.Succeeded || status === RunStatus.Failed || status === RunStatus.Cancelled
+  );
 }
 
 /**
@@ -219,9 +217,9 @@ export function isTerminal(status: number): boolean {
  * as though something had not completed.
  */
 export function isStepSettled(status: number): boolean {
-  return status === StepStatus.Succeeded
-    || status === StepStatus.Failed
-    || status === StepStatus.Skipped;
+  return (
+    status === StepStatus.Succeeded || status === StepStatus.Failed || status === StepStatus.Skipped
+  );
 }
 
 /** Mirrors SpaceCraft.Domain.Pipelines.RunTrigger. */

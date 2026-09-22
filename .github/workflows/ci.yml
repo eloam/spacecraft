@@ -69,6 +69,8 @@ jobs:
 
       - run: npm run lint
 
+      - run: npm run format:check
+
       - run: npm run build
 
   e2e:

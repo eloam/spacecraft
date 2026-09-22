@@ -22,9 +22,22 @@ export function ProjectNav() {
       <SectionNav
         label="Project sections"
         tabs={[
-          { label: "Specs", to: base, icon: <FileCode2 className="size-4" aria-hidden />, end: true },
-          { label: "SDK targets", to: `${base}/targets`, icon: <Package className="size-4" aria-hidden /> },
-          { label: "Settings", to: `${base}/settings`, icon: <Settings className="size-4" aria-hidden /> },
+          {
+            label: "Specs",
+            to: base,
+            icon: <FileCode2 className="size-4" aria-hidden />,
+            end: true,
+          },
+          {
+            label: "SDK targets",
+            to: `${base}/targets`,
+            icon: <Package className="size-4" aria-hidden />,
+          },
+          {
+            label: "Settings",
+            to: `${base}/settings`,
+            icon: <Settings className="size-4" aria-hidden />,
+          },
         ]}
       />
     </div>

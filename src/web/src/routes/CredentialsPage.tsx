@@ -1,24 +1,55 @@
 import { useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useOrganizationId } from "@/hooks/useRouteIdentity";
-import { ArrowRight, Ban, KeyRound, MoreHorizontal, Package, Plus, RotateCcw, Trash2 } from "lucide-react";
+import {
+  ArrowRight,
+  Ban,
+  KeyRound,
+  MoreHorizontal,
+  Package,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel,
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle,
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
 } from "@/components/ui/item";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
@@ -173,8 +204,8 @@ export function CredentialsPage() {
         <KeyRound className="size-4" aria-hidden />
         <AlertTitle>Use automation tokens</AlertTitle>
         <AlertDescription>
-          On npm, only an automation token publishes unattended — a classic token on a
-          2FA-protected account will prompt for a one-time code that no pipeline can answer.
+          On npm, only an automation token publishes unattended — a classic token on a 2FA-protected
+          account will prompt for a one-time code that no pipeline can answer.
         </AlertDescription>
       </Alert>
 
@@ -398,8 +429,8 @@ export function CredentialsPage() {
           <DialogHeader>
             <DialogTitle>Revoke this credential?</DialogTitle>
             <DialogDescription>
-              Publishing with this token stops immediately. Restore, in the same menu, puts it
-              back — the token itself keeps working at the registry either way.
+              Publishing with this token stops immediately. Restore, in the same menu, puts it back
+              — the token itself keeps working at the registry either way.
             </DialogDescription>
           </DialogHeader>
 
@@ -414,7 +445,13 @@ export function CredentialsPage() {
           )}
 
           <DialogFooter>
-            <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
+            <DialogClose
+              render={
+                <Button type="button" variant="outline">
+                  Cancel
+                </Button>
+              }
+            />
             <Button onClick={() => revoking && revokeNow(revoking)} disabled={revoke.isPending}>
               <Ban className="size-4" aria-hidden />
               {revoke.isPending ? "Revoking…" : "Revoke"}
@@ -548,8 +585,12 @@ function AddCredentialForm({
   const [registryUrl, setRegistryUrl] = useState("");
   // Beside the field that caused them, not in a toast: a rejected token is something to look
   // at while fixing it, and a notification is gone by the time the value is read back.
-  const [errors, setErrors] = useState<
-    { label?: string; token?: string; registryUrl?: string; form?: string }>({});
+  const [errors, setErrors] = useState<{
+    label?: string;
+    token?: string;
+    registryUrl?: string;
+    form?: string;
+  }>({});
   const create = useCreateCredential(orgId);
 
   function submit(event: FormEvent) {
@@ -586,8 +627,7 @@ function AddCredentialForm({
 
           // A failure the API did not attribute to a field — a 409, a 500 — still has to be
           // said somewhere, or the dialog just sits there having apparently done nothing.
-          setErrors(
-            field.label || field.token || field.registryUrl ? field : { form: err.detail });
+          setErrors(field.label || field.token || field.registryUrl ? field : { form: err.detail });
         },
       },
     );
@@ -637,8 +677,8 @@ function AddCredentialForm({
             <FieldGroup className="py-4">
               <p className="text-sm text-muted-foreground">
                 {entry.languages} publishes to {registryLabel[entry.kind]}.
-                {REGISTRIES.some((r) => !r.wired)
-                  && " The greyed-out registries are modelled but not yet wired up."}
+                {REGISTRIES.some((r) => !r.wired) &&
+                  " The greyed-out registries are modelled but not yet wired up."}
               </p>
 
               <Field data-invalid={Boolean(errors.label)}>
@@ -671,7 +711,8 @@ function AddCredentialForm({
                   }}
                   placeholder={entry.secretPlaceholder}
                   aria-invalid={Boolean(errors.token)}
-                  // Not "off": browsers ignore it on a password field, and managers then offer the login.
+                  // Not "off": browsers ignore it on a password field, and managers then offer
+                  // the login.
                   autoComplete="new-password"
                 />
                 <FieldError>{errors.token}</FieldError>
@@ -694,7 +735,9 @@ function AddCredentialForm({
                     // The address is what decides how the token is judged, so a rejection
                     // recorded under the other setting no longer describes anything.
                     setErrors((current) => ({
-                      ...current, registryUrl: undefined, token: undefined,
+                      ...current,
+                      registryUrl: undefined,
+                      token: undefined,
                     }));
                   }}
                 />
@@ -723,8 +766,8 @@ function AddCredentialForm({
                     <FieldError>{errors.registryUrl}</FieldError>
                   ) : (
                     <FieldDescription>
-                      Where packages using this token are published, instead of the public
-                      registry. The token is the one this server issued.
+                      Where packages using this token are published, instead of the public registry.
+                      The token is the one this server issued.
                     </FieldDescription>
                   )}
                 </Field>
@@ -744,14 +787,20 @@ function AddCredentialForm({
       </Tabs>
 
       <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
+        <DialogClose
+          render={
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          }
+        />
         <Button
           type="submit"
           disabled={
-            !label.trim()
-            || !token.trim()
-            || (privateRegistry && !registryUrl.trim())
-            || create.isPending
+            !label.trim() ||
+            !token.trim() ||
+            (privateRegistry && !registryUrl.trim()) ||
+            create.isPending
           }
         >
           {create.isPending ? "Saving…" : "Save credential"}

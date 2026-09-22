@@ -16,9 +16,7 @@ import { PageSpinner } from "@/components/PageSpinner";
  * The router navigates inside a transition, so moving between pages keeps the current one on
  * screen while the next chunk arrives; the fallbacks below show only on a cold load.
  */
-const LoginPage = lazy(() =>
-  import("@/routes/LoginPage").then((m) => ({ default: m.LoginPage })),
-);
+const LoginPage = lazy(() => import("@/routes/LoginPage").then((m) => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() =>
   import("@/routes/RegisterPage").then((m) => ({ default: m.RegisterPage })),
 );
@@ -35,7 +33,9 @@ const AccountDangerPage = lazy(() =>
   import("@/routes/account/AccountDangerPage").then((m) => ({ default: m.AccountDangerPage })),
 );
 const AccountNotificationsPage = lazy(() =>
-  import("@/routes/account/AccountNotificationsPage").then((m) => ({ default: m.AccountNotificationsPage })),
+  import("@/routes/account/AccountNotificationsPage").then((m) => ({
+    default: m.AccountNotificationsPage,
+  })),
 );
 const PublicationsPage = lazy(() =>
   import("@/routes/PublicationsPage").then((m) => ({ default: m.PublicationsPage })),
@@ -44,7 +44,9 @@ const MembersPage = lazy(() =>
   import("@/routes/MembersPage").then((m) => ({ default: m.MembersPage })),
 );
 const OrganizationSettingsPage = lazy(() =>
-  import("@/routes/OrganizationSettingsPage").then((m) => ({ default: m.OrganizationSettingsPage })),
+  import("@/routes/OrganizationSettingsPage").then((m) => ({
+    default: m.OrganizationSettingsPage,
+  })),
 );
 const ProjectSettingsPage = lazy(() =>
   import("@/routes/project/ProjectSettingsPage").then((m) => ({ default: m.ProjectSettingsPage })),
@@ -76,9 +78,7 @@ const ProjectTargetsPage = lazy(() =>
 const OrganizationRunsPage = lazy(() =>
   import("@/routes/OrganizationRunsPage").then((m) => ({ default: m.OrganizationRunsPage })),
 );
-const RunPage = lazy(() =>
-  import("@/routes/RunPage").then((m) => ({ default: m.RunPage })),
-);
+const RunPage = lazy(() => import("@/routes/RunPage").then((m) => ({ default: m.RunPage })));
 const CredentialsPage = lazy(() =>
   import("@/routes/CredentialsPage").then((m) => ({ default: m.CredentialsPage })),
 );

@@ -5,11 +5,7 @@ import { Button } from "@/components/ui/button";
 import { AuthCard } from "@/components/AuthCard";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  useAcceptInvitation,
-  useDeclineInvitation,
-  useInvitationPreview,
-} from "@/api/queries";
+import { useAcceptInvitation, useDeclineInvitation, useInvitationPreview } from "@/api/queries";
 import { roleLabel } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
 import { withReturnTo } from "@/lib/returnTo";
@@ -59,8 +55,8 @@ export function AcceptInvitationPage() {
           footer={backToOrganizations}
         >
           <p className="text-sm text-muted-foreground">
-            Open the link from the invitation email exactly as it was sent — a link that was
-            copied by hand often loses its last characters.
+            Open the link from the invitation email exactly as it was sent — a link that was copied
+            by hand often loses its last characters.
           </p>
         </AuthCard>
       </>
@@ -134,8 +130,8 @@ export function AcceptInvitationPage() {
           footer={backToOrganizations}
         >
           <p className="text-sm text-muted-foreground">
-            Invitations work once and expire on their own, and sending a new one puts the
-            previous link out. Ask whoever invited you to send another.
+            Invitations work once and expire on their own, and sending a new one puts the previous
+            link out. Ask whoever invited you to send another.
           </p>
         </AuthCard>
       </>
@@ -186,10 +182,7 @@ export function AcceptInvitationPage() {
           description="Nothing to accept — this invitation is for an organization you have joined."
           footer={backToOrganizations}
         >
-          <Button
-            className="w-full"
-            render={<Link to={`/orgs/${invitation.organizationSlug}`} />}
-          >
+          <Button className="w-full" render={<Link to={`/orgs/${invitation.organizationSlug}`} />}>
             Open {invitation.organizationName}
           </Button>
         </AuthCard>
@@ -252,7 +245,8 @@ export function AcceptInvitationPage() {
               disabled={working}
               onClick={() =>
                 accept.mutate(token, {
-                  onSuccess: () => navigate(`/orgs/${invitation.organizationSlug}`, { replace: true }),
+                  onSuccess: () =>
+                    navigate(`/orgs/${invitation.organizationSlug}`, { replace: true }),
                   onError: (error: unknown) =>
                     setFailure(
                       describeError(

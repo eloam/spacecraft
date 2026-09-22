@@ -42,9 +42,15 @@ const currentChunkHighlight = EditorView.decorations.compute([currentChunk, "doc
 const theme = EditorView.theme({
   // Tinted from the app's own tokens rather than the addon's defaults, which are fixed greens
   // and reds that ignore the theme.
-  ".cm-changedLine": { backgroundColor: "color-mix(in oklch, var(--code-warning) 14%, transparent)" },
-  ".cm-deletedChunk": { backgroundColor: "color-mix(in oklch, var(--destructive) 10%, transparent)" },
-  ".cm-changedText": { backgroundColor: "color-mix(in oklch, var(--code-warning) 26%, transparent)" },
+  ".cm-changedLine": {
+    backgroundColor: "color-mix(in oklch, var(--code-warning) 14%, transparent)",
+  },
+  ".cm-deletedChunk": {
+    backgroundColor: "color-mix(in oklch, var(--destructive) 10%, transparent)",
+  },
+  ".cm-changedText": {
+    backgroundColor: "color-mix(in oklch, var(--code-warning) 26%, transparent)",
+  },
   ".sc-current-chunk": { boxShadow: "inset 2px 0 0 0 var(--foreground)" },
 });
 

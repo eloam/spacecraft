@@ -1,6 +1,13 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronDown, CircleAlert, List, RefreshCw, ShieldCheck, ShieldOff, SquareCode, TriangleAlert,
+  ChevronDown,
+  CircleAlert,
+  List,
+  RefreshCw,
+  ShieldCheck,
+  ShieldOff,
+  SquareCode,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +15,12 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
-  Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle,
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
 } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -58,9 +70,12 @@ type Finding = IdentifiedDiagnostic & { severity: DiagnosticSeverity; line: numb
  * answered. Either way the lines it did find are real, and the rest go unplaced.
  */
 function useFindingLines(text: string | undefined, pointers: (string | null | undefined)[]) {
-  const [indexed, setIndexed] = useState<
-    { text: string; key: string; lines: (number | null)[]; error: string | null } | null
-  >(null);
+  const [indexed, setIndexed] = useState<{
+    text: string;
+    key: string;
+    lines: (number | null)[];
+    error: string | null;
+  } | null>(null);
 
   // The document alone did not identify the answer. Revalidating leaves the text untouched
   // and replaces the findings, so a result computed for the previous set was still considered
@@ -88,10 +103,16 @@ function useFindingLines(text: string | undefined, pointers: (string | null | un
     // An uncaught throw inside the worker, or a script that never loaded. The message can be
     // empty when the browser withholds the detail, and an empty banner explains nothing.
     worker.onerror = (event) =>
-      settle(pointers.map(() => null), event.message || "The indexer could not be started.");
+      settle(
+        pointers.map(() => null),
+        event.message || "The indexer could not be started.",
+      );
     // Deserialising the answer failed on this side: nothing usable crossed.
     worker.onmessageerror = () =>
-      settle(pointers.map(() => null), "The indexer's answer could not be read.");
+      settle(
+        pointers.map(() => null),
+        "The indexer's answer could not be read.",
+      );
 
     worker.postMessage({ text, pointers });
 
@@ -100,8 +121,7 @@ function useFindingLines(text: string | undefined, pointers: (string | null | un
 
   // Carrying the document it was computed for means "not indexed yet" is derived from the
   // state rather than written into it when the document changes.
-  const current =
-    indexed !== null && indexed.text === text && indexed.key === key ? indexed : null;
+  const current = indexed !== null && indexed.text === text && indexed.key === key ? indexed : null;
 
   return { lines: current?.lines ?? null, error: current?.error ?? null };
 }
@@ -146,7 +166,6 @@ export function SpecValidationDialog({
   // this is here so the button can say so before it is pressed rather than after.
   const strict = useProject(orgId, projectId).data?.strictValidation ?? true;
 
-
   const [mode, setMode] = useState<"source" | "list">("source");
   const [hidden, setHidden] = useState<DiagnosticSeverity[]>([]);
   const [currentId, setCurrentId] = useState<number | null>(null);
@@ -169,8 +188,8 @@ export function SpecValidationDialog({
           // The mode the server reports, not the one that was asked for: an override the
           // API does not honour would otherwise be announced as though it had been.
           toast.success(
-            `${plural(result.diagnostics.length, "finding")}, revalidated `
-            + `${result.strict ? "in strict mode" : "without strict mode"}.`,
+            `${plural(result.diagnostics.length, "finding")}, revalidated ` +
+              `${result.strict ? "in strict mode" : "without strict mode"}.`,
           );
         },
         onError: (error) =>
@@ -266,9 +285,7 @@ export function SpecValidationDialog({
   // the reader to find again what they were just looking at.
   useEffect(() => {
     if (mode !== "list") return;
-    list.current
-      ?.querySelector('[data-current="true"]')
-      ?.scrollIntoView({ block: "center" });
+    list.current?.querySelector('[data-current="true"]')?.scrollIntoView({ block: "center" });
   }, [mode, currentId]);
 
   function close() {
@@ -310,14 +327,14 @@ export function SpecValidationDialog({
     ? {
         title: "The findings could not be loaded",
         detail:
-          "Nothing is marked below, and that is this request failing rather than a clean "
-          + "document. Try again to see what validation found.",
+          "Nothing is marked below, and that is this request failing rather than a clean " +
+          "document. Try again to see what validation found.",
       }
     : {
         title: "The findings could not be refreshed",
         detail:
-          "What is marked below is the list from the last time it loaded. Validation may "
-          + "have said something else since.",
+          "What is marked below is the list from the last time it loaded. Validation may " +
+          "have said something else since.",
       };
 
   return (
@@ -397,7 +414,7 @@ export function SpecValidationDialog({
           )}
 
           <div className="ml-auto flex items-center gap-1 @5xl:ml-0 @5xl:justify-end">
-            <span className="mr-1 text-xs whitespace-nowrap tabular-nums text-muted-foreground">
+            <span className="mr-1 text-xs whitespace-nowrap text-muted-foreground tabular-nums">
               {counter()}
             </span>
             <StepButtons noun="finding" disabled={visible.length === 0} onStep={step} />
@@ -552,8 +569,8 @@ export function SpecValidationDialog({
               // Only in source mode, so the sentence's own promise holds: falling through in
               // list mode is what lets the list still work.
               <p className="p-6 text-sm text-muted-foreground">
-                The document could not be loaded, so findings cannot be shown against it. The
-                list still works.
+                The document could not be loaded, so findings cannot be shown against it. The list
+                still works.
               </p>
             ) : mode === "source" && source.data ? (
               <Suspense fallback={<SourceSkeleton />}>

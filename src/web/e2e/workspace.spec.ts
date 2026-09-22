@@ -30,7 +30,10 @@ test("an organization can be taken from empty to a finished run", async ({ owner
     await owner.getByLabel("Name").fill("Ledger API");
     await owner.getByRole("dialog").getByRole("button", { name: "Create" }).click();
 
-    await owner.getByRole("link", { name: /Ledger API/ }).first().click();
+    await owner
+      .getByRole("link", { name: /Ledger API/ })
+      .first()
+      .click();
     await expect(owner).toHaveURL(`${organizationPath}/projects/ledger-api`);
   });
 
@@ -66,5 +69,4 @@ test("an organization can be taken from empty to a finished run", async ({ owner
     // does, and this waits for what it shows.
     await expect(owner.getByText("Failed").first()).toBeVisible({ timeout: 45_000 });
   });
-
 });

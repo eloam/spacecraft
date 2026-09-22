@@ -7,7 +7,8 @@ import { z } from "zod";
  * anything invalid, but a name typed into a form should be corrected before a round trip,
  * and the preview below needs the same rules to be honest about the URL it promises.
  */
-export const NAME_RULE = "Use letters, numbers, spaces and hyphens only, starting with a letter or number.";
+export const NAME_RULE =
+  "Use letters, numbers, spaces and hyphens only, starting with a letter or number.";
 
 export const NAME_MAX_LENGTH = 100;
 

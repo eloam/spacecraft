@@ -210,10 +210,9 @@ function CreateProjectForm({
           <FieldContent>
             <FieldLabel htmlFor="project-strict">Strict validation</FieldLabel>
             <FieldDescription>
-              Check that a usable SDK can come out of an uploaded document — a base URL to
-              call, method names that can be spelled, described responses — and refuse the
-              ones that would produce a broken client. Turn it off for a specification you
-              consume but do not own.
+              Check that a usable SDK can come out of an uploaded document — a base URL to call,
+              method names that can be spelled, described responses — and refuse the ones that would
+              produce a broken client. Turn it off for a specification you consume but do not own.
             </FieldDescription>
           </FieldContent>
 
@@ -226,7 +225,13 @@ function CreateProjectForm({
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
+        <DialogClose
+          render={
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          }
+        />
         <Button type="submit" disabled={!isValidResourceName(name) || create.isPending}>
           {create.isPending ? "Creating…" : "Create"}
         </Button>

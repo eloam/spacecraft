@@ -74,9 +74,7 @@ test("an invitation can be taken back before it is used", async ({
   // Captured before withdrawing, so the link under test is a real one.
   const accept = linkIn(await waitForMessage(api, inviteeEmail, "invited"));
 
-  await owner
-    .getByRole("button", { name: `Withdraw the invitation to ${inviteeEmail}` })
-    .click();
+  await owner.getByRole("button", { name: `Withdraw the invitation to ${inviteeEmail}` }).click();
 
   await expect(owner.getByText("Pending invitations")).toBeHidden();
 

@@ -5,7 +5,14 @@ import { Ban, Download, FileUp, Hand, MousePointerClick, Zap } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Item, ItemActions, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
@@ -14,7 +21,11 @@ import { TableCard } from "@/components/TableCard";
 import { RunStatusIcon, StepStatusIcon } from "@/components/StatusBadge";
 import { ApiError, describeError } from "@/api/client";
 import {
-  useCancelRun, useDownloadArtifact, useOrganizations, useRun, useStepLog,
+  useCancelRun,
+  useDownloadArtifact,
+  useOrganizations,
+  useRun,
+  useStepLog,
 } from "@/api/queries";
 import {
   RunTrigger,
@@ -51,7 +62,9 @@ export function RunPage() {
   return (
     <div className="space-y-6">
       <title>
-        {organization ? `${runName} — ${organization.name} — SpaceCraft` : `${runName} — SpaceCraft`}
+        {organization
+          ? `${runName} — ${organization.name} — SpaceCraft`
+          : `${runName} — SpaceCraft`}
       </title>
 
       {/* The runs list is the organization's now, narrowed back to the project this run
@@ -60,7 +73,11 @@ export function RunPage() {
           organizations page. */}
       <div>
         <BackLink
-          to={run.data?.projectSlug ? `/orgs/${orgSlug}/runs?project=${run.data.projectSlug}` : `/orgs/${orgSlug}/runs`}
+          to={
+            run.data?.projectSlug
+              ? `/orgs/${orgSlug}/runs?project=${run.data.projectSlug}`
+              : `/orgs/${orgSlug}/runs`
+          }
           className="mb-2"
         >
           All runs
@@ -268,7 +285,10 @@ export function RunPage() {
                         </span>
                       ) : (
                         <span className="flex items-center gap-1.5 text-xs">
-                          <MousePointerClick className="size-3.5 text-muted-foreground" aria-hidden />
+                          <MousePointerClick
+                            className="size-3.5 text-muted-foreground"
+                            aria-hidden
+                          />
                           By hand
                         </span>
                       )}
@@ -417,7 +437,7 @@ export function RunPage() {
                           // wrap-anywhere, because Card clips what overflows it: a digest or
                           // a long path in the reason was cut off silently, with no
                           // scrollbar to say the sentence went on.
-                          <pre className="mt-2 ml-7 overflow-x-auto rounded-lg bg-destructive/5 p-3 text-xs whitespace-pre-wrap wrap-anywhere text-destructive">
+                          <pre className="mt-2 ml-7 overflow-x-auto rounded-lg bg-destructive/5 p-3 text-xs wrap-anywhere whitespace-pre-wrap text-destructive">
                             {step.failureReason}
                           </pre>
                         )}

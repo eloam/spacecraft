@@ -31,9 +31,7 @@ export default defineConfig({
   // process. Playwright's default of half the cores buys nothing here and, on a machine also
   // running the development stack, starves what it is testing.
   workers: 2,
-  reporter: process.env.CI
-    ? [["github"], ["html", { open: "never" }]]
-    : [["list"]],
+  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
 
   // Generous, and deliberately so: these tests wait on another process picking work off a
   // queue, and a build agent is not a quiet machine. A tight timeout here buys flakes, not

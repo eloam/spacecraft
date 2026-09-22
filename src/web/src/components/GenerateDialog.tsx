@@ -9,23 +9,45 @@ import { Switch } from "@/components/ui/switch";
 import { Panel, PanelLine, PanelSection } from "@/components/Panel";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import {
-  Field, FieldContent, FieldDescription, FieldGroup, FieldLabel,
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
 } from "@/components/ui/field";
 import {
-  Dialog, DialogClose, DialogContent, DialogDescription,
-  DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { describeError } from "@/api/client";
 import { useCreateRun, useOrganizations, useProject, useProjects, useSpecs } from "@/api/queries";
 import {
-  OrganizationRole, StepKind, isGeneratable, languageLabel, registryLabel, stepKindLabel,
+  OrganizationRole,
+  StepKind,
+  isGeneratable,
+  languageLabel,
+  registryLabel,
+  stepKindLabel,
 } from "@/api/types";
 
 /** Written once, so the closed trigger and the open list cannot drift apart. */
-function specLabel(spec?: { sequence: number; apiTitle: string | null; apiVersion: string | null }) {
+function specLabel(spec?: {
+  sequence: number;
+  apiTitle: string | null;
+  apiVersion: string | null;
+}) {
   if (!spec) return "";
   return `#${spec.sequence} — ${spec.apiTitle ?? "untitled"} ${spec.apiVersion ?? ""}`.trim();
 }
@@ -136,8 +158,8 @@ function GenerateForm({
   const versionRefusal = target
     ? (usableSpecs
         .find((s) => s.id === selectedSpec)
-        ?.publishesAs.find((r: { registry: number }) => r.registry === target.registry)
-        ?.refusal ?? null)
+        ?.publishesAs.find((r: { registry: number }) => r.registry === target.registry)?.refusal ??
+      null)
     : null;
 
   const role = organizations.data?.find((o) => o.id === orgId)?.role;
@@ -162,7 +184,7 @@ function GenerateForm({
 
   // Read, not reset: switching to a target that publishes nowhere must not leave a switch on
   // behind promising something the queued run would then quietly skip.
-  const wantsPublish = publish ?? (target?.autoPublish ?? false);
+  const wantsPublish = publish ?? target?.autoPublish ?? false;
   const willPublish = wantsPublish && !publishBlocked;
   const overridden = publish !== null && target !== undefined && publish !== target.autoPublish;
 
@@ -253,9 +275,9 @@ function GenerateForm({
             does not contain — leaves the fields disabled, not loading. */}
         <QueryBoundary
           isLoading={
-            Boolean(activeProject)
-            && (projects.isPending
-              || (Boolean(activeProjectId) && (project.isPending || specs.isPending)))
+            Boolean(activeProject) &&
+            (projects.isPending ||
+              (Boolean(activeProjectId) && (project.isPending || specs.isPending)))
           }
           error={project.error ?? specs.error ?? projects.error}
           rows={2}
@@ -271,7 +293,9 @@ function GenerateForm({
               }}
             >
               <SelectTrigger id="spec" className="w-full">
-                <SelectValue>{specLabel(usableSpecs.find((s) => s.id === selectedSpec))}</SelectValue>
+                <SelectValue>
+                  {specLabel(usableSpecs.find((s) => s.id === selectedSpec))}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {usableSpecs.map((spec) => (
@@ -353,8 +377,8 @@ function GenerateForm({
 
               {willPublish ? (
                 <PanelLine icon={CircleAlert} tone="destructive">
-                  Publishes to {registryLabel[target.registry]} — a version accepted by a
-                  registry cannot be taken back
+                  Publishes to {registryLabel[target.registry]} — a version accepted by a registry
+                  cannot be taken back
                 </PanelLine>
               ) : (
                 <PanelLine icon={Minus} muted>
@@ -393,8 +417,7 @@ function GenerateForm({
               <FieldDescription>
                 {publishBlocked === "no-credential" ? (
                   <>
-                    This target publishes nowhere. Choose a credential under Publish with on
-                    the{" "}
+                    This target publishes nowhere. Choose a credential under Publish with on the{" "}
                     <Link
                       to={`/orgs/${orgSlug}/projects/${activeProject}/targets`}
                       onClick={onDone}
@@ -408,9 +431,11 @@ function GenerateForm({
                 ) : overridden ? (
                   // The override is the point of the switch, so it says which way it went
                   // rather than repeating the warning the ledger above already carries.
-                  target?.autoPublish
-                    ? "Overriding this target: it publishes automatically, and this one run will not."
-                    : "Overriding this target: it publishes manually, and this one run will."
+                  target?.autoPublish ? (
+                    "Overriding this target: it publishes automatically, and this one run will not."
+                  ) : (
+                    "Overriding this target: it publishes manually, and this one run will."
+                  )
                 ) : target?.autoPublish ? (
                   "Following this target, which publishes automatically. Turn it off to generate and build only."
                 ) : (
@@ -429,15 +454,17 @@ function GenerateForm({
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
+        <DialogClose
+          render={
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          }
+        />
         {/* The irreversible variant says so on the button: ticking a box eight lines up
             should not leave the two runs looking like the same click. */}
         <Button type="submit" disabled={!selectedSpec || !selectedTarget || createRun.isPending}>
-          {createRun.isPending
-            ? "Queueing…"
-            : willPublish
-              ? "Queue run and publish"
-              : "Queue run"}
+          {createRun.isPending ? "Queueing…" : willPublish ? "Queue run and publish" : "Queue run"}
         </Button>
       </DialogFooter>
     </form>

@@ -8,223 +8,224 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    /* A serif heading face is the contrast this theme is built around — base-vega names
-       Noto Serif where base-maia named Lora. Carries CardTitle, DialogTitle, EmptyTitle
-       and every page <h1>. */
-    --font-heading: 'Noto Serif Variable', serif;
-    --font-sans: 'Inter Variable', sans-serif;
-    /* Geist Mono, as the preset's own preview uses. Monospace carries a lot here — package
-       names, registry URLs, versions, the spec viewer — so the system stack was the most
-       visible thing still not matching. */
-    --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-muted: var(--muted);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary-hover: var(--primary-hover);
-    --color-primary: var(--primary);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-popover: var(--popover);
-    --color-card-foreground: var(--card-foreground);
-    --color-card: var(--card);
-    --color-foreground: var(--foreground);
-    --color-background: var(--background);
-    --color-topbar: var(--topbar);
-    --color-page: var(--page);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
+  /* A serif heading face is the contrast this theme is built around — base-vega names
+     Noto Serif where base-maia named Lora. Carries CardTitle, DialogTitle, EmptyTitle
+     and every page <h1>. */
+  --font-heading: "Noto Serif Variable", serif;
+  --font-sans: "Inter Variable", sans-serif;
+  /* Geist Mono, as the preset's own preview uses. Monospace carries a lot here — package
+     names, registry URLs, versions, the spec viewer — so the system stack was the most
+     visible thing still not matching. */
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-topbar: var(--topbar);
+  --color-page: var(--page);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0.008 326);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0.008 326);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0.008 326);
-    /* Mauve, and meant to be seen as such. The palette is a mauve-tinted neutral ramp, which
-       reads in dark — where every surface sits above a near-black ground — and disappears in
-       light, where a primary at chroma 0.019 is simply black. The buttons that start things
-       are the one place the theme's colour should be legible in both. */
-    --primary: oklch(0.48 0.14 322);
-    --primary-foreground: oklch(0.985 0 0);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0.008 326);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0.008 326);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0.008 326);
+  /* Mauve, and meant to be seen as such. The palette is a mauve-tinted neutral ramp, which
+     reads in dark — where every surface sits above a near-black ground — and disappears in
+     light, where a primary at chroma 0.019 is simply black. The buttons that start things
+     are the one place the theme's colour should be legible in both. */
+  --primary: oklch(0.48 0.14 322);
+  --primary-foreground: oklch(0.985 0 0);
 
-    /* A filled button darkens on hover here rather than fading toward the page.
-       `bg-primary/80` is the shadcn default and it works in dark — a light primary thinned
-       against a dark ground keeps its dark label readable — but in light it walks the button
-       toward the paper under it and takes the white label with it. It measured 3.9:1 against
-       that label before this, under the 4.5:1 normal text asks for, and a mid-tone primary
-       would have made it 3.3:1. Darkening moves the other way: 9.5:1. */
-    --primary-hover: oklch(0.4 0.14 322);
-    /* The surfaces above a card — table headers at /50, the small framed panels at /40, a
-       row under the pointer at full strength, the chips in an empty state.
+  /* A filled button darkens on hover here rather than fading toward the page.
+     `bg-primary/80` is the shadcn default and it works in dark — a light primary thinned
+     against a dark ground keeps its dark label readable — but in light it walks the button
+     toward the paper under it and takes the white label with it. It measured 3.9:1 against
+     that label before this, under the 4.5:1 normal text asks for, and a mid-tone primary
+     would have made it 3.3:1. Darkening moves the other way: 9.5:1. */
+  --primary-hover: oklch(0.4 0.14 322);
+  /* The surfaces above a card — table headers at /50, the small framed panels at /40, a
+     row under the pointer at full strength, the chips in an empty state.
 
-       Chroma 0.014 rather than the 0.003 they had. At 0.003 they are grey, so every one of
-       them read as somebody else's component sitting in this theme — and tinting a panel by
-       hand would only have made the hover inside it look greyer still. Tinting the family
-       they are all mixed from keeps every step where it was — a panel lighter than a header,
-       a header lighter than a hover — and gives the whole ladder the cast the dark theme has
-       had all along.
+     Chroma 0.014 rather than the 0.003 they had. At 0.003 they are grey, so every one of
+     them read as somebody else's component sitting in this theme — and tinting a panel by
+     hand would only have made the hover inside it look greyer still. Tinting the family
+     they are all mixed from keeps every step where it was — a panel lighter than a header,
+     a header lighter than a hover — and gives the whole ladder the cast the dark theme has
+     had all along.
 
-       --page stays at 0.003 on purpose. The dark theme raises chroma as surfaces rise above
-       its ground; this is the same ladder, the right way up. */
-    --secondary: oklch(0.96 0.014 325.6);
-    --secondary-foreground: oklch(0.212 0.019 322.12);
-    --muted: oklch(0.96 0.014 325.6);
-    --muted-foreground: oklch(0.542 0.034 322.5);
-    --accent: oklch(0.96 0.014 325.6);
-    --accent-foreground: oklch(0.212 0.019 322.12);
-    /* Darker than the preset's 0.577: the destructive button sets this text on a 10% tint of
-       itself, where the preset's red measured 3.98:1 against the 4.5:1 AA asks of text. */
-    --destructive: oklch(0.53 0.22 27.325);
-    --border: oklch(0.922 0.005 325.62);
-    --input: oklch(0.922 0.005 325.62);
-    /* Darker than the preset's 0.711: the focus ring is the only thing telling a
-       keyboard user where they are, and at that value the visible 3px band measured
-       1.54:1 against a card — WCAG 1.4.11 asks 3:1. This reads 4.9:1 solid. */
-    --ring: oklch(0.55 0.03 323);
-    --chart-1: oklch(0.865 0.012 325.68);
-    --chart-2: oklch(0.542 0.034 322.5);
-    --chart-3: oklch(0.435 0.029 321.78);
-    --chart-4: oklch(0.364 0.029 323.89);
-    --chart-5: oklch(0.263 0.024 320.12);
-    --radius: 0.875rem;
+     --page stays at 0.003 on purpose. The dark theme raises chroma as surfaces rise above
+     its ground; this is the same ladder, the right way up. */
+  --secondary: oklch(0.96 0.014 325.6);
+  --secondary-foreground: oklch(0.212 0.019 322.12);
+  --muted: oklch(0.96 0.014 325.6);
+  --muted-foreground: oklch(0.542 0.034 322.5);
+  --accent: oklch(0.96 0.014 325.6);
+  --accent-foreground: oklch(0.212 0.019 322.12);
+  /* Darker than the preset's 0.577: the destructive button sets this text on a 10% tint of
+     itself, where the preset's red measured 3.98:1 against the 4.5:1 AA asks of text. */
+  --destructive: oklch(0.53 0.22 27.325);
+  --border: oklch(0.922 0.005 325.62);
+  --input: oklch(0.922 0.005 325.62);
+  /* Darker than the preset's 0.711: the focus ring is the only thing telling a
+     keyboard user where they are, and at that value the visible 3px band measured
+     1.54:1 against a card — WCAG 1.4.11 asks 3:1. This reads 4.9:1 solid. */
+  --ring: oklch(0.55 0.03 323);
+  --chart-1: oklch(0.865 0.012 325.68);
+  --chart-2: oklch(0.542 0.034 322.5);
+  --chart-3: oklch(0.435 0.029 321.78);
+  --chart-4: oklch(0.364 0.029 323.89);
+  --chart-5: oklch(0.263 0.024 320.12);
+  --radius: 0.875rem;
 
-    /* The bars at the top of the app — the global one and the sections under it — share a
-       single surface so they read as one piece of chrome rather than two stacked strips.
-       Opaque rather than muted/30: the global bar is sticky, and a translucent one would
-       let the page scroll through it. Mixed rather than hand-picked so it keeps tracking
-       --card and --page if either is retuned.
+  /* The bars at the top of the app — the global one and the sections under it — share a
+     single surface so they read as one piece of chrome rather than two stacked strips.
+     Opaque rather than muted/30: the global bar is sticky, and a translucent one would
+     let the page scroll through it. Mixed rather than hand-picked so it keeps tracking
+     --card and --page if either is retuned.
 
-       Mixed toward --card, and against --page rather than --background: the bar has to
-       separate from the ground it sits on, and it has to do so in both themes. --muted is
-       below the ground in light and above it in dark, and at the light ground's current
-       value it *is* the ground — a bar mixed from it disappeared. --card is above the page
-       in both, so the bar lands on the lit side of it either way. */
-    --topbar: color-mix(in oklch, var(--card) 30%, var(--page));
+     Mixed toward --card, and against --page rather than --background: the bar has to
+     separate from the ground it sits on, and it has to do so in both themes. --muted is
+     below the ground in light and above it in dark, and at the light ground's current
+     value it *is* the ground — a bar mixed from it disappeared. --card is above the page
+     in both, so the bar lands on the lit side of it either way. */
+  --topbar: color-mix(in oklch, var(--card) 30%, var(--page));
 
-    /* The ground the whole app sits on, named rather than borrowed. It used to be --muted,
-       which also paints table headers, muted tiles and the icon chips in empty states: any
-       value that suited the page flattened those, since a tile at muted/50 over a muted
-       ground is the same colour. mauve-50 and mauve-900 are the palette's own steps, so a
-       preset change still tracks them, unlike the raw bg-mauve-50 utility this replaces. */
-    --page: oklch(0.96 0.003 325.6);
+  /* The ground the whole app sits on, named rather than borrowed. It used to be --muted,
+     which also paints table headers, muted tiles and the icon chips in empty states: any
+     value that suited the page flattened those, since a tile at muted/50 over a muted
+     ground is the same colour. mauve-50 and mauve-900 are the palette's own steps, so a
+     preset change still tracks them, unlike the raw bg-mauve-50 utility this replaces. */
+  --page: oklch(0.96 0.003 325.6);
 
-    /* Source colours for the spec viewer. Kept at very low chroma so a document reads as
-       part of this greyscale interface rather than as an editor pasted into it — structure
-       comes mostly from weight, with just enough tone to separate keys from values.
-       --code-warning is the one severity the palette had no colour for: destructive covers
-       errors, muted covers information, and warnings sat between them with nothing. */
-    --code-key: oklch(0.36 0.06 265);
-    --code-string: oklch(0.44 0.05 155);
-    --code-atom: oklch(0.45 0.07 45);
-    --code-warning: oklch(0.62 0.11 75);
+  /* Source colours for the spec viewer. Kept at very low chroma so a document reads as
+     part of this greyscale interface rather than as an editor pasted into it — structure
+     comes mostly from weight, with just enough tone to separate keys from values.
+     --code-warning is the one severity the palette had no colour for: destructive covers
+     errors, muted covers information, and warnings sat between them with nothing. */
+  --code-key: oklch(0.36 0.06 265);
+  --code-string: oklch(0.44 0.05 155);
+  --code-atom: oklch(0.45 0.07 45);
+  --code-warning: oklch(0.62 0.11 75);
 
-    /* The other half of --code-warning. Publishing on its own is the state worth flagging;
-       publishing only when a person says so is the reassuring one, and had no colour to be
-       reassuring in — it was left grey, which read as disabled rather than as held. */
-    --success: oklch(0.58 0.11 155);
+  /* The other half of --code-warning. Publishing on its own is the state worth flagging;
+     publishing only when a person says so is the reassuring one, and had no colour to be
+     reassuring in — it was left grey, which read as disabled rather than as held. */
+  --success: oklch(0.58 0.11 155);
 
-    /* Worn by the "All" filter when it is the one selected. Purple because it is the only
-       one of these options that is not a severity: it says nothing is being hidden, so it
-       cannot borrow the colour of anything it would have hidden. */
-    --filter-all: oklch(0.56 0.13 300);
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0.008 326);
-    --sidebar-primary: oklch(0.212 0.019 322.12);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.96 0.003 325.6);
-    --sidebar-accent-foreground: oklch(0.212 0.019 322.12);
-    --sidebar-border: oklch(0.922 0.005 325.62);
-    --sidebar-ring: oklch(0.711 0.019 323.02);
+  /* Worn by the "All" filter when it is the one selected. Purple because it is the only
+     one of these options that is not a severity: it says nothing is being hidden, so it
+     cannot borrow the colour of anything it would have hidden. */
+  --filter-all: oklch(0.56 0.13 300);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0.008 326);
+  --sidebar-primary: oklch(0.212 0.019 322.12);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.96 0.003 325.6);
+  --sidebar-accent-foreground: oklch(0.212 0.019 322.12);
+  --sidebar-border: oklch(0.922 0.005 325.62);
+  --sidebar-ring: oklch(0.711 0.019 323.02);
 }
 
 .dark {
-    --background: oklch(0.145 0.008 326);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.263 0.015 322.12);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.263 0.015 322.12);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0.005 325.62);
-    --primary-foreground: oklch(0.212 0.015 322.12);
-    /* Matches what `bg-primary/80` produced over this theme's ground, to the eye and to the
-       contrast checker — 11.2:1 against the label where the mix gave 11.4:1. Named rather
-       than mixed so that both themes answer the same question the same way. */
-    --primary-hover: oklch(0.85 0.008 325.62);
-    --secondary: oklch(0.314 0.024 320.12);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.314 0.024 320.12);
-    --muted-foreground: oklch(0.711 0.019 323.02);
-    --accent: oklch(0.314 0.024 320.12);
-    --accent-foreground: oklch(0.985 0 0);
-    /* Lighter than the preset's 0.704, for the reason the light one is darker: on the 20% tint
-       the button uses here, over this card, the preset's red measured 3.98:1. */
-    --destructive: oklch(0.78 0.17 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.542 0.034 322.5);
-    --chart-1: oklch(0.865 0.012 325.68);
-    --chart-2: oklch(0.542 0.034 322.5);
-    --chart-3: oklch(0.435 0.029 321.78);
-    --chart-4: oklch(0.364 0.029 323.89);
-    --chart-5: oklch(0.263 0.024 320.12);
-    --sidebar: oklch(0.263 0.015 322.12);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.314 0.024 320.12);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.542 0.034 322.5);
-    --code-key: oklch(0.78 0.07 265);
-    --code-string: oklch(0.76 0.06 155);
-    --code-atom: oklch(0.79 0.08 45);
-    --code-warning: oklch(0.78 0.1 75);
-    --success: oklch(0.76 0.1 155);
-    --filter-all: oklch(0.76 0.12 300);
-    --page: oklch(0.212 0.008 322.12);
-
+  --background: oklch(0.145 0.008 326);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.263 0.015 322.12);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.263 0.015 322.12);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0.005 325.62);
+  --primary-foreground: oklch(0.212 0.015 322.12);
+  /* Matches what `bg-primary/80` produced over this theme's ground, to the eye and to the
+     contrast checker — 11.2:1 against the label where the mix gave 11.4:1. Named rather
+     than mixed so that both themes answer the same question the same way. */
+  --primary-hover: oklch(0.85 0.008 325.62);
+  --secondary: oklch(0.314 0.024 320.12);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.314 0.024 320.12);
+  --muted-foreground: oklch(0.711 0.019 323.02);
+  --accent: oklch(0.314 0.024 320.12);
+  --accent-foreground: oklch(0.985 0 0);
+  /* Lighter than the preset's 0.704, for the reason the light one is darker: on the 20% tint
+     the button uses here, over this card, the preset's red measured 3.98:1. */
+  --destructive: oklch(0.78 0.17 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.542 0.034 322.5);
+  --chart-1: oklch(0.865 0.012 325.68);
+  --chart-2: oklch(0.542 0.034 322.5);
+  --chart-3: oklch(0.435 0.029 321.78);
+  --chart-4: oklch(0.364 0.029 323.89);
+  --chart-5: oklch(0.263 0.024 320.12);
+  --sidebar: oklch(0.263 0.015 322.12);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.314 0.024 320.12);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.542 0.034 322.5);
+  --code-key: oklch(0.78 0.07 265);
+  --code-string: oklch(0.76 0.06 155);
+  --code-atom: oklch(0.79 0.08 45);
+  --code-warning: oklch(0.78 0.1 75);
+  --success: oklch(0.76 0.1 155);
+  --filter-all: oklch(0.76 0.12 300);
+  --page: oklch(0.212 0.008 322.12);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
   body {
     @apply bg-page text-foreground;
-    }
+  }
   html {
     @apply font-sans;
-    }
+  }
   /* Durations cut rather than animations removed, so JS waiting on animationend still fires. */
   @media (prefers-reduced-motion: reduce) {
-    *, ::before, ::after {
+    *,
+    ::before,
+    ::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;

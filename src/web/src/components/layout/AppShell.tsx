@@ -70,12 +70,7 @@ export function AppShell() {
       {/* Bordered only when nothing follows it. When the organization's sections are below,
           the two bars share a surface and a border between them would cut in half something
           meant to read as one. The section bar carries the closing border instead. */}
-      <header
-        className={cn(
-          "sticky top-0 z-30 bg-topbar",
-          !orgSlug && "border-b",
-        )}
-      >
+      <header className={cn("sticky top-0 z-30 bg-topbar", !orgSlug && "border-b")}>
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
           <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight">
             <Orbit className="size-5" aria-hidden />
@@ -124,10 +119,7 @@ export function AppShell() {
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => logout.mutate()}
-                  disabled={logout.isPending}
-                >
+                <DropdownMenuItem onClick={() => logout.mutate()} disabled={logout.isPending}>
                   <LogOut className="size-4" aria-hidden />
                   Sign out
                 </DropdownMenuItem>

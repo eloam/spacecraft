@@ -12,7 +12,10 @@ import { DangerSection, SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { describeError } from "@/api/client";
 import {
-  useDeleteProject, useProject, useRenameProject, useSetStrictValidation,
+  useDeleteProject,
+  useProject,
+  useRenameProject,
+  useSetStrictValidation,
 } from "@/api/queries";
 import { plural } from "@/lib/format";
 
@@ -84,18 +87,16 @@ export function ProjectSettingsPage() {
                 {/* Content first, switch last: the row reads label-then-state, the way it did
                     when a justify-between div held the two apart. */}
                 <FieldContent className="max-w-lg">
-                  <FieldLabel htmlFor="strict">
-                    Strict mode
-                  </FieldLabel>
+                  <FieldLabel htmlFor="strict">Strict mode</FieldLabel>
                   <FieldDescription>
-                    Beyond &ldquo;is this valid OpenAPI&rdquo;, check whether a usable SDK can
-                    come out of it: a base URL to call, method names that can be spelled,
-                    described responses, publishable metadata. A document that would produce a
-                    broken client is rejected instead of being built.
+                    Beyond &ldquo;is this valid OpenAPI&rdquo;, check whether a usable SDK can come
+                    out of it: a base URL to call, method names that can be spelled, described
+                    responses, publishable metadata. A document that would produce a broken client
+                    is rejected instead of being built.
                   </FieldDescription>
                   <FieldDescription>
-                    Turn it off for a specification you consume but do not own, where the
-                    findings are noise standing between you and a client that works.
+                    Turn it off for a specification you consume but do not own, where the findings
+                    are noise standing between you and a client that works.
                   </FieldDescription>
                 </FieldContent>
 
@@ -160,12 +161,15 @@ export function ProjectSettingsPage() {
               isPending={remove.isPending}
               error={remove.error}
               onConfirm={() =>
-                remove.mutate({ projectId, name: project.data.name }, {
-                  onSuccess: () => {
-                    toast.success("Project deleted.");
-                    navigate(`/orgs/${orgSlug}`);
+                remove.mutate(
+                  { projectId, name: project.data.name },
+                  {
+                    onSuccess: () => {
+                      toast.success("Project deleted.");
+                      navigate(`/orgs/${orgSlug}`);
+                    },
                   },
-                })
+                )
               }
             />
           </>
