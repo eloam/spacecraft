@@ -46,7 +46,7 @@ public static class RenameOrganization
 
         if (taken)
         {
-            return ApiResults.Conflict($"Another organization already uses the address '{organization.Slug}'.");
+            return ApiResults.Conflict($"Another organization already uses the slug '{organization.Slug}'.");
         }
 
         await db.SaveChangesAsync(ct);

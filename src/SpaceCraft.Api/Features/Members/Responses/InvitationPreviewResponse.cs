@@ -12,7 +12,7 @@ namespace SpaceCraft.Api.Features.Members.Responses;
 /// looking at a link from a stranger actually has.
 /// </remarks>
 /// <param name="OrganizationName">The organization's name.</param>
-/// <param name="OrganizationSlug">Its address.</param>
+/// <param name="OrganizationSlug">Its slug.</param>
 /// <param name="Role">The role accepting would grant.</param>
 /// <param name="InvitedBy">The name the inviter goes by, or the address they signed up with.</param>
 /// <param name="ExpiresAt">When the invitation stops working.</param>
