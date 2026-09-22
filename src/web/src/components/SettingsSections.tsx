@@ -1,11 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 /**
@@ -39,7 +33,18 @@ function SectionHeader({
           {icon}
         </div>
       )}
-      <CardTitle className={cn(destructive && "text-destructive")}>{title}</CardTitle>
+      {/* A heading rather than CardTitle, which renders a div: each settings block is a
+          section a screen reader should find in the page's outline. Its classes are
+          CardTitle's so it looks the same. */}
+      <h2
+        data-slot="card-title"
+        className={cn(
+          "font-heading text-base leading-normal font-medium group-data-[size=sm]/card:text-sm",
+          destructive && "text-destructive",
+        )}
+      >
+        {title}
+      </h2>
       <CardDescription>{description}</CardDescription>
     </CardHeader>
   );

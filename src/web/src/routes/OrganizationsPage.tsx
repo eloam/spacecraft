@@ -15,6 +15,11 @@ export function OrganizationsPage() {
 
   return (
     <div className="space-y-6">
+      {/* React 19 hoists a <title> rendered anywhere into <head>, so every page names itself
+          this way — page first, product last — and layouts and dialogs never do, so only one
+          is rendered at a time. A single string, since a title takes no other children. */}
+      <title>Organizations — SpaceCraft</title>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-medium tracking-tight">Organizations</h1>

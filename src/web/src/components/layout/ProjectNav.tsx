@@ -1,6 +1,6 @@
-import { NavLink, useLocation, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { FileCode2, Package, Settings } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { SectionNav } from "@/components/layout/SectionNav";
 
 /**
  * The project's sections.
@@ -11,15 +11,7 @@ import { cn } from "@/lib/utils";
  */
 export function ProjectNav() {
   const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
-  const { pathname } = useLocation();
-
   const base = `/orgs/${orgSlug}/projects/${projectSlug}`;
-
-  const tabs = [
-    { label: "Specs", to: base, icon: <FileCode2 className="size-4" aria-hidden />, exact: true },
-    { label: "SDK targets", to: `${base}/targets`, icon: <Package className="size-4" aria-hidden /> },
-    { label: "Settings", to: `${base}/settings`, icon: <Settings className="size-4" aria-hidden /> },
-  ];
 
   return (
     // The rule sits on the wrapper rather than the nav, so -mb-px can lift the active tab's
@@ -27,31 +19,14 @@ export function ProjectNav() {
     // cancel the margin-block-end the layout puts after the wrapper, which is what it did
     // when this element carried the border itself.
     <div className="border-b">
-      <nav aria-label="Project sections" className="-mb-px flex gap-1 overflow-x-auto scroll-smooth [scrollbar-width:thin]">
-        {tabs.map((tab) => {
-          const active = tab.exact ? pathname === tab.to : pathname.startsWith(tab.to);
-
-          return (
-            <NavLink
-              key={tab.to}
-              to={tab.to}
-              end={tab.exact}
-              className={cn(
-                // first:pl-0 rather than a negative margin on the whole bar: both put the first
-                // tab's icon on the page margin, but this one keeps its underline from starting
-                // 12px to the left of everything else. The gap to the next tab is untouched.
-                "flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors first:pl-0",
-                active
-                  ? "border-foreground font-medium text-foreground"
-                  : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
-              )}
-            >
-              {tab.icon}
-              {tab.label}
-            </NavLink>
-          );
-        })}
-      </nav>
+      <SectionNav
+        label="Project sections"
+        tabs={[
+          { label: "Specs", to: base, icon: <FileCode2 className="size-4" aria-hidden />, end: true },
+          { label: "SDK targets", to: `${base}/targets`, icon: <Package className="size-4" aria-hidden /> },
+          { label: "Settings", to: `${base}/settings`, icon: <Settings className="size-4" aria-hidden /> },
+        ]}
+      />
     </div>
   );
 }

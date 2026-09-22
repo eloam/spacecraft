@@ -221,7 +221,6 @@ function TargetForm({
                 </span>
                 <span
                   className="w-full truncate font-mono text-xs leading-tight text-muted-foreground"
-                  title={usable.find((c) => c.id === credentialId)?.registryUrl}
                 >
                   {publishes
                     ? usable.find((c) => c.id === credentialId)?.registryUrl
@@ -246,7 +245,6 @@ function TargetForm({
                     <span className="w-full truncate leading-tight">{credential.label}</span>
                     <span
                       className="w-full truncate font-mono text-xs leading-tight text-muted-foreground"
-                      title={credential.registryUrl}
                     >
                       {credential.registryUrl}
                     </span>

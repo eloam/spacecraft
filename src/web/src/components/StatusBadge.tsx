@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleDashed, MinusCircle, XCircle } from "lucide-react";
+import { CheckCircle2, CircleDashed, Loader2Icon, MinusCircle, XCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import {
@@ -43,7 +43,13 @@ export function RunStatusBadge({ status }: { status: number }) {
     case RunStatus.Running:
       return (
         // The pill owns the colour and the spinner inherits it, so the tone survives the swap.
-        <Pill tone="running" icon={<Spinner className={ICON_CLASS} />} label="Running" />
+        // The raw icon rather than the shadcn Spinner: that one is a role="status" region of
+        // its own, which read "Loading Running" and announced once per table row.
+        <Pill
+          tone="running"
+          icon={<Loader2Icon className={cn(ICON_CLASS, "animate-spin")} aria-hidden />}
+          label="Running"
+        />
       );
     case RunStatus.Cancelled:
       return <Pill tone="neutral" icon={<MinusCircle className={ICON_CLASS} />} label="Cancelled" />;

@@ -75,7 +75,9 @@ export function OrganizationSwitcher() {
               <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
             </Button>
           }
-          aria-label="Switch organization"
+          // The visible name stays in the accessible name (WCAG 2.5.3): a label that only said
+          // what the button does left "click Ledger" with nothing to match.
+          aria-label={`Switch organization, ${current?.name ?? orgId}`}
         />
         <DropdownMenuContent align="start" className="w-64">
           {all.length > SEARCH_THRESHOLD && (
@@ -104,27 +106,32 @@ export function OrganizationSwitcher() {
               </p>
             )}
 
-            {matches.map((organization) => (
-              // A Link, not an onClick: Base UI closes the menu on its own press handling
-              // and the click never reaches the callback — the same reason Settings in the
-              // account menu is a link. It also makes these open in a new tab.
-              <DropdownMenuItem
-                key={organization.id}
-                render={<Link to={`/orgs/${organization.slug}`} />}
-              >
-              <Check
-                className={cn(
-                  "size-4",
-                  organization.slug === orgId ? "opacity-100" : "opacity-0",
-                )}
-                aria-hidden
-              />
-              <span className="flex-1 truncate">{organization.name}</span>
-              <span className="text-xs text-muted-foreground">
-                {roleLabel[organization.role] ?? "Unknown"}
-              </span>
-              </DropdownMenuItem>
-            ))}
+            {matches.map((organization) => {
+              const isCurrent = organization.id === current?.id;
+              return (
+                // A Link, not an onClick: Base UI closes the menu on its own press handling
+                // and the click never reaches the callback — the same reason Settings in the
+                // account menu is a link. It also makes these open in a new tab.
+                <DropdownMenuItem
+                  key={organization.id}
+                  render={
+                    <Link
+                      to={`/orgs/${organization.slug}`}
+                      aria-current={isCurrent ? "page" : undefined}
+                    />
+                  }
+                >
+                  <Check
+                    className={cn("size-4", isCurrent ? "opacity-100" : "opacity-0")}
+                    aria-hidden
+                  />
+                  <span className="flex-1 truncate">{organization.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {roleLabel[organization.role] ?? "Unknown"}
+                  </span>
+                </DropdownMenuItem>
+              );
+            })}
           </DropdownMenuGroup>
 
           <DropdownMenuSeparator />

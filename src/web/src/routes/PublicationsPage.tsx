@@ -6,16 +6,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/components/EmptyState";
 import { PublicationStatusBadge } from "@/components/StatusBadge";
 import { QueryBoundary } from "@/components/QueryBoundary";
-import { usePublications } from "@/api/queries";
+import { useOrganizations, usePublications } from "@/api/queries";
 import { registryLabel } from "@/api/types";
+import { formatDateTime } from "@/lib/format";
 
 export function PublicationsPage() {
   const { orgId: orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
+  const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const publications = usePublications(orgId);
 
   return (
     <div className="space-y-6">
+      <title>
+        {organization ? `Published — ${organization.name} — SpaceCraft` : `Published — SpaceCraft`}
+      </title>
+
       <div>
         <h1 className="font-heading text-2xl font-medium tracking-tight">Published</h1>
         <p className="text-sm text-muted-foreground">
@@ -56,6 +62,7 @@ export function PublicationsPage() {
                       >
                         {publication.packageName}
                         <ExternalLink className="size-3" aria-hidden />
+                        <span className="sr-only"> (opens in a new tab)</span>
                       </a>
                     ) : (
                       publication.packageName
@@ -83,9 +90,13 @@ export function PublicationsPage() {
                     {/* Null until the registry has answered: a pending publication has no
                         completion time, and showing createdAt in its place said "published"
                         about something that might still fail. */}
-                    {publication.completedAt
-                      ? new Date(publication.completedAt).toLocaleString()
-                      : "—"}
+                    {publication.completedAt ? (
+                      <time dateTime={publication.completedAt}>
+                        {formatDateTime(publication.completedAt)}
+                      </time>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

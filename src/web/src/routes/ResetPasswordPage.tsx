@@ -45,77 +45,92 @@ export function ResetPasswordPage() {
   // A link opened without its token is a truncated email, not a user error worth a form.
   if (!token) {
     return (
-      <AuthCard
-        title="Link incomplete"
-        description="This reset link is missing its token."
-        footer={backToSignIn}
-      >
-        <p className="text-sm text-muted-foreground">
-          Email clients sometimes cut long links in half. Open it from the original message,
-          or{" "}
-          <Link to="/forgot-password" className="font-medium text-foreground underline underline-offset-4">
-            request a new one
-          </Link>
-          .
-        </p>
-      </AuthCard>
+      <>
+        <title>Reset password — SpaceCraft</title>
+
+        <AuthCard
+          title="Link incomplete"
+          description="This reset link is missing its token."
+          footer={backToSignIn}
+        >
+          <p className="text-sm text-muted-foreground">
+            Email clients sometimes cut long links in half. Open it from the original message,
+            or{" "}
+            <Link
+              to="/forgot-password"
+              className="font-medium text-foreground underline underline-offset-4"
+            >
+              request a new one
+            </Link>
+            .
+          </p>
+        </AuthCard>
+      </>
     );
   }
 
   if (reset.isSuccess) {
     return (
-      <AuthCard title="Password changed" description={reset.data.message} footer={backToSignIn}>
-        <p className="text-sm text-muted-foreground">
-          Every other session has been signed out. Sign in again with your new password.
-        </p>
-      </AuthCard>
+      <>
+        <title>Reset password — SpaceCraft</title>
+
+        <AuthCard title="Password changed" description={reset.data.message} footer={backToSignIn}>
+          <p className="text-sm text-muted-foreground">
+            Every other session has been signed out. Sign in again with your new password.
+          </p>
+        </AuthCard>
+      </>
     );
   }
 
   return (
-    <AuthCard
-      title="Choose a new password"
-      description="Pick something you haven't used elsewhere."
-      footer={backToSignIn}
-    >
-      <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        <FieldGroup>
-          <Field data-invalid={!!form.formState.errors.newPassword}>
-            <FieldLabel htmlFor="newPassword">New password</FieldLabel>
-            <Input
-              id="newPassword"
-              type="password"
-              autoComplete="new-password"
-              autoFocus
-              aria-invalid={!!form.formState.errors.newPassword}
-              {...form.register("newPassword")}
-            />
-            <FieldError errors={[form.formState.errors.newPassword]} />
-          </Field>
+    <>
+      <title>Reset password — SpaceCraft</title>
 
-          <Field data-invalid={!!form.formState.errors.confirmPassword}>
-            <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
-            <Input
-              id="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              aria-invalid={!!form.formState.errors.confirmPassword}
-              {...form.register("confirmPassword")}
-            />
-            <FieldError errors={[form.formState.errors.confirmPassword]} />
-          </Field>
-        </FieldGroup>
+      <AuthCard
+        title="Choose a new password"
+        description="Pick something you haven't used elsewhere."
+        footer={backToSignIn}
+      >
+        <form onSubmit={onSubmit} className="space-y-4" noValidate>
+          <FieldGroup>
+            <Field data-invalid={!!form.formState.errors.newPassword}>
+              <FieldLabel htmlFor="newPassword">New password</FieldLabel>
+              <Input
+                id="newPassword"
+                type="password"
+                autoComplete="new-password"
+                autoFocus
+                aria-invalid={!!form.formState.errors.newPassword}
+                {...form.register("newPassword")}
+              />
+              <FieldError errors={[form.formState.errors.newPassword]} />
+            </Field>
 
-        {reset.error && (
-          <p className="text-sm text-destructive" role="alert">
-            {describeError(reset.error, "Something went wrong. Try again.")}
-          </p>
-        )}
+            <Field data-invalid={!!form.formState.errors.confirmPassword}>
+              <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
+              <Input
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                aria-invalid={!!form.formState.errors.confirmPassword}
+                {...form.register("confirmPassword")}
+              />
+              <FieldError errors={[form.formState.errors.confirmPassword]} />
+            </Field>
+          </FieldGroup>
 
-        <Button type="submit" className="w-full" disabled={reset.isPending}>
-          {reset.isPending ? "Saving…" : "Set new password"}
-        </Button>
-      </form>
-    </AuthCard>
+          {reset.error && (
+            <p className="text-sm text-destructive" role="alert">
+              {describeError(reset.error, "Something went wrong. Try again.")}
+            </p>
+          )}
+
+          <Button type="submit" className="w-full" disabled={reset.isPending}>
+            {reset.isPending ? "Saving…" : "Set new password"}
+          </Button>
+        </form>
+      </AuthCard>
+    </>
   );
 }

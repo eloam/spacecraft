@@ -156,6 +156,8 @@ export function AccountNotificationsPage() {
 
   return (
     <div className="space-y-6">
+      <title>Notifications — SpaceCraft</title>
+
       <QueryBoundary
         isLoading={query.isLoading}
         error={query.error}

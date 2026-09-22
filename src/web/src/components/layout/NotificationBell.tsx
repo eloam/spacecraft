@@ -4,11 +4,12 @@ import { Bell, CheckCheck, Settings2, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogClose,
@@ -46,9 +47,11 @@ export function NotificationBell() {
   const clear = useClearNotifications();
   const navigate = useNavigate();
 
-  // The menu is controlled so that it can get out of the way of the dialog: a popup closing
-  // itself while a modal opens inside it leaves focus nowhere.
-  const [menuOpen, setMenuOpen] = useState(false);
+  // The panel is controlled so that it can step aside before the dialog opens. The dialog is
+  // a sibling of the popover, not a child, so a click in it is an outside press that would
+  // close the panel under the modal — and the dialog would then hand focus back to a button
+  // that is gone.
+  const [panelOpen, setPanelOpen] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [alsoUnread, setAlsoUnread] = useState(false);
 
@@ -67,7 +70,7 @@ export function NotificationBell() {
   };
 
   const askToClear = () => {
-    setMenuOpen(false);
+    setPanelOpen(false);
 
     // Nothing unread means nothing to lose: these have all been read, and a dialog that only
     // ever gets one answer is a click, not a safeguard.
@@ -86,19 +89,19 @@ export function NotificationBell() {
 
   return (
     <>
-    <DropdownMenu
-      open={menuOpen}
+    <Popover
+      open={panelOpen}
       // Asking on the way open, on top of the poll. Whatever the interval, the moment
       // somebody looks is the moment the list has to be right.
       onOpenChange={(isOpen) => {
-        setMenuOpen(isOpen);
+        setPanelOpen(isOpen);
 
         if (isOpen) {
           void refetch();
         }
       }}
     >
-      <DropdownMenuTrigger
+      <PopoverTrigger
         render={
           <Button variant="ghost" size="sm" className="relative">
             <Bell className="size-4" aria-hidden />
@@ -117,9 +120,12 @@ export function NotificationBell() {
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
       />
 
-      <DropdownMenuContent align="end" className="w-[min(23rem,calc(100vw-2rem))] p-0">
+      {/* A popover rather than a menu: the panel holds buttons, a list and a link, none of
+          which is a menu item, so arrow keys had nothing to move between and the menu role
+          promised what it could not keep. The title names the dialog the popup becomes. */}
+      <PopoverContent align="end" className="w-[min(23rem,calc(100vw-2rem))] gap-0 p-0">
         <div className="flex items-center justify-between gap-2 px-3 py-2">
-          <span className="text-sm font-medium">Notifications</span>
+          <PopoverTitle className="text-sm">Notifications</PopoverTitle>
 
           <div className="flex items-center gap-0.5">
             {unread > 0 && (
@@ -154,7 +160,7 @@ export function NotificationBell() {
           </div>
         </div>
 
-        <DropdownMenuSeparator className="my-0" />
+        <Separator />
 
         {isError && !data ? (
           // Not the empty state. A request that failed and an account with nothing to read
@@ -224,7 +230,7 @@ export function NotificationBell() {
           </ul>
         )}
 
-        <DropdownMenuSeparator className="my-0" />
+        <Separator />
 
         <Link
           to="/account/notifications"
@@ -233,8 +239,8 @@ export function NotificationBell() {
           <Settings2 className="size-3.5" aria-hidden />
           Notification settings
         </Link>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
 
     <Dialog open={confirmingClear} onOpenChange={setConfirmingClear}>
       <DialogContent className="sm:max-w-md">

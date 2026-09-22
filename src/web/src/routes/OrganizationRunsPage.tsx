@@ -16,8 +16,9 @@ import {
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusBadge } from "@/components/StatusBadge";
-import { useProjects, useRuns, useSpecs } from "@/api/queries";
+import { useOrganizations, useProjects, useRuns, useSpecs } from "@/api/queries";
 import { describeRunProgress, formatRunDuration, isTerminal, runStatusLabel } from "@/api/types";
+import { formatDateTime } from "@/lib/format";
 
 /** The value the Select carries when no project is chosen; "" would read as unset. */
 const ALL = "all";
@@ -33,6 +34,7 @@ const ALL = "all";
 export function OrganizationRunsPage() {
   const { orgId: orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
+  const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const [search, setSearch] = useSearchParams();
   const [generateOpen, setGenerateOpen] = useState(false);
 
@@ -79,6 +81,10 @@ export function OrganizationRunsPage() {
 
   return (
     <div className="space-y-6">
+      <title>
+        {organization ? `Runs — ${organization.name} — SpaceCraft` : `Runs — SpaceCraft`}
+      </title>
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-medium tracking-tight">Runs</h1>
@@ -166,44 +172,40 @@ export function OrganizationRunsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visible.map((run) => {
-                    const queued = new Date(run.queuedAt);
-
-                    return (
-                      // relative, so the link below can stretch over the whole row. The row
-                      // used to navigate from its own onClick, which meant the click on the
-                      // badge pushed the same URL twice (Back then needed two presses), a
-                      // Cmd-click on it opened a tab *and* moved this one, and everywhere
-                      // else on the row there was no hover target and no middle-click.
-                      <TableRow key={run.id} className="relative">
-                        <TableCell>
-                          <Link
-                            to={`/orgs/${orgSlug}/runs/${run.id}`}
-                            className="after:absolute after:inset-0 after:content-['']"
-                            // Without this every row announced just "Succeeded", leaving
-                            // three identical links with nothing to choose between them.
-                            aria-label={`Run ${run.resolvedVersion ?? "without a version"} of ${run.projectName ?? "an unnamed project"}, ${runStatusLabel[run.status]}, queued ${queued.toLocaleString()}`}
-                          >
-                            <RunStatusBadge status={run.status} />
-                          </Link>
-                        </TableCell>
-                        <TableCell className="max-w-[14rem] truncate">
-                          {run.projectName ?? "—"}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs tabular-nums">
-                          {run.resolvedVersion ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {isTerminal(run.status)
-                            ? formatRunDuration(run)
-                            : describeRunProgress(run)}
-                        </TableCell>
-                        <TableCell className="text-right text-xs whitespace-nowrap text-muted-foreground">
-                          {queued.toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {visible.map((run) => (
+                    // relative, so the link below can stretch over the whole row. The row
+                    // used to navigate from its own onClick, which meant the click on the
+                    // badge pushed the same URL twice (Back then needed two presses), a
+                    // Cmd-click on it opened a tab *and* moved this one, and everywhere
+                    // else on the row there was no hover target and no middle-click.
+                    <TableRow key={run.id} className="relative">
+                      <TableCell>
+                        <Link
+                          to={`/orgs/${orgSlug}/runs/${run.id}`}
+                          className="after:absolute after:inset-0 after:content-['']"
+                          // Without this every row announced just "Succeeded", leaving
+                          // three identical links with nothing to choose between them.
+                          aria-label={`Run ${run.resolvedVersion ?? "without a version"} of ${run.projectName ?? "an unnamed project"}, ${runStatusLabel[run.status]}, queued ${formatDateTime(run.queuedAt)}`}
+                        >
+                          <RunStatusBadge status={run.status} />
+                        </Link>
+                      </TableCell>
+                      <TableCell className="max-w-[14rem] truncate">
+                        {run.projectName ?? "—"}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs tabular-nums">
+                        {run.resolvedVersion ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {isTerminal(run.status)
+                          ? formatRunDuration(run)
+                          : describeRunProgress(run)}
+                      </TableCell>
+                      <TableCell className="text-right text-xs whitespace-nowrap text-muted-foreground">
+                        <time dateTime={run.queuedAt}>{formatDateTime(run.queuedAt)}</time>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </CardContent>

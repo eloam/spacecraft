@@ -12,6 +12,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { describeError } from "@/api/client";
 import { useAccount, useUpdateProfile } from "@/api/queries";
 import { displayNameField } from "@/lib/fields";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 const profileSchema = z.object({
   displayName: displayNameField,
@@ -84,11 +85,19 @@ function ProfileCard({
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <dt className="text-muted-foreground">Member since</dt>
-              <dd>{new Date(createdAt).toLocaleDateString()}</dd>
+              <dd>
+                <time dateTime={createdAt}>{formatDate(createdAt)}</time>
+              </dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Last sign-in</dt>
-              <dd>{lastLoginAt ? new Date(lastLoginAt).toLocaleString() : "—"}</dd>
+              <dd>
+                {lastLoginAt ? (
+                  <time dateTime={lastLoginAt}>{formatDateTime(lastLoginAt)}</time>
+                ) : (
+                  "—"
+                )}
+              </dd>
             </div>
           </dl>
 
@@ -104,19 +113,23 @@ export function AccountProfilePage() {
   const account = useAccount();
 
   return (
-    <QueryBoundary
-      isLoading={account.isPending}
-      error={account.error}
-      hasData={account.data !== undefined}
-    >
-      {account.data && (
-        <ProfileCard
-          displayName={account.data.displayName}
-          email={account.data.email}
-          createdAt={account.data.createdAt}
-          lastLoginAt={account.data.lastLoginAt}
-        />
-      )}
-    </QueryBoundary>
+    <>
+      <title>Profile — SpaceCraft</title>
+
+      <QueryBoundary
+        isLoading={account.isPending}
+        error={account.error}
+        hasData={account.data !== undefined}
+      >
+        {account.data && (
+          <ProfileCard
+            displayName={account.data.displayName}
+            email={account.data.email}
+            createdAt={account.data.createdAt}
+            lastLoginAt={account.data.lastLoginAt}
+          />
+        )}
+      </QueryBoundary>
+    </>
   );
 }

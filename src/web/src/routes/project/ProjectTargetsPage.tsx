@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
 import { ExternalLink, Hand, History, Layers, MoreHorizontal, Package, Pencil, Plus, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -19,12 +19,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { RelativeTime } from "@/components/RelativeTime";
 import { TargetDialog } from "@/routes/project/TargetDialog";
 import { describeError } from "@/api/client";
 import { useCredentials, useDeleteTarget, useProject, usePublications } from "@/api/queries";
 import { LanguageMark } from "@/components/LanguageDot";
 import { PublicationStatus, languageLabel, registryLabel, type SdkTarget } from "@/api/types";
-import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** In the order the strip shows them; the union below is derived from it. */
@@ -114,6 +114,12 @@ export function ProjectTargetsPage() {
 
   return (
     <div className="space-y-6">
+      <title>
+        {project.data
+          ? `SDK targets — ${project.data.name} — SpaceCraft`
+          : `SDK targets — SpaceCraft`}
+      </title>
+
       {/* hasData: adding, editing and deleting a target all invalidate this query, so a
           refetch that fails would otherwise replace a table the browser still holds with a
           full-width error. isPending rather than isLoading: the query is disabled until the
@@ -292,11 +298,10 @@ export function ProjectTargetsPage() {
                                 <div className="max-w-[16rem]">
                                   <p className="truncate">{named.label}</p>
                                   <Tooltip>
-                                    <TooltipTrigger
-                                      render={
-                                        <p className="truncate font-mono text-xs text-muted-foreground" />
-                                      }
-                                    >
+                                    {/* The trigger is a <button>, so the address a narrow cell
+                                        cuts short can be opened from the keyboard, not only by
+                                        hovering. */}
+                                    <TooltipTrigger className="block max-w-full truncate text-left font-mono text-xs text-muted-foreground">
                                       {named.registryUrl}
                                     </TooltipTrigger>
                                     {/* break-all: see CredentialsPage — an unbroken URL
@@ -319,14 +324,7 @@ export function ProjectTargetsPage() {
                                   {/* The exact moment behind "3 days ago", on the words that
                                       abbreviate it rather than on the whole line. */}
                                   {target.lastPublishedAt ? (
-                                    <Tooltip>
-                                      <TooltipTrigger render={<span />}>
-                                        {timeAgo(target.lastPublishedAt)}
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        {new Date(target.lastPublishedAt).toLocaleString()}
-                                      </TooltipContent>
-                                    </Tooltip>
+                                    <RelativeTime iso={target.lastPublishedAt} />
                                   ) : (
                                     "—"
                                   )}
@@ -347,23 +345,15 @@ export function ProjectTargetsPage() {
                               {/* Kept in the open: it is the one action that leaves this page,
                                   and a destination is worth showing rather than hiding. */}
                               {release?.url && (
-                                <Button
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  aria-label={`Open ${target.packageName} on ${registryLabel[target.registry]}`}
-                                  title={`Open on ${registryLabel[target.registry]}`}
-                                  // Renders an anchor, so Base UI must not assume a button.
-                                  nativeButton={false}
-                                  render={
-                                    <a
-                                      href={release.url}
-                                      target="_blank"
-                                      rel="noreferrer noopener"
-                                    />
-                                  }
+                                <a
+                                  href={release.url}
+                                  target="_blank"
+                                  rel="noreferrer noopener"
+                                  className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+                                  aria-label={`Open ${target.packageName} on ${registryLabel[target.registry]} (opens in a new tab)`}
                                 >
                                   <ExternalLink className="size-4" aria-hidden />
-                                </Button>
+                                </a>
                               )}
 
                               <DropdownMenu>

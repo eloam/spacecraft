@@ -3,7 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { Ban, Download, FileUp, Hand, MousePointerClick, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Item, ItemActions, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Separator } from "@/components/ui/separator";
@@ -11,33 +12,48 @@ import { Spinner } from "@/components/ui/spinner";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { RunStatusIcon, StepStatusIcon } from "@/components/StatusBadge";
 import { ApiError, describeError } from "@/api/client";
-import { useCancelRun, useDownloadArtifact, useRun, useStepLog } from "@/api/queries";
+import {
+  useCancelRun, useDownloadArtifact, useOrganizations, useRun, useStepLog,
+} from "@/api/queries";
 import {
   RunTrigger,
   StepStatus,
+  describeRunProgress,
   formatSeconds,
   isTerminal,
   languageLabel,
   registryLabel,
+  runStatusLabel,
   stepKindLabel,
   stepStatusLabel,
 } from "@/api/types";
 import { toast } from "sonner";
 import { LanguageDot } from "@/components/LanguageDot";
-import { timeAgo } from "@/lib/format";
+import { RelativeTime } from "@/components/RelativeTime";
 import { BackLink } from "@/components/BackLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function RunPage() {
   const { orgId: orgSlug = "", runId = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
+  const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const run = useRun(orgId, runId);
   const cancel = useCancelRun(orgId);
   const download = useDownloadArtifact(orgId);
   const [openStep, setOpenStep] = useState<string | null>(null);
 
+  // Named the way the heading names it: the package this run builds and the version it
+  // resolved, not the id, which the heading keeps out for the same reason.
+  const runName = run.data
+    ? `Run ${run.data.targetPackageName}${run.data.resolvedVersion ? ` v${run.data.resolvedVersion}` : ""}`
+    : "Run";
+
   return (
     <div className="space-y-6">
+      <title>
+        {organization ? `${runName} — ${organization.name} — SpaceCraft` : `${runName} — SpaceCraft`}
+      </title>
+
       {/* The runs list is the organization's now, narrowed back to the project this run
           belongs to. It used to point at /projects/{id}/runs, a route that stopped existing
           when the tab moved — React Router matched the catch-all and sent "All runs" to the
@@ -57,9 +73,20 @@ export function RunPage() {
               an edge. */}
           <div className="flex min-w-0 items-start gap-2.5">
             {run.data && (
-              // mt-1 rather than items-center: aligned to the cap height of a 24px serif
-              // heading, where centring on the line box sat it visibly low.
-              <RunStatusIcon status={run.data.status} className="mt-1 size-6" />
+              <>
+                {/* mt-1 rather than items-center: aligned to the cap height of a 24px serif
+                    heading, where centring on the line box sat it visibly low. */}
+                <RunStatusIcon status={run.data.status} className="mt-1 size-6" />
+
+                {/* The icon's label is read once, when it is reached; the poll below swaps
+                    the icon out without a word. What changes is said from this live region
+                    instead, the way the runs list words it: the step in progress while the
+                    run is going, the verdict alone once it is not. */}
+                <p role="status" className="sr-only">
+                  {runStatusLabel[run.data.status]}
+                  {!isTerminal(run.data.status) && ` — ${describeRunProgress(run.data)}`}
+                </p>
+              </>
             )}
 
             <div className="min-w-0">
@@ -97,12 +124,9 @@ export function RunPage() {
                     Spec #{run.data.specSequence}
                   </Link>
                   <span aria-hidden>·</span>
-                  <Tooltip>
-                    <TooltipTrigger render={<span />}>
-                      Queued {timeAgo(run.data.queuedAt)}
-                    </TooltipTrigger>
-                    <TooltipContent>{new Date(run.data.queuedAt).toLocaleString()}</TooltipContent>
-                  </Tooltip>
+                  <span>
+                    Queued <RelativeTime iso={run.data.queuedAt} />
+                  </span>
                   {run.data.startedAt && (
                     <>
                       <span aria-hidden>·</span>
@@ -315,11 +339,9 @@ export function RunPage() {
                           <div className="min-w-0">
                             <p className="truncate">{run.data.targetCredentialLabel ?? "—"}</p>
                             <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <p className="truncate font-mono text-xs text-muted-foreground" />
-                                }
-                              >
+                              {/* The trigger is a <button>, so the address a narrow cell cuts
+                                  short can be opened from the keyboard, not only by hovering. */}
+                              <TooltipTrigger className="block max-w-full truncate text-left font-mono text-xs text-muted-foreground">
                                 {run.data.targetRegistryUrl}
                               </TooltipTrigger>
                               {/* break-all: an unbroken URL cannot wrap, so the tooltip
@@ -342,7 +364,15 @@ export function RunPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Steps</CardTitle>
+                {/* A heading rather than CardTitle, which renders a div and takes no render
+                    prop: the section is one a screen reader should find in the page's outline,
+                    and its classes are CardTitle's so it looks the same. */}
+                <h2
+                  data-slot="card-title"
+                  className="font-heading text-base leading-normal font-medium group-data-[size=sm]/card:text-sm"
+                >
+                  Steps
+                </h2>
               </CardHeader>
               <CardContent className="space-y-0 p-0">
                 {run.data.steps.map((step, index) => {
@@ -352,10 +382,18 @@ export function RunPage() {
                   return (
                     <div key={step.kind}>
                       {index > 0 && <Separator />}
-                      <div className="px-6 py-3">
-                        {/* The row is the Item, but the padding stays on the block around it:
-                            the failure reason and the unfolded log sit under the row and share
-                            its indent, which a padded row would push them out of. */}
+                      {/* The row is the Item, but the padding stays on the block around it:
+                          the failure reason and the unfolded log sit under the row and share
+                          its indent, which a padded row would push them out of.
+
+                          One log open at a time, as before: the block is a Collapsible so the
+                          button says whether it is expanded and what it controls, but the
+                          state stays the page's, since opening one step is closing another. */}
+                      <Collapsible
+                        open={isOpen}
+                        onOpenChange={(open) => setOpenStep(open ? name : null)}
+                        className="px-6 py-3"
+                      >
                         <Item className="gap-3 p-0">
                           <ItemMedia variant="icon">
                             <StepStatusIcon status={step.status} />
@@ -367,19 +405,20 @@ export function RunPage() {
 
                           {step.durationSeconds != null && (
                             <span className="text-xs text-muted-foreground">
-                              {step.durationSeconds.toFixed(1)}s
+                              {formatSeconds(step.durationSeconds)}
                             </span>
                           )}
 
                           {step.hasLog && (
                             <ItemActions className="ml-auto">
-                              <Button
-                                variant="ghost"
-                                size="xs"
-                                onClick={() => setOpenStep(isOpen ? null : name)}
+                              {/* Named for its step: four buttons reading "View log" are four
+                                  of the same thing in a list of buttons. */}
+                              <CollapsibleTrigger
+                                render={<Button variant="ghost" size="xs" />}
+                                aria-label={`${isOpen ? "Hide" : "View"} log, ${name}`}
                               >
                                 {isOpen ? "Hide log" : "View log"}
-                              </Button>
+                              </CollapsibleTrigger>
                             </ItemActions>
                           )}
                         </Item>
@@ -398,8 +437,12 @@ export function RunPage() {
                           </pre>
                         )}
 
-                        {isOpen && <StepLog orgId={orgId} runId={runId} step={name} />}
-                      </div>
+                        {/* The panel is not in the DOM while closed, so the log is only
+                            fetched once someone opens it. */}
+                        <CollapsibleContent>
+                          <StepLog orgId={orgId} runId={runId} step={name} />
+                        </CollapsibleContent>
+                      </Collapsible>
                     </div>
                   );
                 })}

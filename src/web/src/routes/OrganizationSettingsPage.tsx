@@ -74,6 +74,12 @@ export function OrganizationSettingsPage() {
 
   return (
     <div className="space-y-6">
+      <title>
+        {organization.data
+          ? `Settings — ${organization.data.name} — SpaceCraft`
+          : `Settings — SpaceCraft`}
+      </title>
+
       <div>
         <h1 className="font-heading text-2xl font-medium tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">

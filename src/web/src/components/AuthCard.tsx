@@ -15,7 +15,9 @@ export function AuthCard({
   footer: ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-10">
+    // The page's main landmark: the shell provides one for every signed-in page, and
+    // these screens render outside it.
+    <main className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-2 text-center">
           <Orbit className="size-7" aria-hidden />
@@ -29,6 +31,6 @@ export function AuthCard({
 
         <p className="mt-6 text-center text-sm text-muted-foreground">{footer}</p>
       </div>
-    </div>
+    </main>
   );
 }

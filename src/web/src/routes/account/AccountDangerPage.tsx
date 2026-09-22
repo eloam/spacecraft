@@ -150,12 +150,16 @@ export function AccountDangerPage() {
   const account = useAccount();
 
   return (
-    <QueryBoundary
-      isLoading={account.isPending}
-      error={account.error}
-      hasData={account.data !== undefined}
-    >
-      {account.data && <DangerZone organizationCount={account.data.organizationCount} />}
-    </QueryBoundary>
+    <>
+      <title>Danger zone — SpaceCraft</title>
+
+      <QueryBoundary
+        isLoading={account.isPending}
+        error={account.error}
+        hasData={account.data !== undefined}
+      >
+        {account.data && <DangerZone organizationCount={account.data.organizationCount} />}
+      </QueryBoundary>
+    </>
   );
 }
