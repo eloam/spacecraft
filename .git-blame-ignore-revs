@@ -1,0 +1,6 @@
+# Commits that change layout and nothing else, skipped by `git blame` so each line is traced
+# to the change that wrote it. GitHub reads this file on its own; locally, once per clone:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Prettier, one reformat of src/web (#28)
+32be61c2bb0651041bebde418dd1db5d6fc2dd45
