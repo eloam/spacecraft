@@ -19,7 +19,7 @@ export function TileLink({ to, children }: { to: string; children: ReactNode }) 
   return (
     <Item
       variant="outline"
-      className="h-full flex-col items-stretch bg-card transition-[background-color,border-color,box-shadow] [a]:hover:bg-card dark:[a]:hover:bg-muted/50 hover:border-foreground/20 hover:shadow-md dark:hover:shadow-none"
+      className="h-full flex-col items-stretch bg-card transition-[background-color,border-color,box-shadow] hover:border-foreground/20 hover:shadow-md dark:hover:shadow-none [a]:hover:bg-card dark:[a]:hover:bg-muted/50"
       render={<Link to={to} />}
     >
       {children}

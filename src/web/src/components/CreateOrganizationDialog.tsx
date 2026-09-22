@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
-  Field, FieldDescription, FieldError, FieldGroup, FieldLabel,
-} from "@/components/ui/field";
-import {
-  Dialog, DialogClose, DialogContent, DialogDescription,
-  DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { describeError } from "@/api/client";
@@ -109,7 +112,13 @@ function CreateOrganizationForm({
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
+        <DialogClose
+          render={
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          }
+        />
         <Button type="submit" disabled={!isValidResourceName(name) || create.isPending}>
           {create.isPending ? "Creating…" : "Create"}
         </Button>

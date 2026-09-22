@@ -6,7 +6,11 @@ import { createOrganization, createProject } from "./workspace";
  * — in a notification, in an email — carries the id, because a name can be changed. Opening
  * one has to work, and has to stop showing a guid the moment the name is known.
  */
-test("a link that names an organization by id becomes its slug", async ({ owner, api, account }) => {
+test("a link that names an organization by id becomes its slug", async ({
+  owner,
+  api,
+  account,
+}) => {
   const organization = await createOrganization(api, account);
   const project = await createProject(api, account, organization.id);
 

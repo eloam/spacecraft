@@ -15,7 +15,10 @@ describe("the auth store", () => {
   it("keeps both tokens once a session is set", () => {
     useAuthStore.getState().setSession("access", "refresh");
 
-    expect(useAuthStore.getState()).toMatchObject({ accessToken: "access", refreshToken: "refresh" });
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: "access",
+      refreshToken: "refresh",
+    });
   });
 
   it("replaces the tokens when they are refreshed", () => {
@@ -63,7 +66,10 @@ describe("the auth store", () => {
 
     await useAuthStore.persist.rehydrate();
 
-    expect(useAuthStore.getState()).toMatchObject({ accessToken: "access", refreshToken: "refresh" });
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: "access",
+      refreshToken: "refresh",
+    });
     expect(persisted()).toEqual({
       state: { accessToken: "access", refreshToken: "refresh" },
       version: 1,

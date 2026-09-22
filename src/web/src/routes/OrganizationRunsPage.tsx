@@ -3,7 +3,14 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
 import { Play, X } from "lucide-react";
 import { GenerateDialog } from "@/components/GenerateDialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -94,43 +101,43 @@ export function OrganizationRunsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-        <Select
-          value={projectFilter ?? ALL}
-          onValueChange={(value) => {
-            // null is Base UI's "cleared", which this select does not offer; coerced to a
-            // string it put ?project=null in the address.
-            if (value === null) return;
-            setParam("project", value === ALL ? null : value);
-          }}
-        >
-          <SelectTrigger size="sm" className="w-56" aria-label="Filter by project">
-            {/* The label is computed rather than left to SelectValue: Base UI falls back to
-                the raw value when it cannot resolve the selected item, which printed "all"
-                where the option reads "All projects". */}
-            <SelectValue>
-              {projectFilter
-                ? ((projects.data ?? []).find((p) => p.slug === projectFilter)?.name ??
-                  projectFilter)
-                : "All projects"}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All projects</SelectItem>
-            {(projects.data ?? []).map((project) => (
-              <SelectItem key={project.id} value={project.slug}>
-                {project.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select
+            value={projectFilter ?? ALL}
+            onValueChange={(value) => {
+              // null is Base UI's "cleared", which this select does not offer; coerced to a
+              // string it put ?project=null in the address.
+              if (value === null) return;
+              setParam("project", value === ALL ? null : value);
+            }}
+          >
+            <SelectTrigger size="sm" className="w-56" aria-label="Filter by project">
+              {/* The label is computed rather than left to SelectValue: Base UI falls back to
+                  the raw value when it cannot resolve the selected item, which printed "all"
+                  where the option reads "All projects". */}
+              <SelectValue>
+                {projectFilter
+                  ? ((projects.data ?? []).find((p) => p.slug === projectFilter)?.name ??
+                    projectFilter)
+                  : "All projects"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All projects</SelectItem>
+              {(projects.data ?? []).map((project) => (
+                <SelectItem key={project.id} value={project.slug}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {/* The filter already names a project when one is chosen, so this button reads it
-            rather than asking again. On "All projects" it opens the same dialog, which
-            starts by asking — the trip through a project page is what this replaces. */}
-        <Button onClick={() => setGenerateOpen(true)}>
-          <Play className="size-4" aria-hidden />
-          Generate SDK
-        </Button>
+          {/* The filter already names a project when one is chosen, so this button reads it
+              rather than asking again. On "All projects" it opens the same dialog, which
+              starts by asking — the trip through a project page is what this replaces. */}
+          <Button onClick={() => setGenerateOpen(true)}>
+            <Play className="size-4" aria-hidden />
+            Generate SDK
+          </Button>
         </div>
       </div>
 
@@ -140,7 +147,12 @@ export function OrganizationRunsPage() {
             Runs generated from spec{spec ? ` #${spec.sequence}` : ""}
             {spec?.apiVersion ? ` (${spec.apiVersion})` : ""}
           </span>
-          <Button size="xs" variant="ghost" className="gap-1" onClick={() => setParam("spec", null)}>
+          <Button
+            size="xs"
+            variant="ghost"
+            className="gap-1"
+            onClick={() => setParam("spec", null)}
+          >
             <X className="size-3.5" aria-hidden />
             Show all runs
           </Button>
@@ -153,7 +165,11 @@ export function OrganizationRunsPage() {
           isFetching`, false while disabled, so a cold load under a filter showed "No runs in
           this project" before the skeleton. A filter change keeps the last list up (see
           useRuns). */}
-      <QueryBoundary isLoading={runs.isPending} error={runs.error} hasData={runs.data !== undefined}>
+      <QueryBoundary
+        isLoading={runs.isPending}
+        error={runs.error}
+        hasData={runs.data !== undefined}
+      >
         {visible.length ? (
           <TableCard>
             <Table>
@@ -195,9 +211,7 @@ export function OrganizationRunsPage() {
                       {run.resolvedVersion ?? "—"}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {isTerminal(run.status)
-                        ? formatRunDuration(run)
-                        : describeRunProgress(run)}
+                      {isTerminal(run.status) ? formatRunDuration(run) : describeRunProgress(run)}
                     </TableCell>
                     <TableCell className="text-right text-xs whitespace-nowrap text-muted-foreground">
                       <time dateTime={run.queuedAt}>{formatDateTime(run.queuedAt)}</time>

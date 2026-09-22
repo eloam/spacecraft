@@ -180,7 +180,8 @@ const severityGutter = gutter({
 
     return group.length > 0 ? new SeverityMarker(worst(group)) : null;
   },
-  lineMarkerChange: (update) => update.transactions.some((tr) => tr.effects.some((e) => e.is(setViewState))),
+  lineMarkerChange: (update) =>
+    update.transactions.some((tr) => tr.effects.some((e) => e.is(setViewState))),
 });
 
 const theme = EditorView.theme({
@@ -188,7 +189,13 @@ const theme = EditorView.theme({
   // editors to their content and scrolls the host.
   "&": { height: "100%" },
   ".sc-gutter": { width: "14px" },
-  ".sc-dot": { width: "6px", height: "6px", borderRadius: "9999px", margin: "7px auto", backgroundColor: "currentColor" },
+  ".sc-dot": {
+    width: "6px",
+    height: "6px",
+    borderRadius: "9999px",
+    margin: "7px auto",
+    backgroundColor: "currentColor",
+  },
   ".sc-error": { color: "var(--destructive)" },
   ".sc-warning": { color: "var(--code-warning)" },
   ".sc-info": { color: "var(--muted-foreground)" },
@@ -208,7 +215,9 @@ const theme = EditorView.theme({
     borderLeft: "2px solid currentColor",
     backgroundColor: "color-mix(in oklch, currentColor 7%, transparent)",
   },
-  ".sc-message.sc-current": { backgroundColor: "color-mix(in oklch, currentColor 16%, transparent)" },
+  ".sc-message.sc-current": {
+    backgroundColor: "color-mix(in oklch, currentColor 16%, transparent)",
+  },
 });
 
 /**

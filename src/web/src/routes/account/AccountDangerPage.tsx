@@ -7,8 +7,14 @@ import { DangerSection } from "@/components/SettingsSections";
 import { Panel, PanelLine, PanelSection } from "@/components/Panel";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import {
-  Dialog, DialogClose, DialogContent, DialogDescription,
-  DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { ApiError, describeError } from "@/api/client";
 import { useAccount, useDeleteAccount, useDeletionBlockers } from "@/api/queries";
@@ -62,8 +68,8 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
         )}
 
         <p className="text-sm text-muted-foreground">
-          SDKs you have already published stay in their registries — SpaceCraft cannot
-          unpublish them on your behalf.
+          SDKs you have already published stay in their registries — SpaceCraft cannot unpublish
+          them on your behalf.
         </p>
 
         <Dialog>
@@ -136,7 +142,13 @@ function DeleteAccountForm() {
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" type="button">Cancel</Button>} />
+        <DialogClose
+          render={
+            <Button variant="outline" type="button">
+              Cancel
+            </Button>
+          }
+        />
         <Button type="submit" variant="destructive" disabled={!password || remove.isPending}>
           {remove.isPending ? "Deleting…" : "Delete permanently"}
         </Button>

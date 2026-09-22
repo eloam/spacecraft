@@ -103,8 +103,7 @@ export function SpecUploadCard({
             <EmptyDescription>
               {/* Non-breaking: EmptyHeader is max-w-sm, and the line broke between the
                   number and its unit. */}
-              .yaml, .yml or .json — up to 10&nbsp;MB. External <code>$ref</code>s are
-              rejected.
+              .yaml, .yml or .json — up to 10&nbsp;MB. External <code>$ref</code>s are rejected.
             </EmptyDescription>
           </EmptyHeader>
 

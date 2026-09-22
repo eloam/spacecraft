@@ -32,7 +32,11 @@ export type SectionTab = {
  * Each strip is its own nav landmark, named by the caller, so assistive tech announces two
  * navigations with distinct purposes instead of one long list.
  */
-export function SectionNav({ label, tabs, className }: {
+export function SectionNav({
+  label,
+  tabs,
+  className,
+}: {
   /** The landmark's name: "Sections", "Project sections", "Account sections". */
   label: string;
   tabs: SectionTab[];
@@ -52,7 +56,7 @@ export function SectionNav({ label, tabs, className }: {
     <nav
       aria-label={label}
       className={cn(
-        "-mb-px flex gap-1 overflow-x-auto scroll-smooth [scrollbar-width:thin]",
+        "-mb-px flex [scrollbar-width:thin] gap-1 overflow-x-auto scroll-smooth",
         className,
       )}
     >
@@ -71,7 +75,7 @@ export function SectionNav({ label, tabs, className }: {
               // first:pl-0 rather than a negative margin on the whole bar: both put the first
               // tab's icon on the page margin, but this one keeps its underline from starting
               // 12px to the left of everything else. The gap to the next tab is untouched.
-              "flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors first:pl-0",
+              "flex items-center gap-2 border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors first:pl-0",
               active
                 ? "border-foreground font-medium text-foreground"
                 : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",

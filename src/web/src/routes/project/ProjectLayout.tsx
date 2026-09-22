@@ -49,8 +49,7 @@ export function ProjectLayout() {
   // its way, which is exactly when the spinner has to stay on.
   const loading = resolvingProject || project.isPending || specs.isPending;
   const hasTarget = (project.data?.targets.length ?? 0) > 0;
-  const hasUsableSpec =
-    specs.data?.items.some(isGeneratable) ?? false;
+  const hasUsableSpec = specs.data?.items.some(isGeneratable) ?? false;
   const canGenerate = hasTarget && hasUsableSpec;
 
   /**
@@ -181,7 +180,10 @@ export function ProjectLayout() {
             </Button>
 
             {reason && (
-              <p id="generate-blocked" className="max-w-64 text-right text-xs text-muted-foreground">
+              <p
+                id="generate-blocked"
+                className="max-w-64 text-right text-xs text-muted-foreground"
+              >
                 {reason}
               </p>
             )}

@@ -5,7 +5,10 @@ const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeS
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 const duration = new Intl.DurationFormat(undefined, { style: "narrow" });
 // "auto", the default, leaves out every unit that is zero — all of them, for a zero duration.
-const zeroDuration = new Intl.DurationFormat(undefined, { style: "narrow", secondsDisplay: "always" });
+const zeroDuration = new Intl.DurationFormat(undefined, {
+  style: "narrow",
+  secondsDisplay: "always",
+});
 // The copy is English, so its nouns pluralise by English rules whatever the reader's locale.
 const english = new Intl.PluralRules("en");
 
@@ -30,7 +33,11 @@ export function formatDate(iso: string): string {
 export function timeAgo(iso: string): string {
   const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
   const units: [Intl.RelativeTimeFormatUnit, number][] = [
-    ["second", 60], ["minute", 60], ["hour", 24], ["day", 30], ["month", 12],
+    ["second", 60],
+    ["minute", 60],
+    ["hour", 24],
+    ["day", 30],
+    ["month", 12],
   ];
 
   let value = seconds;
@@ -87,9 +94,7 @@ export function formatRunDuration(run: {
  * not comparable: on a large spec, generating takes seconds while building takes minutes.
  * Naming the running step is what tells someone whether to wait.
  */
-export function describeRunProgress(run: {
-  steps: { kind: number; status: number }[];
-}): string {
+export function describeRunProgress(run: { steps: { kind: number; status: number }[] }): string {
   const running = run.steps.find((s) => s.status === StepStatus.Running);
   const settled = run.steps.filter((s) => isStepSettled(s.status)).length;
 

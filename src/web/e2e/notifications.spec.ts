@@ -75,9 +75,7 @@ test("being removed reaches the person it happened to, who is no longer a member
   // ...and told anyway, which is the point of the notification: every other item in this list
   // is filtered to organizations they still belong to, and this one cannot be.
   await theirs.getByRole("button", { name: /^Notifications/ }).click();
-  await expect(
-    theirs.getByText(`You were removed from ${organization.name}`),
-  ).toBeVisible();
+  await expect(theirs.getByText(`You were removed from ${organization.name}`)).toBeVisible();
 
   // Naming the account that did it, not only the name it goes by.
   await expect(theirs.getByText(account.email, { exact: false })).toBeVisible();

@@ -38,14 +38,10 @@ export function ForgotPasswordPage() {
       <>
         <title>Forgot password — SpaceCraft</title>
 
-        <AuthCard
-          title="Check your inbox"
-          description={forgot.data.message}
-          footer={backToSignIn}
-        >
+        <AuthCard title="Check your inbox" description={forgot.data.message} footer={backToSignIn}>
           <p className="text-sm text-muted-foreground">
-            The link works once and expires in an hour. If it doesn't arrive, check your spam
-            folder before requesting another.
+            The link works once and expires in an hour. If it doesn't arrive, check your spam folder
+            before requesting another.
           </p>
         </AuthCard>
       </>

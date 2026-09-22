@@ -99,7 +99,7 @@ export function SpecDiffDialog({
           )}
 
           <div className="ml-auto flex items-center gap-1">
-            <span className="mr-1 text-xs tabular-nums text-muted-foreground">
+            <span className="mr-1 text-xs text-muted-foreground tabular-nums">
               {chunkCount === 0
                 ? "No change"
                 : at < 0
@@ -124,8 +124,8 @@ export function SpecDiffDialog({
           ) : mixedNotations ? (
             <p className="p-6 text-sm text-muted-foreground">
               One document is {formats.before.toUpperCase()} and the other is{" "}
-              {formats.after.toUpperCase()}. They can describe the same API without sharing a
-              single line, so a line-by-line comparison would mark all of it as changed.
+              {formats.after.toUpperCase()}. They can describe the same API without sharing a single
+              line, so a line-by-line comparison would mark all of it as changed.
             </p>
           ) : !ready ? (
             <Loading />

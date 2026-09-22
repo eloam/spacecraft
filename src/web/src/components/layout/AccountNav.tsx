@@ -18,10 +18,27 @@ export function AccountNav() {
       <SectionNav
         label="Account sections"
         tabs={[
-          { label: "Profile", to: "/account", icon: <UserRound className="size-4" aria-hidden />, end: true },
-          { label: "Security", to: "/account/security", icon: <KeyRound className="size-4" aria-hidden /> },
-          { label: "Notifications", to: "/account/notifications", icon: <Bell className="size-4" aria-hidden /> },
-          { label: "Danger zone", to: "/account/danger", icon: <ShieldAlert className="size-4" aria-hidden /> },
+          {
+            label: "Profile",
+            to: "/account",
+            icon: <UserRound className="size-4" aria-hidden />,
+            end: true,
+          },
+          {
+            label: "Security",
+            to: "/account/security",
+            icon: <KeyRound className="size-4" aria-hidden />,
+          },
+          {
+            label: "Notifications",
+            to: "/account/notifications",
+            icon: <Bell className="size-4" aria-hidden />,
+          },
+          {
+            label: "Danger zone",
+            to: "/account/danger",
+            icon: <ShieldAlert className="size-4" aria-hidden />,
+          },
         ]}
       />
     </div>

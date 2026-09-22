@@ -32,7 +32,14 @@ import { RelativeTime } from "@/components/RelativeTime";
 import { severities } from "@/components/severity";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SpecFindingCounts } from "@/routes/project/SpecFindingCounts";
 import { SpecValidationDialog } from "@/routes/project/SpecValidationDialog";
@@ -137,9 +144,9 @@ export function ProjectSpecsPage() {
     setSelected((current) =>
       current.includes(id)
         ? current.filter((x) => x !== id)
-        // Two is the whole point; picking a third drops the oldest choice rather than
-        // refusing, which would leave the reader to work out why nothing happened.
-        : [...current, id].slice(-2),
+        : // Two is the whole point; picking a third drops the oldest choice rather than
+          // refusing, which would leave the reader to work out why nothing happened.
+          [...current, id].slice(-2),
     );
   }
 
@@ -206,8 +213,8 @@ export function ProjectSpecsPage() {
                     // Said plainly rather than by a button that vanishes: the two were just
                     // picked, and their disappearance would read as a bug.
                     <p className="text-xs text-muted-foreground">
-                      A {pair[0].format.toUpperCase()} and a {pair[1].format.toUpperCase()}{" "}
-                      document share no lines to compare.
+                      A {pair[0].format.toUpperCase()} and a {pair[1].format.toUpperCase()} document
+                      share no lines to compare.
                     </p>
                   )}
                   <Button
@@ -283,7 +290,8 @@ export function ProjectSpecsPage() {
                           />
                         </TableCell>
 
-                        {/* Title, with the details that used to cost three columns of their own. */}
+                        {/* Title, with the details that used to cost three columns of their
+                            own. */}
                         <TableCell>
                           {/* The sequence number in a chip rather than inline before the title:
                               it is this version's short name, the way a ticker is a holding's,
@@ -322,7 +330,9 @@ export function ProjectSpecsPage() {
 
                         <TableCell>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-xs tabular-nums">{spec.openApiVersion ?? "—"}</span>
+                            <span className="font-mono text-xs tabular-nums">
+                              {spec.openApiVersion ?? "—"}
+                            </span>
                             <Badge variant="outline" className="font-mono text-[10px] uppercase">
                               {spec.format}
                             </Badge>
@@ -348,7 +358,9 @@ export function ProjectSpecsPage() {
                             // One word standing in for the sentence that explains it, so the
                             // sentence is what the tooltip carries.
                             <Tooltip>
-                              <TooltipTrigger className="text-muted-foreground">unknown</TooltipTrigger>
+                              <TooltipTrigger className="text-muted-foreground">
+                                unknown
+                              </TooltipTrigger>
                               <TooltipContent>The publications could not be loaded</TooltipContent>
                             </Tooltip>
                           ) : publications.isPending ? (
@@ -365,7 +377,10 @@ export function ProjectSpecsPage() {
                               {packages.map(({ label, url }) => {
                                 const inner = (
                                   <>
-                                    <Package className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+                                    <Package
+                                      className="size-3 shrink-0 text-muted-foreground"
+                                      aria-hidden
+                                    />
                                     {label}
                                   </>
                                 );
@@ -409,7 +424,11 @@ export function ProjectSpecsPage() {
                               // native button unless told, and warns that it is dropping button
                               // semantics — semantics a link should not have had anyway.
                               nativeButton={false}
-                              render={<Link to={`/orgs/${orgSlug}/runs?project=${projectSlug}&spec=${spec.id}`} />}
+                              render={
+                                <Link
+                                  to={`/orgs/${orgSlug}/runs?project=${projectSlug}&spec=${spec.id}`}
+                                />
+                              }
                             >
                               <History className="size-4" aria-hidden />
                             </Button>
@@ -463,8 +482,8 @@ export function ProjectSpecsPage() {
           // emptiness twice. What it carried and the drop zone does not — that uploads
           // accumulate rather than replace — is kept as a line.
           <p className="text-center text-sm text-balance text-muted-foreground">
-            Each upload is kept as a version, so you can compare them and see what every
-            published package was generated from.
+            Each upload is kept as a version, so you can compare them and see what every published
+            package was generated from.
           </p>
         )}
       </QueryBoundary>

@@ -25,7 +25,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/EmptyState";
 import { FilterToggleGroup } from "@/components/FilterToggleGroup";
@@ -255,9 +262,7 @@ export function ProjectTargetsPage() {
                               // The words the picker that sets this uses. "not published"
                               // read as an empty history — which is the very next column,
                               // and answers "Nothing published yet" on its own.
-                              return (
-                                <span className="text-muted-foreground">Do not publish</span>
-                              );
+                              return <span className="text-muted-foreground">Do not publish</span>;
                             }
 
                             // "Revoked" is a claim about the list, so it waits for the list:
@@ -273,7 +278,9 @@ export function ProjectTargetsPage() {
 
                             if (!named) {
                               return (
-                                <span className="text-[var(--code-warning)]">credential revoked</span>
+                                <span className="text-[var(--code-warning)]">
+                                  credential revoked
+                                </span>
                               );
                             }
 
@@ -350,9 +357,7 @@ export function ProjectTargetsPage() {
                                 <MoreHorizontal className="size-4" aria-hidden />
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-44">
-                                <DropdownMenuItem
-                                  onClick={() => openDialog(target)}
-                                >
+                                <DropdownMenuItem onClick={() => openDialog(target)}>
                                   <Pencil className="size-4" aria-hidden />
                                   Edit
                                 </DropdownMenuItem>

@@ -10,7 +10,10 @@ import { DangerSection, SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { plural } from "@/lib/format";
 import {
-  useDeleteOrganization, useOrganization, useProjects, useRenameOrganization,
+  useDeleteOrganization,
+  useOrganization,
+  useProjects,
+  useRenameOrganization,
 } from "@/api/queries";
 
 export function OrganizationSettingsPage() {
@@ -34,9 +37,7 @@ export function OrganizationSettingsPage() {
 
       <div>
         <h1 className="font-heading text-2xl font-medium tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Naming and removal for this organization.
-        </p>
+        <p className="text-sm text-muted-foreground">Naming and removal for this organization.</p>
       </div>
 
       {/* None of this may render without the organization: the Name field would sit empty,

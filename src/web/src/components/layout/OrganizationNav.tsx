@@ -39,10 +39,26 @@ export function OrganizationNav() {
               // A single run lives at /runs/{id} and belongs to this section too.
               matches: (path) => path.startsWith(`${base}/runs`),
             },
-            { label: "Published", to: `${base}/publications`, icon: <Package className="size-4" aria-hidden /> },
-            { label: "Credentials", to: `${base}/credentials`, icon: <KeyRound className="size-4" aria-hidden /> },
-            { label: "Members", to: `${base}/members`, icon: <Users className="size-4" aria-hidden /> },
-            { label: "Settings", to: `${base}/settings`, icon: <Settings className="size-4" aria-hidden /> },
+            {
+              label: "Published",
+              to: `${base}/publications`,
+              icon: <Package className="size-4" aria-hidden />,
+            },
+            {
+              label: "Credentials",
+              to: `${base}/credentials`,
+              icon: <KeyRound className="size-4" aria-hidden />,
+            },
+            {
+              label: "Members",
+              to: `${base}/members`,
+              icon: <Users className="size-4" aria-hidden />,
+            },
+            {
+              label: "Settings",
+              to: `${base}/settings`,
+              icon: <Settings className="size-4" aria-hidden />,
+            },
           ]}
         />
       </div>

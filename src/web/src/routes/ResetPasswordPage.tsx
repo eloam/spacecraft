@@ -54,8 +54,7 @@ export function ResetPasswordPage() {
           footer={backToSignIn}
         >
           <p className="text-sm text-muted-foreground">
-            Email clients sometimes cut long links in half. Open it from the original message,
-            or{" "}
+            Email clients sometimes cut long links in half. Open it from the original message, or{" "}
             <Link
               to="/forgot-password"
               className="font-medium text-foreground underline underline-offset-4"

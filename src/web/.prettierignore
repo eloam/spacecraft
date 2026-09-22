@@ -1,0 +1,4 @@
+# Written by `npx shadcn add` and `npm run gen:api`, and rewritten by them again: formatted
+# here, every update would come back as a diff of nothing but style.
+src/components/ui/
+src/api/schema.d.ts

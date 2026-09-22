@@ -1,11 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "react",
-    "typescript",
-    "oxc",
-    "jsx-a11y"
-  ],
+  "plugins": ["react", "typescript", "oxc", "jsx-a11y"],
   "categories": {
     "correctness": "error"
   },
@@ -33,27 +28,21 @@
     "jsx-a11y/label-has-associated-control": [
       "error",
       {
-        "controlComponents": [
-          "Switch"
-        ],
+        "controlComponents": ["Switch"],
         "depth": 3
       }
     ]
   },
   "overrides": [
     {
-      "files": [
-        "e2e/**"
-      ],
+      "files": ["e2e/**"],
       "rules": {
         "react/rules-of-hooks": "off"
       }
     },
     {
       // shadcn's own files, replaced by `npx shadcn add`, not written here.
-      "files": [
-        "src/components/ui/**"
-      ],
+      "files": ["src/components/ui/**"],
       "rules": {
         "react/only-export-components": "off",
         "jsx-a11y/label-has-associated-control": "off",

@@ -1,7 +1,14 @@
 import { useParams } from "react-router-dom";
 import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { ExternalLink, PackageCheck } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EmptyState } from "@/components/EmptyState";
 import { PublicationStatusBadge } from "@/components/StatusBadge";
 import { QueryBoundary } from "@/components/QueryBoundary";
@@ -80,7 +87,7 @@ export function PublicationsPage() {
                         // column as wide as the message — pushing Completed off-screen for
                         // every other row. wrap-anywhere, because the registry URL inside it
                         // has no spaces to break at.
-                        <p className="mt-1 max-w-xs text-xs whitespace-normal wrap-anywhere text-destructive">
+                        <p className="mt-1 max-w-xs text-xs wrap-anywhere whitespace-normal text-destructive">
                           {publication.failureReason}
                         </p>
                       )}

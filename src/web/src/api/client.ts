@@ -184,12 +184,16 @@ async function parse<T>(response: Response): Promise<T> {
 
 export const api = {
   get: <T>(path: string) => send(path, { method: "GET" }).then((r) => parse<T>(r)),
-  post: <T>(path: string, body?: unknown) => send(path, { method: "POST", body }).then((r) => parse<T>(r)),
-  put: <T>(path: string, body?: unknown) => send(path, { method: "PUT", body }).then((r) => parse<T>(r)),
-  patch: <T>(path: string, body?: unknown) => send(path, { method: "PATCH", body }).then((r) => parse<T>(r)),
+  post: <T>(path: string, body?: unknown) =>
+    send(path, { method: "POST", body }).then((r) => parse<T>(r)),
+  put: <T>(path: string, body?: unknown) =>
+    send(path, { method: "PUT", body }).then((r) => parse<T>(r)),
+  patch: <T>(path: string, body?: unknown) =>
+    send(path, { method: "PATCH", body }).then((r) => parse<T>(r)),
   // DELETE carries a body here: deleting an account is confirmed with a password, and a
   // password does not belong in a query string where it would land in access logs.
-  delete: <T>(path: string, body?: unknown) => send(path, { method: "DELETE", body }).then((r) => parse<T>(r)),
+  delete: <T>(path: string, body?: unknown) =>
+    send(path, { method: "DELETE", body }).then((r) => parse<T>(r)),
   upload: <T>(path: string, formData: FormData) =>
     send(path, { method: "POST", formData }).then((r) => parse<T>(r)),
 

@@ -51,8 +51,7 @@ export function OrganizationSwitcher() {
     ? // Slug as well as name: the slug is what people see in URLs, so it is what they
       // half-remember when looking for an organization.
       all.filter(
-        (o) =>
-          o.name.toLowerCase().includes(needle) || o.slug.toLowerCase().includes(needle),
+        (o) => o.name.toLowerCase().includes(needle) || o.slug.toLowerCase().includes(needle),
       )
     : all;
 
@@ -64,11 +63,7 @@ export function OrganizationSwitcher() {
             // Filled rather than ghost: this is the one control in the bar that says where
             // you are, and a background separates it from the wordmark it sits beside
             // instead of letting the two read as one long title.
-            <Button
-              variant="secondary"
-              size="sm"
-              className="min-w-0 gap-1.5 px-2.5 font-semibold"
-            >
+            <Button variant="secondary" size="sm" className="min-w-0 gap-1.5 px-2.5 font-semibold">
               <Building2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               <span className="truncate">{current?.name ?? orgSlug}</span>
               <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />

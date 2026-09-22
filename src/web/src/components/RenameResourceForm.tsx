@@ -87,8 +87,8 @@ export function RenameResourceForm({
             // Renaming moves the slug, and the slug is the URL. Saying so before the click is
             // the difference between a rename and a broken link someone discovers later.
             <FieldDescription className="text-xs text-destructive">
-              Renaming changes the slug. Existing links to{" "}
-              <code className="font-mono">{slug}</code> will stop working.
+              Renaming changes the slug. Existing links to <code className="font-mono">{slug}</code>{" "}
+              will stop working.
             </FieldDescription>
           ) : (
             <FieldDescription className="text-xs">

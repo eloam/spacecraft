@@ -19,7 +19,10 @@ const profileSchema = z.object({
 });
 
 function ProfileCard({
-  displayName, email, createdAt, lastLoginAt,
+  displayName,
+  email,
+  createdAt,
+  lastLoginAt,
 }: {
   displayName: string | null;
   email: string;
@@ -56,55 +59,53 @@ function ProfileCard({
       title="Profile"
       description="How you appear across SpaceCraft."
     >
-        <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
-          <FieldGroup>
-            <Field data-invalid={!!form.formState.errors.displayName}>
-              <FieldLabel htmlFor="displayName">Display name</FieldLabel>
-              <Input
-                id="displayName"
-                placeholder="Not set"
-                aria-invalid={!!form.formState.errors.displayName}
-                {...form.register("displayName")}
-              />
-              <FieldError errors={[form.formState.errors.displayName]} />
-            </Field>
+      <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
+        <FieldGroup>
+          <Field data-invalid={!!form.formState.errors.displayName}>
+            <FieldLabel htmlFor="displayName">Display name</FieldLabel>
+            <Input
+              id="displayName"
+              placeholder="Not set"
+              aria-invalid={!!form.formState.errors.displayName}
+              {...form.register("displayName")}
+            />
+            <FieldError errors={[form.formState.errors.displayName]} />
+          </Field>
 
-            <Field>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
-              {/* Changing an address needs a verification round trip to prove the new one is
-                  reachable; until that exists, showing it read-only is honest. */}
-              <Input id="email" value={email} readOnly disabled />
-              <FieldDescription>
-                Contact support to change your email address.
-              </FieldDescription>
-            </Field>
-          </FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            {/* Changing an address needs a verification round trip to prove the new one is
+                reachable; until that exists, showing it read-only is honest. */}
+            <Input id="email" value={email} readOnly disabled />
+            <FieldDescription>Contact support to change your email address.</FieldDescription>
+          </Field>
+        </FieldGroup>
 
-          <Separator />
+        <Separator />
 
-          <dl className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <dt className="text-muted-foreground">Member since</dt>
-              <dd>
-                <time dateTime={createdAt}>{formatDate(createdAt)}</time>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Last sign-in</dt>
-              <dd>
-                {lastLoginAt ? (
-                  <time dateTime={lastLoginAt}>{formatDateTime(lastLoginAt)}</time>
-                ) : (
-                  "—"
-                )}
-              </dd>
-            </div>
-          </dl>
+        <dl className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <dt className="text-muted-foreground">Member since</dt>
+            <dd>
+              <time dateTime={createdAt}>{formatDate(createdAt)}</time>
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Last sign-in</dt>
+            <dd>
+              {lastLoginAt ? (
+                <time dateTime={lastLoginAt}>{formatDateTime(lastLoginAt)}</time>
+              ) : (
+                "—"
+              )}
+            </dd>
+          </div>
+        </dl>
 
-          <Button type="submit" disabled={update.isPending || !form.formState.isDirty}>
-            {update.isPending ? "Saving…" : "Save changes"}
-          </Button>
-        </form>
+        <Button type="submit" disabled={update.isPending || !form.formState.isDirty}>
+          {update.isPending ? "Saving…" : "Save changes"}
+        </Button>
+      </form>
     </SettingsSection>
   );
 }

@@ -3,16 +3,24 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel,
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
 } from "@/components/ui/field";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
-  Dialog, DialogClose, DialogContent, DialogDescription,
-  DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { ApiError, describeError } from "@/api/client";
 import { useAddTarget, useCredentials, useUpdateTarget } from "@/api/queries";
@@ -180,8 +188,8 @@ function TargetForm({
           {renaming && target?.lastPublishedVersion && (
             <FieldDescription>
               {target.packageName}@{target.lastPublishedVersion} stays on{" "}
-              {registryLabel[target.registry]}. Future versions go to the new name, and this
-              target no longer reports that release.
+              {registryLabel[target.registry]}. Future versions go to the new name, and this target
+              no longer reports that release.
             </FieldDescription>
           )}
           <FieldError>{packageNameError}</FieldError>
@@ -219,9 +227,7 @@ function TargetForm({
                     ? (usable.find((c) => c.id === credentialId)?.label ?? "Unknown credential")
                     : "Do not publish"}
                 </span>
-                <span
-                  className="w-full truncate font-mono text-xs leading-tight text-muted-foreground"
-                >
+                <span className="w-full truncate font-mono text-xs leading-tight text-muted-foreground">
                   {publishes
                     ? usable.find((c) => c.id === credentialId)?.registryUrl
                     : "Generate and build only"}
@@ -243,9 +249,7 @@ function TargetForm({
                 <SelectItem key={credential.id} value={credential.id}>
                   <span className="flex min-w-0 flex-col items-start gap-0.5 py-0.5">
                     <span className="w-full truncate leading-tight">{credential.label}</span>
-                    <span
-                      className="w-full truncate font-mono text-xs leading-tight text-muted-foreground"
-                    >
+                    <span className="w-full truncate font-mono text-xs leading-tight text-muted-foreground">
                       {credential.registryUrl}
                     </span>
                   </span>
@@ -264,8 +268,8 @@ function TargetForm({
             </FieldDescription>
           ) : usable.length === 0 ? (
             <FieldDescription>
-              This organization has no usable npm credential yet. Generating and building
-              work without one; only publishing needs it.
+              This organization has no usable npm credential yet. Generating and building work
+              without one; only publishing needs it.
             </FieldDescription>
           ) : null}
         </Field>
@@ -280,8 +284,8 @@ function TargetForm({
               Publish automatically
             </FieldLabel>
             <FieldDescription>
-              Every new spec version is generated, built and pushed to {registry} with no
-              human step. Off by default — publishing to a public registry cannot be undone.
+              Every new spec version is generated, built and pushed to {registry} with no human
+              step. Off by default — publishing to a public registry cannot be undone.
             </FieldDescription>
           </FieldContent>
 
@@ -295,11 +299,15 @@ function TargetForm({
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
+        <DialogClose
+          render={
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          }
+        />
         <Button type="submit" disabled={!packageName.trim() || pending}>
-          {pending
-            ? target ? "Saving…" : "Adding…"
-            : target ? "Save changes" : "Add target"}
+          {pending ? (target ? "Saving…" : "Adding…") : target ? "Save changes" : "Add target"}
         </Button>
       </DialogFooter>
     </form>

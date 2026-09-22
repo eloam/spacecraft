@@ -7,13 +7,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
-  Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle,
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
 } from "@/components/ui/item";
 import { Badge } from "@/components/ui/badge";
 import { SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ApiError, describeError } from "@/api/client";
-import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from "@/api/queries";
+import {
+  useChangePassword,
+  useRevokeOtherSessions,
+  useRevokeSession,
+  useSessions,
+} from "@/api/queries";
 import { newPasswordField } from "@/lib/fields";
 import { formatDate, formatDateTime, plural } from "@/lib/format";
 
@@ -73,36 +84,39 @@ function PasswordCard() {
       title="Password"
       description="Changing it signs out every other session, but not this one."
     >
-        <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
-          <FieldGroup>
-            {(["currentPassword", "newPassword", "confirmPassword"] as const).map((field) => (
-              <Field key={field} data-invalid={!!form.formState.errors[field]}>
-                <FieldLabel htmlFor={field}>
-                  {field === "currentPassword" ? "Current password"
-                    : field === "newPassword" ? "New password" : "Confirm new password"}
-                </FieldLabel>
-                <Input
-                  id={field}
-                  type="password"
-                  autoComplete={field === "currentPassword" ? "current-password" : "new-password"}
-                  aria-invalid={!!form.formState.errors[field]}
-                  {...form.register(field)}
-                />
-                <FieldError errors={[form.formState.errors[field]]} />
-              </Field>
-            ))}
-          </FieldGroup>
+      <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
+        <FieldGroup>
+          {(["currentPassword", "newPassword", "confirmPassword"] as const).map((field) => (
+            <Field key={field} data-invalid={!!form.formState.errors[field]}>
+              <FieldLabel htmlFor={field}>
+                {field === "currentPassword"
+                  ? "Current password"
+                  : field === "newPassword"
+                    ? "New password"
+                    : "Confirm new password"}
+              </FieldLabel>
+              <Input
+                id={field}
+                type="password"
+                autoComplete={field === "currentPassword" ? "current-password" : "new-password"}
+                aria-invalid={!!form.formState.errors[field]}
+                {...form.register(field)}
+              />
+              <FieldError errors={[form.formState.errors[field]]} />
+            </Field>
+          ))}
+        </FieldGroup>
 
-          {form.formState.errors.root && (
-            <p className="text-sm text-destructive" role="alert">
-              {form.formState.errors.root.message}
-            </p>
-          )}
+        {form.formState.errors.root && (
+          <p className="text-sm text-destructive" role="alert">
+            {form.formState.errors.root.message}
+          </p>
+        )}
 
-          <Button type="submit" disabled={change.isPending}>
-            {change.isPending ? "Changing…" : "Change password"}
-          </Button>
-        </form>
+        <Button type="submit" disabled={change.isPending}>
+          {change.isPending ? "Changing…" : "Change password"}
+        </Button>
+      </form>
     </SettingsSection>
   );
 }
@@ -143,7 +157,8 @@ function SessionsCard() {
                     {/* One flex item: split, the title's gap would open between the word and
                         the date. */}
                     <span>
-                      Started <time dateTime={session.startedAt}>{formatDate(session.startedAt)}</time>
+                      Started{" "}
+                      <time dateTime={session.startedAt}>{formatDate(session.startedAt)}</time>
                     </span>
                     {session.isCurrent && <Badge variant="secondary">This device</Badge>}
                   </ItemTitle>

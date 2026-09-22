@@ -9,21 +9,32 @@ import { LogOut, MailX, MoreHorizontal, Plus, UserMinus, Users } from "lucide-re
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Field, FieldDescription, FieldError, FieldGroup, FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger,
-} from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Dialog, DialogClose, DialogContent, DialogDescription,
-  DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { EmptyState } from "@/components/EmptyState";
@@ -35,8 +46,14 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { emailField } from "@/lib/fields";
 import { ApiError, describeError } from "@/api/client";
 import {
-  keys, useChangeMemberRole, useInvitations, useInviteMember, useMembers, useOrganizations,
-  useRemoveMember, useRevokeInvitation,
+  keys,
+  useChangeMemberRole,
+  useInvitations,
+  useInviteMember,
+  useMembers,
+  useOrganizations,
+  useRemoveMember,
+  useRevokeInvitation,
 } from "@/api/queries";
 import { OrganizationRole, roleLabel, type Invitation, type Member } from "@/api/types";
 
@@ -140,7 +157,7 @@ export function MembersPage() {
                           {/* Capped as well as `min-w-0`: the cell is `whitespace-nowrap`, so
                               without a width to truncate against a long address just widened
                               the column and pushed the role and actions off screen. */}
-                          <div className="min-w-0 max-w-[16rem]">
+                          <div className="max-w-[16rem] min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="min-w-0 truncate text-sm">
                                 {member.displayName || member.email}
@@ -372,13 +389,7 @@ export function MembersPage() {
  * the API — and were shown nowhere, so an admin who mistyped an address could only wait the
  * seven days out. What is on offer here is taking it back.
  */
-function PendingInvitations({
-  orgId,
-  invitations,
-}: {
-  orgId: string;
-  invitations: Invitation[];
-}) {
+function PendingInvitations({ orgId, invitations }: { orgId: string; invitations: Invitation[] }) {
   const revoke = useRevokeInvitation(orgId);
 
   return (
@@ -427,7 +438,8 @@ function PendingInvitations({
                     disabled={revoke.isPending && revoke.variables === invitation.id}
                     onClick={() =>
                       revoke.mutate(invitation.id, {
-                        onSuccess: () => toast.success(`Invitation to ${invitation.email} withdrawn.`),
+                        onSuccess: () =>
+                          toast.success(`Invitation to ${invitation.email} withdrawn.`),
                         onError: (error) =>
                           toast.error(describeError(error, "Could not withdraw the invitation.")),
                       })
@@ -514,8 +526,8 @@ function InviteForm({
         <DialogDescription>
           {/* Membership waits for the link to be opened, even when an account already uses
               this address: an address nobody has verified never decides who joins. */}
-          A link goes to this address. They join when they open it, whether or not they
-          have an account yet — and nothing changes until they do.
+          A link goes to this address. They join when they open it, whether or not they have an
+          account yet — and nothing changes until they do.
         </DialogDescription>
       </DialogHeader>
 
@@ -569,7 +581,13 @@ function InviteForm({
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" type="button">Cancel</Button>} />
+        <DialogClose
+          render={
+            <Button variant="outline" type="button">
+              Cancel
+            </Button>
+          }
+        />
         <Button type="submit" disabled={invite.isPending}>
           {invite.isPending ? "Sending…" : "Send invitation"}
         </Button>
