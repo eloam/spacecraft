@@ -7,13 +7,8 @@ import { SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { describeError } from "@/api/client";
 import { useAuthStore } from "@/stores/auth";
-import {
-  useNotificationPreferences,
-  useSaveNotificationPreferences,
-  type NotificationChannel,
-  type NotificationKind,
-  type NotificationPreference,
-} from "@/api/queries";
+import { useNotificationPreferences, useSaveNotificationPreferences } from "@/api/queries";
+import type { NotificationChannel, NotificationKind, NotificationPreference } from "@/api/types";
 
 /**
  * What each event is, in the reader's terms rather than the enum's.

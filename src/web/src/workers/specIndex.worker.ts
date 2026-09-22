@@ -1,5 +1,10 @@
+/// <reference lib="webworker" />
 import { parseDocument } from "yaml";
 import { lineAt, lineStarts, offsetForPointer } from "../lib/specPointer";
+
+// The app's tsconfig gives every file the DOM's `self`, a Window; this file runs where `self`
+// is the worker scope, and `postMessage` here takes one argument, not a target origin.
+declare const self: DedicatedWorkerGlobalScope;
 
 export type IndexRequest = {
   text: string;
@@ -47,11 +52,12 @@ self.onmessage = (event: MessageEvent<IndexRequest>) => {
       }),
     };
 
-    if (doc.errors.length > 0) {
+    const [first] = doc.errors;
+    if (first) {
       // The first line of the message is the sentence with its line and column; the parser
       // follows it with a code frame of the offending line, which the dialog reading this
       // already has on screen.
-      response.error = doc.errors[0].message.split("\n", 1)[0].replace(/:$/, "");
+      response.error = first.message.split("\n", 1)[0]?.replace(/:$/, "") ?? first.message;
     }
   } catch (error) {
     // Anything the parser or the walk throws outright, which the recovery above does not

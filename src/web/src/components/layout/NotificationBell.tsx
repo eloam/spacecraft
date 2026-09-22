@@ -29,8 +29,8 @@ import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
-  type NotificationItem,
 } from "@/api/queries";
+import type { NotificationItem } from "@/api/types";
 
 /**
  * What happened while you were not looking.

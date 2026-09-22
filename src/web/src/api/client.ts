@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/stores/auth";
-import type { AuthResponse } from "./types";
+import type { AuthResponse, ValidationProblem } from "./types";
 
 const BASE_URL = "/api/v1";
 
@@ -133,7 +133,9 @@ async function toError(response: Response): Promise<ApiError> {
   let errors: Record<string, string[]> | undefined;
 
   try {
-    const problem = await response.json();
+    // The shape the API declares for a refused request; a plain ProblemDetails is the same
+    // document without `errors`, so one type reads both.
+    const problem: ValidationProblem = await response.json();
     title = problem.title ?? title;
     detail = problem.detail ?? "";
     errors = problem.errors;
@@ -158,17 +160,16 @@ function fileNameFrom(response: Response): string | null {
 
   // RFC 6266 puts a non-ASCII name in filename*, percent-encoded, and repeats an ASCII
   // approximation in filename for older clients. The starred form wins where both are sent.
-  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1];
   if (encoded) {
     try {
-      return decodeURIComponent(encoded[1]);
+      return decodeURIComponent(encoded);
     } catch {
       // A malformed header should not cost the download the bytes that came with it.
     }
   }
 
-  const plain = /filename="?([^";]+)"?/i.exec(header);
-  return plain ? plain[1] : null;
+  return /filename="?([^";]+)"?/i.exec(header)?.[1] ?? null;
 }
 
 async function parse<T>(response: Response): Promise<T> {

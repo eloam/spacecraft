@@ -41,7 +41,7 @@ test("an invitation is sent, read from the mailbox and accepted", async ({
   await expect(invitee.getByRole("heading", { name: `Join ${organization.name}` })).toBeVisible();
   // The name the inviter goes by, which is what the preview shows — putting their
   // address in front of somebody who has not joined yet would be a different decision.
-  await expect(invitee.getByText(account.email.split("@")[0])).toBeVisible();
+  await expect(invitee.getByText(account.email.slice(0, account.email.indexOf("@")))).toBeVisible();
 
   await invitee.getByRole("button", { name: `Join ${organization.name}` }).click();
   await expect(invitee).toHaveURL(`/orgs/${organization.slug}`);

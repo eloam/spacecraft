@@ -47,43 +47,39 @@ function fileSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-type Filter = "all" | "valid" | "warnings" | "errors";
+/** In the order the strip shows them; the union below is derived from it. */
+const FILTER_IDS = ["all", "valid", "warnings", "errors"] as const;
+type Filter = (typeof FILTER_IDS)[number];
 
 /**
  * The same icons the counts column uses, so a filter and what it selects look alike — and,
  * once selected, the same colour too. Unselected they stay monochrome: four coloured icons
  * competing at once is what the segmented control was meant to quieten.
  */
-const filters: {
-  id: Filter;
-  label: string;
-  Icon: typeof Layers;
-  tone: string;
-  matches: (s: SpecVersion) => boolean;
-}[] = [
-  { id: "all", label: "All", Icon: Layers, tone: "text-[var(--filter-all)]", matches: () => true },
-  {
-    id: "valid",
+const filters: Record<
+  Filter,
+  { label: string; Icon: typeof Layers; tone: string; matches: (s: SpecVersion) => boolean }
+> = {
+  all: { label: "All", Icon: Layers, tone: "text-[var(--filter-all)]", matches: () => true },
+  valid: {
     label: "Generatable",
     Icon: CircleCheck,
     tone: "text-[var(--success)]",
     matches: (s) => s.validationStatus !== SpecValidationStatus.Invalid,
   },
-  {
-    id: "warnings",
+  warnings: {
     label: "Warnings",
     Icon: TriangleAlert,
     tone: "text-[var(--code-warning)]",
     matches: (s) => s.warningCount > 0,
   },
-  {
-    id: "errors",
+  errors: {
     label: "Errors",
     Icon: CircleAlert,
     tone: "text-destructive",
     matches: (s) => s.errorCount > 0,
   },
-];
+};
 
 /** Uploaded OpenAPI documents and what validation made of them. */
 export function ProjectSpecsPage() {
@@ -137,10 +133,7 @@ export function ProjectSpecsPage() {
     return map;
   }, [publications.data]);
 
-  const visible = useMemo(
-    () => items.filter(filters.find((f) => f.id === filter)!.matches),
-    [items, filter],
-  );
+  const visible = useMemo(() => items.filter(filters[filter].matches), [items, filter]);
 
   // Looked up in `items` rather than in `visible`: the upload card opens this dialog on a
   // version a filter may be hiding.
@@ -158,21 +151,21 @@ export function ProjectSpecsPage() {
 
   // Resolved against what is on screen, not against everything: a filter that hides a
   // selected row must not leave Compare active on two documents nobody can see. Derived
-  // rather than pruned, so changing the filter back finds the selection still there.
-  const pair = useMemo(
-    () =>
-      selected
-        .map((id) => visible.find((s) => s.id === id))
-        .filter((s): s is SpecVersion => s !== undefined),
-    [selected, visible],
-  );
+  // rather than pruned, so changing the filter back finds the selection still there. Null
+  // until both are visible: `toggle` keeps at most two ids, so the first two hits are the pair.
+  const pair = useMemo((): [SpecVersion, SpecVersion] | null => {
+    const [first, second] = selected
+      .map((id) => visible.find((s) => s.id === id))
+      .filter((s): s is SpecVersion => s !== undefined);
+    return first && second ? [first, second] : null;
+  }, [selected, visible]);
 
   // A YAML document and a JSON one can describe the same API and still share no line. A
   // textual diff of the two would mark every line as changed and teach nothing.
-  const mixedNotations = pair.length === 2 && pair[0].format !== pair[1].format;
+  const mixedNotations = pair !== null && pair[0].format !== pair[1].format;
 
   function compare() {
-    if (pair.length === 2 && !mixedNotations) setComparing([pair[0], pair[1]]);
+    if (pair && !mixedNotations) setComparing(pair);
   }
 
   function confirmDelete() {
@@ -215,7 +208,7 @@ export function ProjectSpecsPage() {
             <div className="flex flex-wrap items-center gap-2">
               {/* Appears only once two versions are picked: an always-present button that does
                   nothing most of the time teaches people to ignore it. */}
-              {pair.length === 2 && (
+              {pair && (
                 <div className="flex items-center gap-2">
                   {mixedNotations && (
                     // Said plainly rather than by a button that vanishes: the two were just
@@ -241,7 +234,8 @@ export function ProjectSpecsPage() {
               {/* One control rather than four loose buttons: a segmented set says the choices
                   are exclusive before anything is clicked. */}
               <div className="ml-auto flex items-center rounded-lg border bg-card p-0.5">
-                {filters.map(({ id, label, Icon, tone, matches }) => {
+                {FILTER_IDS.map((id) => {
+                  const { label, Icon, tone, matches } = filters[id];
                   const count = items.filter(matches).length;
 
                   return (

@@ -142,7 +142,9 @@ export function GenerateDialog({
     StepKind.Build,
     ...(willPublish ? [StepKind.Publish] : []),
   ]
-    .map((kind) => stepKindLabel[kind].toLowerCase())
+    // Every kind above is a StepKind member and the map is checked complete over them; only
+    // its number index keeps the checker from seeing that.
+    .map((kind) => (stepKindLabel[kind] ?? "Unknown").toLowerCase())
     .join(" → ");
 
   function submit(event: React.FormEvent) {
@@ -182,7 +184,10 @@ export function GenerateDialog({
                 <Select
                   value={activeProject}
                   onValueChange={(value) => {
-                    setPickedProject(String(value));
+                    // null is Base UI's "cleared". No select in this dialog offers that, and
+                    // coerced to a string it named a project called "null".
+                    if (value === null) return;
+                    setPickedProject(value);
                     // A spec and a target both belong to a project. Carried across, they
                     // would name rows the newly chosen one does not own.
                     setSpecId("");
@@ -230,7 +235,10 @@ export function GenerateDialog({
                 <Select
                   value={selectedSpec}
                   disabled={!activeProject}
-                  onValueChange={(value) => setSpecId(String(value))}
+                  onValueChange={(value) => {
+                    if (value === null) return;
+                    setSpecId(value);
+                  }}
                 >
                   <SelectTrigger id="spec" className="w-full">
                     <SelectValue>{specLabel(usableSpecs.find((s) => s.id === selectedSpec))}</SelectValue>
@@ -251,7 +259,8 @@ export function GenerateDialog({
                   value={selectedTarget}
                   disabled={!activeProject}
                   onValueChange={(value) => {
-                    setTargetId(String(value));
+                    if (value === null) return;
+                    setTargetId(value);
                     // Back to following the new target: an override belongs to the target it
                     // was set against, not to the dialog.
                     setPublish(null);

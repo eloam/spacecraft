@@ -20,11 +20,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { LocatedFinding, Finding as SourceFinding } from "@/components/SpecSourceView";
 import { cn } from "@/lib/utils";
 import { describeError } from "@/api/client";
 import { useProject, useRevalidateSpec, useSpecContent, useSpecDiagnostics } from "@/api/queries";
-import { DiagnosticSeverity } from "@/api/types";
+import { DiagnosticSeverity, type IdentifiedDiagnostic } from "@/api/types";
 import type { IndexResponse } from "@/workers/specIndex.worker";
 
 /**
@@ -35,13 +34,24 @@ const SpecSourceView = lazy(() =>
   import("@/components/SpecSourceView").then((m) => ({ default: m.SpecSourceView })),
 );
 
-type Finding = {
-  id: number;
-  severity: number;
-  message: string;
-  jsonPointer?: string | null;
-  line: number | null;
-};
+/**
+ * A diagnostic as the dialog holds it: numbered, its severity resolved to one the app knows,
+ * and placed — `line` is null while the document is not yet indexed, or when the pointer
+ * addresses nothing it contains.
+ */
+type Finding = IdentifiedDiagnostic & { severity: DiagnosticSeverity; line: number | null };
+
+function isSeverity(value: number): value is DiagnosticSeverity {
+  return Object.values<number>(DiagnosticSeverity).includes(value);
+}
+
+/**
+ * The API types a severity as a bare number, so one added on the server before the front end
+ * learns it can arrive. It still renders, and still counts, as a note.
+ */
+function severityOf(value: number): DiagnosticSeverity {
+  return isSeverity(value) ? value : DiagnosticSeverity.Information;
+}
 
 const ORDER = [DiagnosticSeverity.Error, DiagnosticSeverity.Warning, DiagnosticSeverity.Information];
 
@@ -49,7 +59,7 @@ const ORDER = [DiagnosticSeverity.Error, DiagnosticSeverity.Warning, DiagnosticS
  * "Information" has no plural in English, so it cannot take the same "+ s" as the others.
  * "Note" can, it is what the badge on the specs table already says, and it is shorter.
  */
-const nouns: Record<number, string> = {
+const nouns: Record<DiagnosticSeverity, string> = {
   [DiagnosticSeverity.Error]: "error",
   [DiagnosticSeverity.Warning]: "warning",
   [DiagnosticSeverity.Information]: "note",
@@ -60,19 +70,19 @@ function count(n: number, noun: string) {
 }
 
 /** Title case and plural, matching the filter set on the specs table this opens from. */
-const labels: Record<number, string> = {
+const labels: Record<DiagnosticSeverity, string> = {
   [DiagnosticSeverity.Error]: "Errors",
   [DiagnosticSeverity.Warning]: "Warnings",
   [DiagnosticSeverity.Information]: "Notes",
 };
 
-const icons: Record<number, typeof Info> = {
+const icons: Record<DiagnosticSeverity, typeof Info> = {
   [DiagnosticSeverity.Error]: CircleAlert,
   [DiagnosticSeverity.Warning]: TriangleAlert,
   [DiagnosticSeverity.Information]: Info,
 };
 
-const tones: Record<number, string> = {
+const tones: Record<DiagnosticSeverity, string> = {
   [DiagnosticSeverity.Error]: "text-destructive",
   [DiagnosticSeverity.Warning]: "text-[var(--code-warning)]",
   [DiagnosticSeverity.Information]: "text-muted-foreground",
@@ -178,7 +188,7 @@ export function SpecValidationDialog({
 
 
   const [mode, setMode] = useState<"source" | "list">("source");
-  const [hidden, setHidden] = useState<number[]>([]);
+  const [hidden, setHidden] = useState<DiagnosticSeverity[]>([]);
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [scrollTo, setScrollTo] = useState<{ line: number; nonce: number } | null>(null);
   const nonce = useRef(0);
@@ -226,19 +236,17 @@ export function SpecValidationDialog({
   const findings = useMemo<Finding[]>(() => {
     const raw = diagnostics.data ?? [];
     return raw
-      .map((d, i) => ({
-        id: i,
-        severity: d.severity,
-        message: d.message,
-        jsonPointer: d.jsonPointer,
-        line: lines?.[i] ?? null,
-      }))
+      .map((d, i) => ({ ...d, id: i, severity: severityOf(d.severity), line: lines?.[i] ?? null }))
       .sort((a, b) => (a.line ?? Infinity) - (b.line ?? Infinity) || a.id - b.id);
   }, [diagnostics.data, lines]);
 
   const counts = useMemo(() => {
-    const tally: Record<number, number> = { 0: 0, 1: 0, 2: 0 };
-    for (const f of findings) tally[f.severity] = (tally[f.severity] ?? 0) + 1;
+    const tally: Record<DiagnosticSeverity, number> = {
+      [DiagnosticSeverity.Error]: 0,
+      [DiagnosticSeverity.Warning]: 0,
+      [DiagnosticSeverity.Information]: 0,
+    };
+    for (const f of findings) tally[f.severity] += 1;
     return tally;
   }, [findings]);
 
@@ -251,7 +259,7 @@ export function SpecValidationDialog({
    */
   const findingsUnknown = diagnostics.data === undefined;
 
-  const recorded: Record<number, number> | undefined = totals && {
+  const recorded: Record<DiagnosticSeverity, number> | undefined = totals && {
     [DiagnosticSeverity.Error]: totals.errors,
     [DiagnosticSeverity.Warning]: totals.warnings,
     [DiagnosticSeverity.Information]: totals.information,
@@ -448,7 +456,7 @@ export function SpecValidationDialog({
               >
                 <Icon className={cn("size-3.5", !off && tones[severity])} aria-hidden />
                 {labels[severity]}
-                <span className="tabular-nums opacity-60">{counts[severity] ?? 0}</span>
+                <span className="tabular-nums opacity-60">{counts[severity]}</span>
               </button>
             );
           })}
@@ -637,8 +645,8 @@ export function SpecValidationDialog({
                 <SpecSourceView
                   content={source.data.content}
                   format={source.data.format}
-                  findings={located as LocatedFinding[]}
-                  unlocated={unlocated as SourceFinding[]}
+                  findings={located}
+                  unlocated={unlocated}
                   currentId={currentId}
                   scrollTo={scrollTo}
                 />

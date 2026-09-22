@@ -121,7 +121,7 @@ export function OrganizationSwitcher() {
               />
               <span className="flex-1 truncate">{organization.name}</span>
               <span className="text-xs text-muted-foreground">
-                {roleLabel[organization.role] ?? "Member"}
+                {roleLabel[organization.role] ?? "Unknown"}
               </span>
               </DropdownMenuItem>
             ))}
