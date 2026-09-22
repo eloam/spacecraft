@@ -32,7 +32,7 @@ const ALL = "all";
  * carries the project's name, so a run has never needed a project page to be read.
  */
 export function OrganizationRunsPage() {
-  const { orgId: orgSlug = "" } = useParams();
+  const { orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const [search, setSearch] = useSearchParams();

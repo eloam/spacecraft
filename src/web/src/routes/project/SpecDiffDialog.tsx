@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useRef, useState } from "react";
+import { Suspense, lazy, useRef, useState } from "react";
 import { ArrowLeftRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -54,12 +54,11 @@ export function SpecDiffDialog({
   const [scrollTo, setScrollTo] = useState<{ index: number; nonce: number } | null>(null);
   const nonce = useRef(0);
 
-  // Identity-stable, so reporting the count does not tear the merge view down and rebuild it.
-  const onChunkCount = useCallback((count: number) => {
+  function onChunkCount(count: number) {
     setChunkCount(count);
     setAt(-1);
     setScrollTo(null);
-  }, []);
+  }
 
   function step(by: 1 | -1) {
     const next = wrapStep(at, by, chunkCount);
@@ -109,8 +108,8 @@ export function SpecDiffDialog({
             </span>
             <StepButtons noun="change" disabled={chunkCount === 0} onStep={step} />
 
-            {/* An icon, like the one every other dialog closes with: the word sat in a row
-                of icon buttons and read as one more tool rather than the way out. */}
+            {/* An icon, like the one every other dialog closes with: a word in a row of icon
+                buttons reads as one more tool rather than the way out. */}
             <Button size="icon-sm" variant="ghost" aria-label="Close" onClick={onClose}>
               <X className="size-4" aria-hidden />
             </Button>

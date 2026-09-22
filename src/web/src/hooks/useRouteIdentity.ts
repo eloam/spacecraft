@@ -33,8 +33,8 @@ export function useOrganizationId(slug: string): string {
 }
 
 /** The project's id, from the list of the organization it belongs to. */
-export function useProjectId(organizationId: string, slug: string): string {
-  const projects = useProjects(organizationId);
+export function useProjectId(orgId: string, slug: string): string {
+  const projects = useProjects(orgId);
 
   if (GUID.test(slug)) {
     return slug;
@@ -54,37 +54,37 @@ export function useProjectId(organizationId: string, slug: string): string {
  * where the visitor came from, not to the same page spelled differently.
  */
 export function useCanonicalRoute() {
-  const { orgId = "", projectId = "" } = useParams();
+  const { orgSlug = "", projectSlug = "" } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
 
   const organizations = useOrganizations();
-  const organizationId = useOrganizationId(orgId);
-  const projects = useProjects(organizationId);
+  const orgId = useOrganizationId(orgSlug);
+  const projects = useProjects(orgId);
 
-  const organizationSlug = GUID.test(orgId)
-    ? organizations.data?.find((o) => o.id === orgId)?.slug
+  const canonicalOrgSlug = GUID.test(orgSlug)
+    ? organizations.data?.find((o) => o.id === orgSlug)?.slug
     : undefined;
 
-  const projectSlug = GUID.test(projectId)
-    ? projects.data?.find((p) => p.id === projectId)?.slug
+  const canonicalProjectSlug = GUID.test(projectSlug)
+    ? projects.data?.find((p) => p.id === projectSlug)?.slug
     : undefined;
 
   useEffect(() => {
-    if (!organizationSlug && !projectSlug) return;
+    if (!canonicalOrgSlug && !canonicalProjectSlug) return;
 
     let path = location.pathname;
 
-    if (organizationSlug) {
-      path = path.replace(`/orgs/${orgId}`, `/orgs/${organizationSlug}`);
+    if (canonicalOrgSlug) {
+      path = path.replace(`/orgs/${orgSlug}`, `/orgs/${canonicalOrgSlug}`);
     }
 
-    if (projectSlug) {
-      path = path.replace(`/projects/${projectId}`, `/projects/${projectSlug}`);
+    if (canonicalProjectSlug) {
+      path = path.replace(`/projects/${projectSlug}`, `/projects/${canonicalProjectSlug}`);
     }
 
     if (path !== location.pathname) {
       navigate(`${path}${location.search}${location.hash}`, { replace: true });
     }
-  }, [organizationSlug, projectSlug, orgId, projectId, location, navigate]);
+  }, [canonicalOrgSlug, canonicalProjectSlug, orgSlug, projectSlug, location, navigate]);
 }

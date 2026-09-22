@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CheckCircle2, CircleDashed, Loader2Icon, MinusCircle, XCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,7 @@ const TONE = {
 
 type Tone = keyof typeof TONE;
 
-function Pill({ tone, icon, label }: { tone: Tone; icon: React.ReactNode; label: string }) {
+function Pill({ tone, icon, label }: { tone: Tone; icon: ReactNode; label: string }) {
   return (
     <span
       className={cn(

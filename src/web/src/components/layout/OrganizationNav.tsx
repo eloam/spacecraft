@@ -12,9 +12,7 @@ import { SectionNav } from "@/components/layout/SectionNav";
  * no title here: repeating the name said it twice on every page.
  */
 export function OrganizationNav() {
-  // The slug, which is what this builds links out of. The id is the API's name for the
-  // same organization and never appears in an address.
-  const { orgId: orgSlug = "" } = useParams();
+  const { orgSlug = "" } = useParams();
   const base = `/orgs/${orgSlug}`;
 
   return (

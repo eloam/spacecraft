@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Bell, Hash, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -83,7 +84,7 @@ function PlannedChannel({
   title,
   description,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
 }) {
@@ -135,7 +136,7 @@ export function AccountNotificationsPage() {
 
   const channel = (
     kind: NotificationChannel,
-    icon: React.ReactNode,
+    icon: ReactNode,
     title: string,
     description: string,
   ) => (

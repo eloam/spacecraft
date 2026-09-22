@@ -14,7 +14,7 @@ import {
 } from "@/api/queries";
 
 export function OrganizationSettingsPage() {
-  const { orgId: orgSlug = "" } = useParams();
+  const { orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const navigate = useNavigate();
   const organization = useOrganization(orgId);

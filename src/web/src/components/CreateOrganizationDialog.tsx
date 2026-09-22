@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,7 @@ function CreateOrganizationForm({
   // Only once something has been typed: an untouched field is not yet wrong.
   const nameInvalid = Boolean(name.trim()) && !isValidResourceName(name);
 
-  function submit(event: React.FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
     create.mutate(
       { name },

@@ -6,7 +6,7 @@ import { isMap, isNode, isScalar, isSeq, type Document } from "yaml";
  * RFC 6901 escaping is undone here: "~1" is a literal "/" inside a key, "~0" a literal "~".
  * Order matters — "~01" must decode to "~1", not to "/", so "~1" is replaced first.
  */
-export function decodePointer(pointer: string): string[] {
+function decodePointer(pointer: string): string[] {
   let rest = pointer.startsWith("#") ? pointer.slice(1) : pointer;
   if (rest === "" || rest === "/") return [];
   if (rest.startsWith("/")) rest = rest.slice(1);

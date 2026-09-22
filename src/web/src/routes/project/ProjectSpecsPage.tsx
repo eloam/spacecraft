@@ -76,7 +76,7 @@ const filters: Record<
 
 /** Uploaded OpenAPI documents and what validation made of them. */
 export function ProjectSpecsPage() {
-  const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
+  const { orgSlug = "", projectSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const projectId = useProjectId(orgId, projectSlug);
   const project = useProject(orgId, projectId);

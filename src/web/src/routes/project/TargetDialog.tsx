@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,7 +94,7 @@ function TargetForm({
   const pending = add.isPending || update.isPending;
   const renaming = Boolean(target) && packageName.trim() !== target?.packageName;
 
-  function submit(event: React.FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
     setPackageNameError(null);
 
@@ -275,8 +274,7 @@ function TargetForm({
             saved, and a bare checkbox reads as one item of a list rather than a state
             the target is in. */}
         <Field orientation="horizontal">
-          {/* Content first, switch last: the row reads label-then-state, the way it did
-              when a justify-between div held the two apart. */}
+          {/* Content first, switch last: the row reads label-then-state. */}
           <FieldContent>
             <FieldLabel htmlFor="auto-publish" className="text-sm font-medium">
               Publish automatically

@@ -1,6 +1,7 @@
-// Route params named orgId/projectId carry the *slug*, not the id: /orgs/acme-corp
-// reads better than a GUID and is what people paste to each other. The API accepts
-// either form, so links minted before this change still resolve.
+// Organizations and projects are addressed by slug: /orgs/acme-corp reads better than a GUID
+// and is what people paste to each other. An address that carries the id still works, because
+// the client resolves either form to the id the API takes, then rewrites the address to the
+// slug (hooks/useRouteIdentity).
 import { Suspense, lazy, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth";
@@ -136,18 +137,18 @@ export default function App() {
             <Route path="notifications" element={<AccountNotificationsPage />} />
             <Route path="danger" element={<AccountDangerPage />} />
           </Route>
-          <Route path="/orgs/:orgId" element={<ProjectsPage />} />
-          <Route path="/orgs/:orgId/credentials" element={<CredentialsPage />} />
-          <Route path="/orgs/:orgId/publications" element={<PublicationsPage />} />
-          <Route path="/orgs/:orgId/members" element={<MembersPage />} />
-          <Route path="/orgs/:orgId/settings" element={<OrganizationSettingsPage />} />
-          <Route path="/orgs/:orgId/projects/:projectId" element={<ProjectLayout />}>
+          <Route path="/orgs/:orgSlug" element={<ProjectsPage />} />
+          <Route path="/orgs/:orgSlug/credentials" element={<CredentialsPage />} />
+          <Route path="/orgs/:orgSlug/publications" element={<PublicationsPage />} />
+          <Route path="/orgs/:orgSlug/members" element={<MembersPage />} />
+          <Route path="/orgs/:orgSlug/settings" element={<OrganizationSettingsPage />} />
+          <Route path="/orgs/:orgSlug/projects/:projectSlug" element={<ProjectLayout />}>
             <Route index element={<ProjectSpecsPage />} />
             <Route path="targets" element={<ProjectTargetsPage />} />
             <Route path="settings" element={<ProjectSettingsPage />} />
           </Route>
-          <Route path="/orgs/:orgId/runs" element={<OrganizationRunsPage />} />
-          <Route path="/orgs/:orgId/runs/:runId" element={<RunPage />} />
+          <Route path="/orgs/:orgSlug/runs" element={<OrganizationRunsPage />} />
+          <Route path="/orgs/:orgSlug/runs/:runId" element={<RunPage />} />
           {/* Inside the shell, so an unknown address is said in the application rather than
               swallowed by a redirect to the dashboard — and behind RequireAuth, so a signed-out
               visitor learns nothing about which addresses exist. */}

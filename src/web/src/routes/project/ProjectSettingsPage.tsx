@@ -17,7 +17,7 @@ import {
 import { plural } from "@/lib/format";
 
 export function ProjectSettingsPage() {
-  const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
+  const { orgSlug = "", projectSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const projectId = useProjectId(orgId, projectSlug);
   const navigate = useNavigate();

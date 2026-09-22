@@ -34,7 +34,7 @@ import { BackLink } from "@/components/BackLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function RunPage() {
-  const { orgId: orgSlug = "", runId = "" } = useParams();
+  const { orgSlug = "", runId = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const run = useRun(orgId, runId);

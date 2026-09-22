@@ -19,7 +19,7 @@ import { isGeneratable } from "@/api/types";
  * not any one tab's — and it is the reason most visits happen at all.
  */
 export function ProjectLayout() {
-  const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
+  const { orgSlug = "", projectSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const projects = useProjects(orgId);
   const projectId = useProjectId(orgId, projectSlug);

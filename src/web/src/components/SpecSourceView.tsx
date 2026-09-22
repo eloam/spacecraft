@@ -214,9 +214,9 @@ const theme = EditorView.theme({
 /**
  * Read-only view of the uploaded document with findings marked against their lines.
  *
- * `scrollToLine` is a value rather than a callback so that asking for the same line twice —
- * next, then previous, then next again — still scrolls: the effect keys on the counter that
- * comes with it, not on the line alone.
+ * `scrollTo` is a value rather than a callback, and carries a `nonce` beside the `line` so that
+ * asking for the same line twice — next, then previous, then next again — still scrolls: each
+ * request is a new value even when the line is not.
  */
 export function SpecSourceView({
   content,
