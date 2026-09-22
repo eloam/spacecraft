@@ -1,27 +1,43 @@
 import { describe, expect, it } from "vitest";
 import { returnPathIn, withReturnTo } from "./returnTo";
 
+const ORIGIN = "https://app.test";
+
+/** As the query string would carry it: percent-encoded, decoded by URLSearchParams. */
+function pathIn(next: string) {
+  return returnPathIn(new URLSearchParams({ next }), ORIGIN);
+}
+
 describe("returnPathIn", () => {
   it("goes to the dashboard when nothing was asked for", () => {
-    expect(returnPathIn(new URLSearchParams())).toBe("/");
+    expect(returnPathIn(new URLSearchParams(), ORIGIN)).toBe("/");
   });
 
-  it("honours an in-application path, query included", () => {
-    const params = new URLSearchParams({ next: "/orgs/acme/members?tab=1" });
-
-    expect(returnPathIn(params)).toBe("/orgs/acme/members?tab=1");
+  it("honours an in-application path, query and fragment included", () => {
+    expect(pathIn("/orgs/acme/members?tab=1#row-3")).toBe("/orgs/acme/members?tab=1#row-3");
   });
 
   it("refuses an absolute URL", () => {
-    expect(returnPathIn(new URLSearchParams({ next: "https://evil.test/x" }))).toBe("/");
+    expect(pathIn("https://evil.test/x")).toBe("/");
   });
 
   it("refuses a protocol-relative URL", () => {
-    expect(returnPathIn(new URLSearchParams({ next: "//evil.test" }))).toBe("/");
+    expect(pathIn("//evil.test")).toBe("/");
   });
 
   it("refuses a backslash standing in for the second slash", () => {
-    expect(returnPathIn(new URLSearchParams({ next: "/\\evil.test" }))).toBe("/");
+    expect(pathIn("/\\evil.test")).toBe("/");
+  });
+
+  // The URL parser drops tabs and newlines before it reads the authority, so to the browser
+  // these are "//evil.test" — and a link can carry them as %09 and %0A.
+  it("refuses a tab or a newline hiding the second slash", () => {
+    expect(pathIn("/\t/evil.test")).toBe("/");
+    expect(pathIn("/\n/evil.test")).toBe("/");
+  });
+
+  it("refuses a scheme", () => {
+    expect(pathIn("javascript:alert(1)")).toBe("/");
   });
 });
 

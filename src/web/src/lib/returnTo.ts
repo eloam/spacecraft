@@ -10,14 +10,26 @@ const PARAM = "next";
  * absolute URL — or the protocol-relative `//elsewhere.test`, which a browser reads as one —
  * would turn our own sign-in page into a redirector to somebody else's. That is what a
  * phishing link is made of, and the address bar would say SpaceCraft the whole way. Anything
- * that is not a plain path falls back to the dashboard.
+ * that does not resolve to this origin falls back to the dashboard.
+ *
+ * Judged by parsing it the way the browser will, not by the shapes we know about. The prefix
+ * checks this replaces refused `//host` and `/\host`, and let `/\t/host` through: the URL
+ * parser strips tabs and newlines before it reads the authority, so that one is `//host` to
+ * it, and it was the one a link could carry as `%09`.
  */
-export function returnPathIn(params: URLSearchParams): string {
+export function returnPathIn(params: URLSearchParams, origin = window.location.origin): string {
   const next = params.get(PARAM);
   if (!next || !next.startsWith("/")) return "/";
-  // Both "//host" and "/\host" are parsed as an authority rather than a path.
-  if (next.startsWith("//") || next.startsWith("/\\")) return "/";
-  return next;
+
+  let url: URL;
+  try {
+    url = new URL(next, origin);
+  } catch {
+    return "/";
+  }
+
+  if (url.origin !== origin) return "/";
+  return url.pathname + url.search + url.hash;
 }
 
 /** Where the current page should continue to once there is a session. */
