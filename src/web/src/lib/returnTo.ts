@@ -1,5 +1,3 @@
-import { useSearchParams } from "react-router-dom";
-
 /** The query parameter carrying where the visitor was headed before they had a session. */
 const PARAM = "next";
 
@@ -32,12 +30,6 @@ export function returnPathIn(params: URLSearchParams, origin = window.location.o
   return url.pathname + url.search + url.hash;
 }
 
-/** Where the current page should continue to once there is a session. */
-export function useReturnPath(): string {
-  const [params] = useSearchParams();
-  return returnPathIn(params);
-}
-
 /** Points `path` at the sign-in pages so that signing in comes back to where we are now. */
 export function withReturnTo(path: string, location: { pathname: string; search: string }): string {
   const here = location.pathname + location.search;
@@ -45,12 +37,11 @@ export function withReturnTo(path: string, location: { pathname: string; search:
 }
 
 /**
- * Carries an in-flight destination across to the other authentication page. Without this,
- * someone who follows "No account? Create one" arrives at a register page that has forgotten
- * the invitation that sent them there.
+ * The query string that carries an in-flight destination across to the other authentication
+ * page. Without it, someone who follows "No account? Create one" arrives at a register page
+ * that has forgotten the invitation that sent them there.
  */
-export function useReturnQuery(): string {
-  const [params] = useSearchParams();
+export function returnQueryIn(params: URLSearchParams): string {
   const next = params.get(PARAM);
   return next ? `?${PARAM}=${encodeURIComponent(next)}` : "";
 }

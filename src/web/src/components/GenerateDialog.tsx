@@ -13,7 +13,8 @@ import {
   Field, FieldContent, FieldDescription, FieldGroup, FieldLabel,
 } from "@/components/ui/field";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogClose, DialogContent, DialogDescription,
+  DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -21,7 +22,7 @@ import {
 import { describeError } from "@/api/client";
 import { useCreateRun, useOrganizations, useProject, useProjects, useSpecs } from "@/api/queries";
 import {
-  OrganizationRole, SpecValidationStatus, StepKind, languageLabel, registryLabel, stepKindLabel,
+  OrganizationRole, StepKind, isGeneratable, languageLabel, registryLabel, stepKindLabel,
 } from "@/api/types";
 
 /** Written once, so the closed trigger and the open list cannot drift apart. */
@@ -88,7 +89,7 @@ function GenerateForm({
   orgId: string;
   orgSlug: string;
   projectSlug?: string;
-  /** Closes the dialog, after a run is queued, on Cancel, or before a link leaves the page. */
+  /** Closes the dialog, after a run is queued or before a link leaves the page. */
   onDone: () => void;
 }) {
   const navigate = useNavigate();
@@ -117,7 +118,7 @@ function GenerateForm({
   const organizations = useOrganizations();
   const createRun = useCreateRun(orgId);
 
-  const usableSpecs = specs.data?.items.filter((s) => s.validationStatus !== SpecValidationStatus.Invalid) ?? [];
+  const usableSpecs = specs.data?.items.filter(isGeneratable) ?? [];
   const targets = project.data?.targets ?? [];
 
   const selectedSpec = specId || usableSpecs[0]?.id || "";
@@ -430,9 +431,7 @@ function GenerateForm({
       </FieldGroup>
 
       <DialogFooter>
-        <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
-        </Button>
+        <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
         {/* The irreversible variant says so on the button: ticking a box eight lines up
             should not leave the two runs looking like the same click. */}
         <Button type="submit" disabled={!selectedSpec || !selectedTarget || createRun.isPending}>

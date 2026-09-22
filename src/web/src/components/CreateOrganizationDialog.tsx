@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -8,7 +7,8 @@ import {
   Field, FieldDescription, FieldError, FieldGroup, FieldLabel,
 } from "@/components/ui/field";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogClose, DialogContent, DialogDescription,
+  DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { describeError } from "@/api/client";
@@ -40,7 +40,7 @@ export function CreateOrganizationDialog({
 function CreateOrganizationForm({
   onDone,
 }: {
-  /** Closes the dialog, after a creation or on Cancel. */
+  /** Closes the dialog after a creation. */
   onDone: () => void;
 }) {
   const [name, setName] = useState("");
@@ -71,7 +71,7 @@ function CreateOrganizationForm({
       <DialogHeader>
         <DialogTitle>New organization</DialogTitle>
         <DialogDescription>
-          The address is derived from the name and must be unique across SpaceCraft.
+          The slug is derived from the name and must be unique across SpaceCraft.
         </DialogDescription>
       </DialogHeader>
 
@@ -90,9 +90,9 @@ function CreateOrganizationForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="org-slug">Address</FieldLabel>
-          {/* Shown while typing rather than after creating: the address is what ends up
-              in every link to this organization, and seeing it is the only way to know
+          <FieldLabel htmlFor="org-slug">Slug</FieldLabel>
+          {/* Shown while typing rather than after creating: the slug is what ends up in
+              every link to this organization, and seeing it is the only way to know
               whether the name gives the one you wanted. */}
           <Input
             id="org-slug"
@@ -109,9 +109,7 @@ function CreateOrganizationForm({
       </FieldGroup>
 
       <DialogFooter>
-        <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
-        </Button>
+        <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
         <Button type="submit" disabled={!isValidResourceName(name) || create.isPending}>
           {create.isPending ? "Creating…" : "Create"}
         </Button>

@@ -1,8 +1,10 @@
-import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { SEVERITY_ORDER, severities } from "@/components/severity";
+import { plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { SpecValidationStatus } from "@/api/types";
+import { DiagnosticSeverity, SpecValidationStatus } from "@/api/types";
 
 /**
  * All three severities at once, rather than the single badge for whichever is worst.
@@ -34,20 +36,22 @@ export function SpecFindingCounts({
     );
   }
 
-  const severities = [
-    { count: errors, Icon: CircleAlert, tone: "text-destructive", noun: "error" },
-    { count: warnings, Icon: TriangleAlert, tone: "text-[var(--code-warning)]", noun: "warning" },
-    { count: information, Icon: Info, tone: "text-muted-foreground", noun: "note" },
-  ];
+  const counts: Record<DiagnosticSeverity, number> = {
+    [DiagnosticSeverity.Error]: errors,
+    [DiagnosticSeverity.Warning]: warnings,
+    [DiagnosticSeverity.Information]: information,
+  };
 
   return (
     <div className="flex items-center gap-2.5 text-xs tabular-nums">
-      {severities.map(({ count, Icon, tone, noun }) => {
-        const label = `${count} ${noun}${count === 1 ? "" : "s"}`;
+      {SEVERITY_ORDER.map((severity) => {
+        const { Icon, tone, noun } = severities[severity];
+        const count = counts[severity];
+        const label = plural(count, noun);
 
         return (
           // An icon and a number are an abbreviation of the sentence the tooltip spells out.
-          <Tooltip key={noun}>
+          <Tooltip key={severity}>
             <TooltipTrigger
               // Zeroes stay in place rather than collapsing: the three always sit in the same
               // order, so a column of rows can be read down instead of decoded row by row.

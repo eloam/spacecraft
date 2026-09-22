@@ -13,7 +13,6 @@ import {
   Field, FieldDescription, FieldError, FieldGroup, FieldLabel,
 } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from "@/components/ui/select";
@@ -29,6 +28,7 @@ import {
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
+import { TableCard } from "@/components/TableCard";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { RelativeTime } from "@/components/RelativeTime";
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -71,7 +71,6 @@ export function MembersPage() {
   // Kept apart from whether the dialog is open: the row has to outlive the close, or the
   // title fades out reading "Remove undefined?".
   const [removing, setRemoving] = useState<Member | null>(null);
-  const [removeError, setRemoveError] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
@@ -101,71 +100,69 @@ export function MembersPage() {
         rows={3}
       >
         {members.data && members.data.length > 0 ? (
-          // Framed like the credentials, specs and targets tables: one card, one banded header.
-          <Card className="py-0">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Person</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Joined</TableHead>
-                    <TableHead className="w-10">
-                      <span className="sr-only">Actions</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {members.data.map((member) => {
-                    // The role being written to this row, if one is in flight. The cache
-                    // still holds the old value until the refetch lands, so a select bound
-                    // to it snapped visibly back to the previous role the moment a new one
-                    // was picked. Per row, because one shared `isPending` greyed out every
-                    // other select in the table while a single one was saving.
-                    const savingRole =
-                      changeRole.isPending && changeRole.variables?.userId === member.userId
-                        ? changeRole.variables?.role
-                        : undefined;
-                    const shownRole = savingRole ?? member.role;
+          <TableCard>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Person</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead className="text-right">Joined</TableHead>
+                  <TableHead className="w-10">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.data.map((member) => {
+                  // The role being written to this row, if one is in flight. The cache
+                  // still holds the old value until the refetch lands, so a select bound
+                  // to it snapped visibly back to the previous role the moment a new one
+                  // was picked. Per row, because one shared `isPending` greyed out every
+                  // other select in the table while a single one was saving.
+                  const savingRole =
+                    changeRole.isPending && changeRole.variables?.userId === member.userId
+                      ? changeRole.variables?.role
+                      : undefined;
+                  const shownRole = savingRole ?? member.role;
 
-                    // A select here would only ever be refused. Nobody changes their own role
-                    // — ask another owner or admin — and nobody changes the role of somebody
-                    // who outranks them, or Admin would demote the Owner and delete the
-                    // organization. Offering the control anyway promises something the server
-                    // will not do, and the answer arrives as a toast after the fact.
-                    const changeable = !member.isYou && (yours?.role ?? 0) >= member.role;
+                  // A select here would only ever be refused. Nobody changes their own role
+                  // — ask another owner or admin — and nobody changes the role of somebody
+                  // who outranks them, or Admin would demote the Owner and delete the
+                  // organization. Offering the control anyway promises something the server
+                  // will not do, and the answer arrives as a toast after the fact.
+                  const changeable = !member.isYou && (yours?.role ?? 0) >= member.role;
 
-                    return (
-                      <TableRow key={member.userId}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <AccountAvatar displayName={member.displayName} email={member.email} />
-                            {/* Capped as well as `min-w-0`: the cell is `whitespace-nowrap`, so
-                                without a width to truncate against a long address just widened
-                                the column and pushed the role and actions off screen. */}
-                            <div className="min-w-0 max-w-[16rem]">
-                              <div className="flex items-center gap-2">
-                                <span className="min-w-0 truncate text-sm">
-                                  {member.displayName || member.email}
-                                </span>
-                                {member.isYou && (
-                                  <Badge variant="secondary" className="shrink-0">
-                                    You
-                                  </Badge>
-                                )}
-                              </div>
-                              {member.displayName && (
-                                <p className="truncate text-xs text-muted-foreground">
-                                  {member.email}
-                                </p>
+                  return (
+                    <TableRow key={member.userId}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <AccountAvatar displayName={member.displayName} email={member.email} />
+                          {/* Capped as well as `min-w-0`: the cell is `whitespace-nowrap`, so
+                              without a width to truncate against a long address just widened
+                              the column and pushed the role and actions off screen. */}
+                          <div className="min-w-0 max-w-[16rem]">
+                            <div className="flex items-center gap-2">
+                              <span className="min-w-0 truncate text-sm">
+                                {member.displayName || member.email}
+                              </span>
+                              {member.isYou && (
+                                <Badge variant="secondary" className="shrink-0">
+                                  You
+                                </Badge>
                               )}
                             </div>
+                            {member.displayName && (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {member.email}
+                              </p>
+                            )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          {!changeable ? (
-                            <Badge variant="secondary">{roleLabel[shownRole]}</Badge>
-                          ) : (
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {!changeable ? (
+                          <Badge variant="secondary">{roleLabel[shownRole]}</Badge>
+                        ) : (
                           /* The app's Select, not a native one: a closed native select
                              commits on every arrow key, so passing Viewer → Owner wrote
                              three separate permission changes on the way through. */
@@ -211,60 +208,58 @@ export function MembersPage() {
                                 ))}
                             </SelectContent>
                           </Select>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground">
-                          {/* Absolute, unlike the columns scanned for recency: a join date
-                              answers "since when". The exact moment is a hover or a focus
-                              away, the way every other timestamp in the app is. */}
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <time dateTime={member.joinedAt}>{formatDate(member.joinedAt)}</time>
-                            </TooltipTrigger>
-                            <TooltipContent>{formatDateTime(member.joinedAt)}</TooltipContent>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              render={<Button size="icon-sm" variant="ghost" />}
-                              aria-label={
-                                member.isYou
-                                  ? "More actions for your membership"
-                                  : `More actions for ${member.email}`
-                              }
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">
+                        {/* Absolute, unlike the columns scanned for recency: a join date
+                            answers "since when". The exact moment is a hover or a focus
+                            away, the way every other timestamp in the app is. */}
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <time dateTime={member.joinedAt}>{formatDate(member.joinedAt)}</time>
+                          </TooltipTrigger>
+                          <TooltipContent>{formatDateTime(member.joinedAt)}</TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={<Button size="icon-sm" variant="ghost" />}
+                            aria-label={
+                              member.isYou
+                                ? "More actions for your membership"
+                                : `More actions for ${member.email}`
+                            }
+                          >
+                            <MoreHorizontal className="size-4" aria-hidden />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56">
+                            {/* Named in words, and behind a confirmation: the same glyph
+                                used to mean "remove them" and "remove me" depending on the
+                                row, and told you which only in the toast afterwards. */}
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => {
+                                setRemoving(member);
+                                setRemoveOpen(true);
+                              }}
                             >
-                              <MoreHorizontal className="size-4" aria-hidden />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                              {/* Named in words, and behind a confirmation: the same glyph
-                                  used to mean "remove them" and "remove me" depending on the
-                                  row, and told you which only in the toast afterwards. */}
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => {
-                                  setRemoveError(null);
-                                  setRemoving(member);
-                                  setRemoveOpen(true);
-                                }}
-                              >
-                                {member.isYou ? (
-                                  <LogOut className="size-4" aria-hidden />
-                                ) : (
-                                  <UserMinus className="size-4" aria-hidden />
-                                )}
-                                {member.isYou ? "Leave organization" : "Remove from organization"}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                              {member.isYou ? (
+                                <LogOut className="size-4" aria-hidden />
+                              ) : (
+                                <UserMinus className="size-4" aria-hidden />
+                              )}
+                              {member.isYou ? "Leave organization" : "Remove from organization"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableCard>
         ) : (
           <EmptyState
             icon={<Users aria-hidden />}
@@ -310,7 +305,7 @@ export function MembersPage() {
         onOpenChangeComplete={(open) => {
           if (!open) {
             setRemoving(null);
-            setRemoveError(null);
+            remove.reset();
           }
         }}
         title={
@@ -346,7 +341,7 @@ export function MembersPage() {
             : "Their SpaceCraft account, and what they uploaded and published",
         ]}
         isPending={remove.isPending}
-        error={removeError}
+        error={remove.error}
         onConfirm={() => {
           if (!removing) return;
           const left = removing.isYou;
@@ -363,8 +358,6 @@ export function MembersPage() {
                 navigate("/");
               }
             },
-            onError: (error) =>
-              setRemoveError(describeError(error, "Could not remove the member.")),
           });
         }}
       />
@@ -397,60 +390,58 @@ function PendingInvitations({
         </p>
       </div>
 
-      <Card className="py-0">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Address</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead className="text-right">Expires</TableHead>
-                <TableHead className="w-10">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
+      <TableCard>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Address</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead className="text-right">Expires</TableHead>
+              <TableHead className="w-10">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invitations.map((invitation) => (
+              <TableRow key={invitation.id}>
+                <TableCell>
+                  <span className="text-sm">{invitation.email}</span>
+                  <p className="text-xs text-muted-foreground">
+                    Sent <RelativeTime iso={invitation.createdAt} />
+                  </p>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="secondary">{roleLabel[invitation.role]}</Badge>
+                </TableCell>
+                <TableCell className="text-right text-sm text-muted-foreground">
+                  <time dateTime={invitation.expiresAt}>{formatDate(invitation.expiresAt)}</time>
+                </TableCell>
+                <TableCell>
+                  {/* No confirmation: nobody has joined anything, and re-inviting is the
+                      same two clicks that sent this one. */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Withdraw the invitation to ${invitation.email}`}
+                    disabled={revoke.isPending && revoke.variables === invitation.id}
+                    onClick={() =>
+                      revoke.mutate(invitation.id, {
+                        onSuccess: () => toast.success(`Invitation to ${invitation.email} withdrawn.`),
+                        onError: (error) =>
+                          toast.error(describeError(error, "Could not withdraw the invitation.")),
+                      })
+                    }
+                  >
+                    <MailX className="size-4" aria-hidden />
+                    Withdraw
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invitations.map((invitation) => (
-                <TableRow key={invitation.id}>
-                  <TableCell>
-                    <span className="text-sm">{invitation.email}</span>
-                    <p className="text-xs text-muted-foreground">
-                      Sent <RelativeTime iso={invitation.createdAt} />
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{roleLabel[invitation.role]}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right text-sm text-muted-foreground">
-                    <time dateTime={invitation.expiresAt}>{formatDate(invitation.expiresAt)}</time>
-                  </TableCell>
-                  <TableCell>
-                    {/* No confirmation: nobody has joined anything, and re-inviting is the
-                        same two clicks that sent this one. */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`Withdraw the invitation to ${invitation.email}`}
-                      disabled={revoke.isPending && revoke.variables === invitation.id}
-                      onClick={() =>
-                        revoke.mutate(invitation.id, {
-                          onSuccess: () => toast.success(`Invitation to ${invitation.email} withdrawn.`),
-                          onError: (error) =>
-                            toast.error(describeError(error, "Could not withdraw the invitation.")),
-                        })
-                      }
-                    >
-                      <MailX className="size-4" aria-hidden />
-                      Withdraw
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            ))}
+          </TableBody>
+        </Table>
+      </TableCard>
     </section>
   );
 }

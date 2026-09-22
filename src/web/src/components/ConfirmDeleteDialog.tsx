@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { Panel, PanelLine, PanelSection } from "@/components/Panel";
+import { describeError } from "@/api/client";
 import {
   Dialog, DialogClose, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle,
@@ -32,7 +33,12 @@ interface ConfirmDeleteProps {
   /** Rendered under the consequences, for what a list of names says better than a count. */
   details?: ReactNode;
   isPending?: boolean;
-  error?: string | null;
+  /**
+   * The mutation's own `error`, as it is: the dialog words it, and the caller clears it with
+   * the mutation's `reset()` once the dialog has closed. Six pages used to copy the message
+   * into state of their own from an `onError` callback, and clear that instead.
+   */
+  error?: unknown;
   onConfirm: () => void;
 }
 
@@ -65,7 +71,16 @@ export function ConfirmDeleteDialog({
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete}>
+    <Dialog
+      open={open}
+      // Held open until the action settles. Callers reset their mutation once this has
+      // closed, and a reset mutation never runs the `onSuccess` its `mutate` call was given:
+      // an Escape mid-delete left the page standing on an organization that no longer existed.
+      onOpenChange={(next) => {
+        if (next || !body.isPending) onOpenChange(next);
+      }}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       {/* Resolved when focus is placed, not when the element is described: a bare ref
           whose element never attached would leave Base UI with nothing to focus, and
           focus outside a modal is worse than focus on the wrong control inside it.
@@ -176,14 +191,17 @@ function ConfirmDeleteBody({
 
       {/* Announced like every other error in the app: without it, a refused delete is a red
           line a screen reader never reaches, under a button that looks to have done nothing. */}
-      {error && (
+      {error != null && (
         <p className="text-sm text-destructive" role="alert">
-          {error}
+          {describeError(error, `Could not ${confirmLabel.toLowerCase()}.`)}
         </p>
       )}
 
       <DialogFooter>
-        <DialogClose render={<Button ref={cancelRef} variant="outline">Cancel</Button>} />
+        <DialogClose
+          disabled={isPending}
+          render={<Button ref={cancelRef} variant="outline">Cancel</Button>}
+        />
         <Button
           variant="destructive"
           onClick={onConfirm}

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { AuthCard } from "@/components/AuthCard";
 import { useLogin } from "@/api/queries";
-import { useReturnQuery } from "@/lib/returnTo";
+import { useReturnQuery } from "@/hooks/useReturnPath";
 import { describeError } from "@/api/client";
 import { emailField } from "@/lib/fields";
 

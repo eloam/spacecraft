@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Mirrors SpaceCraft.Domain.Common.ResourceName.
  *
@@ -16,7 +18,18 @@ export function isValidResourceName(name: string): boolean {
   return trimmed.length > 0 && trimmed.length <= NAME_MAX_LENGTH && allowed.test(trimmed);
 }
 
-/** What the slug will become, so the address can be shown before it changes. */
+/**
+ * The name as a form declares it: trimmed, since that is how the server stores it, with
+ * the length said on its own so a name that is only too long is told so rather than given
+ * the whole rule.
+ */
+export const resourceNameField = z
+  .string()
+  .trim()
+  .max(NAME_MAX_LENGTH, `Use ${NAME_MAX_LENGTH} characters or fewer.`)
+  .refine(isValidResourceName, NAME_RULE);
+
+/** What the slug will become, so it can be shown before it changes. */
 export function slugPreview(name: string): string {
   return name
     .trim()

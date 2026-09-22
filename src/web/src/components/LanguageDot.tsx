@@ -2,29 +2,17 @@ import { cn } from "@/lib/utils";
 
 /**
  * Each language's own colour, as its ecosystem uses it — the TypeScript blue, the Go cyan,
- * the Python yellow. Hard-coded rather than themed: these are borrowed identities, and a
- * palette that shifted them to match the app would stop them being recognisable, which is
- * the only thing they are for.
- */
-const languageColor: Record<number, string> = {
-  1: "bg-[#3178c6]", // TypeScript
-  2: "bg-[#8a51a5]", // C#
-  3: "bg-[#e76f00]", // Java
-  4: "bg-[#ffd43b]", // Python
-  5: "bg-[#787cb5]", // PHP
-  6: "bg-[#00add8]", // Go
-};
-
-/**
- * The lettermark each language is known by, on its own colour — the TypeScript blue square
- * with its white TS, the Go cyan, the Python yellow. Drawn rather than imported: these are
- * two glyphs on a rounded square, which is what the real logos are, and a brand-icon
- * dependency would have been 500 marks to ship the one this app can generate today.
+ * the Python yellow — and the lettermark it is known by on it. Hard-coded rather than themed:
+ * these are borrowed identities, and a palette that shifted them to match the app would stop
+ * them being recognisable, which is the only thing they are for. Whole class names, because
+ * Tailwind only compiles the ones it can read as written.
  *
- * Python's yellow is the exception that needs dark letters — at 0.86 lightness, white on it
- * is unreadable.
+ * Drawn rather than imported: these are two glyphs on a rounded square, which is what the
+ * real logos are, and a brand-icon dependency would have been 500 marks to ship the one this
+ * app can generate today. Python's yellow is the exception that needs dark letters — at 0.86
+ * lightness, white on it is unreadable.
  */
-const languageMark: Record<number, { short: string; className: string }> = {
+const languages: Record<number, { short: string; className: string }> = {
   1: { short: "TS", className: "bg-[#3178c6] text-white" },
   2: { short: "C#", className: "bg-[#8a51a5] text-white" },
   3: { short: "Jv", className: "bg-[#e76f00] text-white" },
@@ -38,7 +26,7 @@ const languageMark: Record<number, { short: string; className: string }> = {
  * Where there is not, {@link LanguageDot} carries the same colour inline.
  */
 export function LanguageMark({ language, className }: { language: number; className?: string }) {
-  const mark = languageMark[language];
+  const mark = languages[language];
   return (
     <div
       className={cn(
@@ -65,7 +53,8 @@ export function LanguageDot({ language, className }: { language: number; classNa
     <span
       className={cn(
         "size-2 shrink-0 rounded-full",
-        languageColor[language] ?? "bg-muted-foreground",
+        // The text colour rides along and paints nothing: the dot has no text.
+        languages[language]?.className ?? "bg-muted-foreground",
         className,
       )}
       aria-hidden

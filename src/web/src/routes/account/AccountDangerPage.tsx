@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { ApiError, describeError } from "@/api/client";
 import { useAccount, useDeleteAccount, useDeletionBlockers } from "@/api/queries";
+import { plural } from "@/lib/format";
 
 function DangerZone({ organizationCount }: { organizationCount: number }) {
   const blockers = useDeletionBlockers();
@@ -27,8 +28,8 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
       title="Delete account"
       description={
         <>
-          Permanently removes your account and your membership of {organizationCount}{" "}
-          organization{organizationCount === 1 ? "" : "s"}. This cannot be undone.
+          Permanently removes your account and your membership of{" "}
+          {plural(organizationCount, "organization")}. This cannot be undone.
         </>
       }
     >
@@ -92,21 +93,17 @@ function DangerZone({ organizationCount }: { organizationCount: number }) {
 function DeleteAccountForm() {
   const remove = useDeleteAccount();
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+
+  // The mutation's own error, read where it is shown and cleared by `reset()` on the next
+  // keystroke — not a copy of it kept in state beside it.
+  const error = remove.error
+    ? (remove.error instanceof ApiError && remove.error.fieldError("password")) ||
+      describeError(remove.error, "Could not delete the account.")
+    : null;
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    remove.mutate(
-      { password },
-      {
-        onError: (e) =>
-          setError(
-            e instanceof ApiError
-              ? e.fieldError("password") ?? e.detail
-              : "Could not delete the account.",
-          ),
-      },
-    );
+    remove.mutate({ password });
   }
 
   return (
@@ -129,7 +126,9 @@ function DeleteAccountForm() {
             aria-invalid={!!error}
             onChange={(e) => {
               setPassword(e.target.value);
-              setError(null);
+              // Only once it has failed: a reset while the delete is in flight would detach
+              // this form from its outcome.
+              if (remove.isError) remove.reset();
             }}
           />
           <FieldError>{error}</FieldError>

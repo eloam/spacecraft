@@ -15,7 +15,7 @@ import { QueryBoundary } from "@/components/QueryBoundary";
 import { ApiError, describeError } from "@/api/client";
 import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from "@/api/queries";
 import { newPasswordField } from "@/lib/fields";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, plural } from "@/lib/format";
 
 const passwordSchema = z
   .object({
@@ -192,7 +192,7 @@ function SessionsCard() {
               }
               disabled={revokeOthers.isPending}
             >
-              Sign out {others.length} other session{others.length > 1 ? "s" : ""}
+              Sign out {plural(others.length, "other session")}
             </Button>
           )}
         </QueryBoundary>

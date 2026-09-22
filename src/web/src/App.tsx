@@ -3,7 +3,8 @@
 // either form, so links minted before this change still resolve.
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth";
-import { useReturnPath, withReturnTo } from "@/lib/returnTo";
+import { useReturnPath } from "@/hooks/useReturnPath";
+import { withReturnTo } from "@/lib/returnTo";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoginPage } from "@/routes/LoginPage";
 import { RegisterPage } from "@/routes/RegisterPage";
@@ -15,7 +16,7 @@ import { AccountNotificationsPage } from "@/routes/account/AccountNotificationsP
 import { PublicationsPage } from "@/routes/PublicationsPage";
 import { MembersPage } from "@/routes/MembersPage";
 import { OrganizationSettingsPage } from "@/routes/OrganizationSettingsPage";
-import { ProjectSettingsPage } from "@/routes/ProjectSettingsPage";
+import { ProjectSettingsPage } from "@/routes/project/ProjectSettingsPage";
 import { ForgotPasswordPage } from "@/routes/ForgotPasswordPage";
 import { ResetPasswordPage } from "@/routes/ResetPasswordPage";
 import { AcceptInvitationPage } from "@/routes/AcceptInvitationPage";

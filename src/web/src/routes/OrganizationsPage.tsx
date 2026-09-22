@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { Building2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Item, ItemContent, ItemDescription } from "@/components/ui/item";
+import { ItemContent, ItemDescription } from "@/components/ui/item";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { CreateOrganizationDialog } from "@/components/CreateOrganizationDialog";
+import { TileLink } from "@/components/TileLink";
 import { useOrganizations } from "@/api/queries";
 import { roleLabel } from "@/api/types";
+import { plural } from "@/lib/format";
 
 export function OrganizationsPage() {
   const { data, isLoading, error } = useOrganizations();
@@ -37,22 +38,7 @@ export function OrganizationsPage() {
         {data?.length ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((org) => (
-              // The whole tile is the link. It used to be a card with an absolutely
-              // positioned link stretched over it and a settings cog floating above that,
-              // stacking three things where one was meant: Item renders as the anchor
-              // itself, so the hover state and the focus ring come with it.
-              <Item
-                key={org.id}
-                variant="outline"
-                // Hover has to lift, and the two themes have different room to do it in.
-                // Dark lightens the fill, card to muted, moving away from the ground. Light
-                // cannot: the card is already white, and every tint available is a step
-                // *towards* the page grey — which is why Item's own bg-muted hover read as
-                // the tile sinking. So light keeps the fill and lifts with a shadow instead,
-                // the way a white card on grey is meant to. Both get the darker border.
-                className="h-full flex-col items-stretch bg-card transition-[background-color,border-color,box-shadow] [a]:hover:bg-card dark:[a]:hover:bg-muted/50 hover:border-foreground/20 hover:shadow-md dark:hover:shadow-none"
-                render={<Link to={`/orgs/${org.slug}`} />}
-              >
+              <TileLink key={org.id} to={`/orgs/${org.slug}`}>
                 <ItemContent className="gap-1">
                   <ItemDescription className="text-xs font-medium tracking-wider uppercase">
                     {roleLabel[org.role] ?? "Unknown"}
@@ -65,10 +51,10 @@ export function OrganizationsPage() {
 
                 <ItemContent className="flex-none">
                   <span className="text-sm text-muted-foreground">
-                    {org.projectCount} {org.projectCount === 1 ? "project" : "projects"}
+                    {plural(org.projectCount, "project")}
                   </span>
                 </ItemContent>
-              </Item>
+              </TileLink>
             ))}
           </div>
         ) : (

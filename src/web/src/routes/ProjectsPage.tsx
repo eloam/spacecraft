@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { FolderGit2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Item, ItemContent, ItemDescription } from "@/components/ui/item";
+import { ItemContent, ItemDescription } from "@/components/ui/item";
 import { Input } from "@/components/ui/input";
 import {
   Field,
@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -26,8 +27,10 @@ import {
 import { LanguageDot } from "@/components/LanguageDot";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
+import { TileLink } from "@/components/TileLink";
 import { useCreateProject, useOrganizations, useProjects } from "@/api/queries";
 import { languageLabel } from "@/api/types";
+import { plural } from "@/lib/format";
 import { NAME_RULE, isValidResourceName, slugPreview } from "@/lib/resourceName";
 import { describeError } from "@/api/client";
 import { toast } from "sonner";
@@ -62,25 +65,12 @@ export function ProjectsPage() {
         {data?.length ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((project) => (
-              // The whole tile is the link, the way the organization tiles are. The count
-              // leads as the label because in a list of projects the name is what varies
-              // and the slug is what someone copies, so neither wants the quiet slot.
-              <Item
-                key={project.id}
-                variant="outline"
-                // Hover has to lift, and the two themes have different room to do it in.
-                // Dark lightens the fill, card to muted, moving away from the ground. Light
-                // cannot: the card is already white, and every tint available is a step
-                // *towards* the page grey — which is why Item's own bg-muted hover read as
-                // the tile sinking. So light keeps the fill and lifts with a shadow instead,
-                // the way a white card on grey is meant to. Both get the darker border.
-                className="h-full flex-col items-stretch bg-card transition-[background-color,border-color,box-shadow] [a]:hover:bg-card dark:[a]:hover:bg-muted/50 hover:border-foreground/20 hover:shadow-md dark:hover:shadow-none"
-                render={<Link to={`/orgs/${orgSlug}/projects/${project.slug}`} />}
-              >
+              // The count leads as the label because in a list of projects the name is what
+              // varies and the slug is what someone copies, so neither wants the quiet slot.
+              <TileLink key={project.id} to={`/orgs/${orgSlug}/projects/${project.slug}`}>
                 <ItemContent className="gap-1">
                   <ItemDescription className="text-xs font-medium tracking-wider uppercase">
-                    {project.specVersionCount}{" "}
-                    {project.specVersionCount === 1 ? "spec version" : "spec versions"}
+                    {plural(project.specVersionCount, "spec version")}
                   </ItemDescription>
                   <span className="truncate font-heading text-lg font-semibold">
                     {project.name}
@@ -102,7 +92,7 @@ export function ProjectsPage() {
                     </div>
                   </ItemContent>
                 )}
-              </Item>
+              </TileLink>
             ))}
           </div>
         ) : (
@@ -155,7 +145,7 @@ function CreateProjectForm({
   onDone,
 }: {
   orgId: string;
-  /** Closes the dialog, after a creation or on Cancel. */
+  /** Closes the dialog after a creation. */
   onDone: () => void;
 }) {
   const [name, setName] = useState("");
@@ -202,7 +192,7 @@ function CreateProjectForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="project-slug">Address</FieldLabel>
+          <FieldLabel htmlFor="project-slug">Slug</FieldLabel>
           <Input
             id="project-slug"
             value={slugPreview(name)}
@@ -236,9 +226,7 @@ function CreateProjectForm({
       </FieldGroup>
 
       <DialogFooter>
-        <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
-        </Button>
+        <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
         <Button type="submit" disabled={!isValidResourceName(name) || create.isPending}>
           {create.isPending ? "Creating…" : "Create"}
         </Button>

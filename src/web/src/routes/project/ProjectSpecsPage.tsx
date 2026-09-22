@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
 import {
   ArrowLeftRight,
-  CircleAlert,
   CircleCheck,
   History,
   Layers,
@@ -11,12 +10,13 @@ import {
   Package,
   SquareCode,
   Trash2,
-  TriangleAlert,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { CardFooter } from "@/components/ui/card";
+import { TableCard } from "@/components/TableCard";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
@@ -25,9 +25,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FilterToggleGroup } from "@/components/FilterToggleGroup";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { RelativeTime } from "@/components/RelativeTime";
+import { severities } from "@/components/severity";
 import { SpecUploadCard } from "@/components/SpecUploadCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,10 +37,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { SpecFindingCounts } from "@/routes/project/SpecFindingCounts";
 import { SpecValidationDialog } from "@/routes/project/SpecValidationDialog";
 import { SpecDiffDialog } from "@/routes/project/SpecDiffDialog";
+import { plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { describeError } from "@/api/client";
 import { useDeleteSpec, useProject, usePublications, useSpecs } from "@/api/queries";
-import { PublicationStatus, SpecValidationStatus, type SpecVersion } from "@/api/types";
+import {
+  DiagnosticSeverity,
+  PublicationStatus,
+  isGeneratable,
+  type SpecVersion,
+} from "@/api/types";
 
 /** Bytes as something readable at a glance; the exact figure is never the point here. */
 function fileSize(bytes: number) {
@@ -51,34 +58,20 @@ function fileSize(bytes: number) {
 const FILTER_IDS = ["all", "valid", "warnings", "errors"] as const;
 type Filter = (typeof FILTER_IDS)[number];
 
-/**
- * The same icons the counts column uses, so a filter and what it selects look alike — and,
- * once selected, the same colour too. Unselected they stay monochrome: four coloured icons
- * competing at once is what the segmented control was meant to quieten.
- */
+/** The counts column's own icons and colours for the two severities it filters on. */
 const filters: Record<
   Filter,
-  { label: string; Icon: typeof Layers; tone: string; matches: (s: SpecVersion) => boolean }
+  { label: string; Icon: LucideIcon; tone: string; matches: (s: SpecVersion) => boolean }
 > = {
   all: { label: "All", Icon: Layers, tone: "text-[var(--filter-all)]", matches: () => true },
   valid: {
     label: "Generatable",
     Icon: CircleCheck,
     tone: "text-[var(--success)]",
-    matches: (s) => s.validationStatus !== SpecValidationStatus.Invalid,
+    matches: isGeneratable,
   },
-  warnings: {
-    label: "Warnings",
-    Icon: TriangleAlert,
-    tone: "text-[var(--code-warning)]",
-    matches: (s) => s.warningCount > 0,
-  },
-  errors: {
-    label: "Errors",
-    Icon: CircleAlert,
-    tone: "text-destructive",
-    matches: (s) => s.errorCount > 0,
-  },
+  warnings: { ...severities[DiagnosticSeverity.Warning], matches: (s) => s.warningCount > 0 },
+  errors: { ...severities[DiagnosticSeverity.Error], matches: (s) => s.errorCount > 0 },
 };
 
 /** Uploaded OpenAPI documents and what validation made of them. */
@@ -97,7 +90,6 @@ export function ProjectSpecsPage() {
   const [comparing, setComparing] = useState<[SpecVersion, SpecVersion] | null>(null);
   const [deleting, setDeleting] = useState<SpecVersion | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const items = useMemo(() => specs.data?.items ?? [], [specs.data]);
 
@@ -105,7 +97,8 @@ export function ProjectSpecsPage() {
   const latestId = items[0]?.id;
 
   // The listing is capped server-side. Saying so beats presenting a slice as the whole.
-  const hidden = (specs.data?.total ?? 0) - items.length;
+  const total = specs.data?.total ?? 0;
+  const hidden = total - items.length;
 
   /**
    * What each version put in a registry. Publications carry the spec version they came from,
@@ -172,18 +165,12 @@ export function ProjectSpecsPage() {
   function confirmDelete() {
     if (!deleting) return;
 
-    setDeleteError(null);
     remove.mutate(deleting.id, {
       onSuccess: () => {
         toast.success(`Deleted spec #${deleting.sequence}`);
         setSelected((current) => current.filter((id) => id !== deleting.id));
         setDeleteOpen(false);
       },
-      // A refusal is the server saying a package was published from this document. It belongs
-      // in the dialog, next to the button that was just pressed, not in a toast that appears
-      // somewhere else and disappears.
-      onError: (error) =>
-        setDeleteError(describeError(error, "The spec version could not be deleted.")),
     });
   }
 
@@ -236,259 +223,238 @@ export function ProjectSpecsPage() {
                 </div>
               )}
 
-              {/* One control rather than four loose buttons: a segmented set says the choices
-                  are exclusive before anything is clicked. */}
-              <div className="ml-auto flex items-center rounded-lg border bg-card p-0.5">
-                {FILTER_IDS.map((id) => {
+              <FilterToggleGroup
+                aria-label="Filter versions"
+                className="ml-auto"
+                items={FILTER_IDS.map((id) => {
                   const { label, Icon, tone, matches } = filters[id];
                   const count = items.filter(matches).length;
-
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={filter === id}
-                      disabled={count === 0 && id !== "all"}
-                      onClick={() => setFilter(id)}
-                      className={cn(
-                        // font-medium on every one, not just the selected: a weight that
-                        // changes on click is a width that changes on click, and each
-                        // selection nudged the buttons beside it. Background and colour say
-                        // which is active without moving anything.
-                        "flex cursor-pointer items-center gap-1.5 rounded-[calc(var(--radius)-2px)] px-2.5 py-1 text-xs font-medium transition-colors",
-                        "disabled:cursor-not-allowed disabled:opacity-40",
-                        filter === id
-                          ? "bg-secondary text-secondary-foreground"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <Icon className={cn("size-3.5", filter === id && tone)} aria-hidden />
-                      {label}
-                      <span className="tabular-nums opacity-60">{count}</span>
-                    </button>
-                  );
+                  const disabled = count === 0 && id !== "all";
+                  return { value: id, label, Icon, tone, count, disabled };
                 })}
-              </div>
+                value={[filter]}
+                // Pressing the pressed filter again releases it, which here means all.
+                onValueChange={(next) => setFilter(next[0] ?? "all")}
+              />
             </div>
 
-            <Card className="py-0">
-              <CardContent className="p-0">
-                <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <span className="sr-only">Select to compare</span>
-                  </TableHead>
-                  <TableHead>API</TableHead>
-                  {/* The document's own format version, not the API's — "3.0.3", not "1.0". */}
-                  <TableHead className="w-32">OpenAPI</TableHead>
-                  <TableHead className="w-32">Validation</TableHead>
-                  <TableHead>Published</TableHead>
-                  <TableHead className="w-32">Uploaded</TableHead>
-                  <TableHead className="w-24 text-right">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.map((spec) => {
-                  const packages = published.get(spec.id) ?? [];
+            <TableCard
+              footer={
+                hidden > 0 && (
+                  <CardFooter className="border-t py-2.5">
+                    <p className="text-xs text-muted-foreground">
+                      Showing the {items.length} most recent of {plural(total, "version")}.
+                    </p>
+                  </CardFooter>
+                )
+              }
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">
+                      <span className="sr-only">Select to compare</span>
+                    </TableHead>
+                    <TableHead>API</TableHead>
+                    {/* The document's own format version, not the API's — "3.0.3", not "1.0". */}
+                    <TableHead className="w-32">OpenAPI</TableHead>
+                    <TableHead className="w-32">Validation</TableHead>
+                    <TableHead>Published</TableHead>
+                    <TableHead className="w-32">Uploaded</TableHead>
+                    <TableHead className="w-24 text-right">
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visible.map((spec) => {
+                    const packages = published.get(spec.id) ?? [];
 
-                  return (
-                    <TableRow
-                      key={spec.id}
-                      className={cn("group", selected.includes(spec.id) && "bg-muted/50")}
-                    >
-                      <TableCell>
-                        <Checkbox
-                          checked={selected.includes(spec.id)}
-                          onCheckedChange={() => toggle(spec.id)}
-                          aria-label={`Select spec #${spec.sequence} to compare`}
-                        />
-                      </TableCell>
+                    return (
+                      <TableRow
+                        key={spec.id}
+                        className={cn("group", selected.includes(spec.id) && "bg-muted/50")}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={selected.includes(spec.id)}
+                            onCheckedChange={() => toggle(spec.id)}
+                            aria-label={`Select spec #${spec.sequence} to compare`}
+                          />
+                        </TableCell>
 
-                      {/* Title, with the details that used to cost three columns of their own. */}
-                      <TableCell>
-                        {/* The sequence number in a chip rather than inline before the title:
-                            it is this version's short name, the way a ticker is a holding's,
-                            and inline it read as part of the title it precedes. */}
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border font-mono text-xs font-medium text-muted-foreground tabular-nums">
-                            #{spec.sequence}
-                          </div>
-                          <div className="flex min-w-0 flex-col">
-                            <div className="flex items-center gap-2">
-                              {/* The name is the obvious thing to click to read a document, and
-                                  was the one part of the row that did nothing. Underlined on row
-                                  hover rather than its own: the pointer is somewhere on the row
-                                  long before it reaches the six characters of a title. */}
-                              <button
-                                type="button"
-                                onClick={() => setOpenFor(spec.id)}
-                                className="cursor-pointer truncate rounded-sm text-left font-medium group-hover:underline focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
-                              >
-                                {spec.apiTitle ?? "Untitled"}
-                              </button>
-                              {spec.id === latestId && (
-                                // Which document a new run generates from is the question this
-                                // table is usually opened to answer.
-                                <Badge variant="secondary" className="text-[10px]">
-                                  Latest
-                                </Badge>
-                              )}
+                        {/* Title, with the details that used to cost three columns of their own. */}
+                        <TableCell>
+                          {/* The sequence number in a chip rather than inline before the title:
+                              it is this version's short name, the way a ticker is a holding's,
+                              and inline it read as part of the title it precedes. */}
+                          <div className="flex items-center gap-3">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border font-mono text-xs font-medium text-muted-foreground tabular-nums">
+                              #{spec.sequence}
                             </div>
-                            <span className="truncate font-mono text-xs text-muted-foreground tabular-nums">
-                              {spec.apiVersion ?? "no version"} · {fileSize(spec.sizeInBytes)}
-                            </span>
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xs tabular-nums">{spec.openApiVersion ?? "—"}</span>
-                          <Badge variant="outline" className="font-mono text-[10px] uppercase">
-                            {spec.format}
-                          </Badge>
-                        </div>
-                      </TableCell>
-
-                      {/* A status, not a control. Opening the document is a button of its own
-                          now: as a hidden button this only worked when a spec had findings,
-                          which left a clean one with no way to be read at all. */}
-                      <TableCell>
-                        <SpecFindingCounts
-                          status={spec.validationStatus}
-                          information={spec.informationCount}
-                          warnings={spec.warningCount}
-                          errors={spec.errorCount}
-                        />
-                      </TableCell>
-
-                      <TableCell className="text-xs">
-                        {publications.isError ? (
-                          // Not "—": that would read as "nothing published", which is a claim
-                          // this column is in no position to make when its query failed.
-                          // One word standing in for the sentence that explains it, so the
-                          // sentence is what the tooltip carries.
-                          <Tooltip>
-                            <TooltipTrigger className="text-muted-foreground">unknown</TooltipTrigger>
-                            <TooltipContent>The publications could not be loaded</TooltipContent>
-                          </Tooltip>
-                        ) : publications.isPending ? (
-                          // Same claim, the other way round: a dash over a list still on its
-                          // way says "nothing published" of a version that may well be.
-                          <Skeleton className="h-4 w-20" />
-                        ) : packages.length === 0 ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          // Also what makes the delete button honest: a published version is
-                          // refused, and now that is visible before the click rather than
-                          // after it.
-                          <div className="space-y-0.5 font-mono">
-                            {packages.map(({ label, url }) => {
-                              const inner = (
-                                <>
-                                  <Package className="size-3 shrink-0 text-muted-foreground" aria-hidden />
-                                  {label}
-                                </>
-                              );
-
-                              // The registry is where this actually lives; a name that cannot
-                              // be followed is half an answer.
-                              return url ? (
-                                <a
-                                  key={label}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noreferrer noopener"
-                                  className="flex items-center gap-1 truncate hover:underline"
+                            <div className="flex min-w-0 flex-col">
+                              <div className="flex items-center gap-2">
+                                {/* The name is the obvious thing to click to read a document, and
+                                    was the one part of the row that did nothing. Underlined on row
+                                    hover rather than its own: the pointer is somewhere on the row
+                                    long before it reaches the six characters of a title. */}
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenFor(spec.id)}
+                                  className="cursor-pointer truncate rounded-sm text-left font-medium group-hover:underline focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
                                 >
-                                  {inner}
-                                  <span className="sr-only"> (opens in a new tab)</span>
-                                </a>
-                              ) : (
-                                <p key={label} className="flex items-center gap-1 truncate">
-                                  {inner}
-                                </p>
-                              );
-                            })}
+                                  {spec.apiTitle ?? "Untitled"}
+                                </button>
+                                {spec.id === latestId && (
+                                  // Which document a new run generates from is the question this
+                                  // table is usually opened to answer.
+                                  <Badge variant="secondary" className="text-[10px]">
+                                    Latest
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="truncate font-mono text-xs text-muted-foreground tabular-nums">
+                                {spec.apiVersion ?? "no version"} · {fileSize(spec.sizeInBytes)}
+                              </span>
+                            </div>
                           </div>
-                        )}
-                      </TableCell>
+                        </TableCell>
 
-                      <TableCell className="text-xs text-muted-foreground">
-                        <RelativeTime iso={spec.createdAt} />
-                      </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs tabular-nums">{spec.openApiVersion ?? "—"}</span>
+                            <Badge variant="outline" className="font-mono text-[10px] uppercase">
+                              {spec.format}
+                            </Badge>
+                          </div>
+                        </TableCell>
 
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          {/* Kept in the open: it is the one action that leaves this page, and
-                              a destination is worth showing rather than hiding behind a menu. */}
-                          <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            aria-label={`Runs generated from spec #${spec.sequence}`}
-                            // This one navigates, so it renders an anchor. Base UI assumes a
-                            // native button unless told, and warns that it is dropping button
-                            // semantics — semantics a link should not have had anyway.
-                            nativeButton={false}
-                            render={<Link to={`/orgs/${orgSlug}/runs?project=${projectSlug}&spec=${spec.id}`} />}
-                          >
-                            <History className="size-4" aria-hidden />
-                          </Button>
+                        {/* A status, not a control. Opening the document is a button of its own
+                            now: as a hidden button this only worked when a spec had findings,
+                            which left a clean one with no way to be read at all. */}
+                        <TableCell>
+                          <SpecFindingCounts
+                            status={spec.validationStatus}
+                            information={spec.informationCount}
+                            warnings={spec.warningCount}
+                            errors={spec.errorCount}
+                          />
+                        </TableCell>
 
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              render={<Button size="icon-sm" variant="ghost" />}
-                              aria-label={`More actions for spec #${spec.sequence}`}
+                        <TableCell className="text-xs">
+                          {publications.isError ? (
+                            // Not "—": that would read as "nothing published", which is a claim
+                            // this column is in no position to make when its query failed.
+                            // One word standing in for the sentence that explains it, so the
+                            // sentence is what the tooltip carries.
+                            <Tooltip>
+                              <TooltipTrigger className="text-muted-foreground">unknown</TooltipTrigger>
+                              <TooltipContent>The publications could not be loaded</TooltipContent>
+                            </Tooltip>
+                          ) : publications.isPending ? (
+                            // Same claim, the other way round: a dash over a list still on its
+                            // way says "nothing published" of a version that may well be.
+                            <Skeleton className="h-4 w-20" />
+                          ) : packages.length === 0 ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            // Also what makes the delete button honest: a published version is
+                            // refused, and now that is visible before the click rather than
+                            // after it.
+                            <div className="space-y-0.5 font-mono">
+                              {packages.map(({ label, url }) => {
+                                const inner = (
+                                  <>
+                                    <Package className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+                                    {label}
+                                  </>
+                                );
+
+                                // The registry is where this actually lives; a name that cannot
+                                // be followed is half an answer.
+                                return url ? (
+                                  <a
+                                    key={label}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="flex items-center gap-1 truncate hover:underline"
+                                  >
+                                    {inner}
+                                    <span className="sr-only"> (opens in a new tab)</span>
+                                  </a>
+                                ) : (
+                                  <p key={label} className="flex items-center gap-1 truncate">
+                                    {inner}
+                                  </p>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="text-xs text-muted-foreground">
+                          <RelativeTime iso={spec.createdAt} />
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            {/* Kept in the open: it is the one action that leaves this page, and
+                                a destination is worth showing rather than hiding behind a menu. */}
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              aria-label={`Runs generated from spec #${spec.sequence}`}
+                              // This one navigates, so it renders an anchor. Base UI assumes a
+                              // native button unless told, and warns that it is dropping button
+                              // semantics — semantics a link should not have had anyway.
+                              nativeButton={false}
+                              render={<Link to={`/orgs/${orgSlug}/runs?project=${projectSlug}&spec=${spec.id}`} />}
                             >
-                              <MoreHorizontal className="size-4" aria-hidden />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-44">
-                              {/* Still here though the title does the same: a menu is where
-                                  someone looks for the full list of what a row can do. */}
-                              <DropdownMenuItem onClick={() => setOpenFor(spec.id)}>
-                                <SquareCode className="size-4" aria-hidden />
-                                View source
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => {
-                                  setDeleteError(null);
-                                  setDeleting(spec);
-                                  setDeleteOpen(true);
-                                }}
+                              <History className="size-4" aria-hidden />
+                            </Button>
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={<Button size="icon-sm" variant="ghost" />}
+                                aria-label={`More actions for spec #${spec.sequence}`}
                               >
-                                <Trash2 className="size-4" aria-hidden />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-                </Table>
+                                <MoreHorizontal className="size-4" aria-hidden />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-44">
+                                {/* Still here though the title does the same: a menu is where
+                                    someone looks for the full list of what a row can do. */}
+                                <DropdownMenuItem onClick={() => setOpenFor(spec.id)}>
+                                  <SquareCode className="size-4" aria-hidden />
+                                  View source
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => {
+                                    setDeleting(spec);
+                                    setDeleteOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="size-4" aria-hidden />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
 
-                {visible.length === 0 && (
-                  <p className="py-10 text-center text-sm text-muted-foreground">
-                    No version matches this filter.
-                  </p>
-                )}
-              </CardContent>
-
-              {hidden > 0 && (
-                <CardFooter className="border-t py-2.5">
-                  <p className="text-xs text-muted-foreground">
-                    Showing the {items.length} most recent of {specs.data?.total} versions.
-                  </p>
-                </CardFooter>
+              {visible.length === 0 && (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  No version matches this filter.
+                </p>
               )}
-            </Card>
+            </TableCard>
           </div>
         ) : (
           // The drop zone above already is this page's empty state, and a better one: it
@@ -534,7 +500,7 @@ export function ProjectSpecsPage() {
         onOpenChangeComplete={(open) => {
           if (!open) {
             setDeleting(null);
-            setDeleteError(null);
+            remove.reset();
           }
         }}
         title={`Delete spec #${deleting?.sequence}?`}
@@ -545,7 +511,10 @@ export function ProjectSpecsPage() {
         ]}
         reassurances={["Packages already published stay in their registries"]}
         isPending={remove.isPending}
-        error={deleteError}
+        // A refusal is the server saying a package was published from this document. It belongs
+        // in the dialog, next to the button that was just pressed, not in a toast that appears
+        // somewhere else and disappears.
+        error={remove.error}
         onConfirm={confirmDelete}
       />
     </div>

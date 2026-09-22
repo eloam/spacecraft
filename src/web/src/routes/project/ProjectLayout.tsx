@@ -8,9 +8,9 @@ import { BackLink } from "@/components/BackLink";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ProjectNav } from "@/components/layout/ProjectNav";
-import { GenerateDialog } from "@/routes/project/GenerateDialog";
+import { GenerateDialog } from "@/components/GenerateDialog";
 import { useProject, useProjects, useSpecs } from "@/api/queries";
-import { SpecValidationStatus } from "@/api/types";
+import { isGeneratable } from "@/api/types";
 
 /**
  * Frame for every project section: who it is, what you can do to it, and where you can go.
@@ -50,7 +50,7 @@ export function ProjectLayout() {
   const loading = resolvingProject || project.isPending || specs.isPending;
   const hasTarget = (project.data?.targets.length ?? 0) > 0;
   const hasUsableSpec =
-    specs.data?.items.some((s) => s.validationStatus !== SpecValidationStatus.Invalid) ?? false;
+    specs.data?.items.some(isGeneratable) ?? false;
   const canGenerate = hasTarget && hasUsableSpec;
 
   /**

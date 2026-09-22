@@ -10,6 +10,7 @@ import { Item, ItemActions, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { QueryBoundary } from "@/components/QueryBoundary";
+import { TableCard } from "@/components/TableCard";
 import { RunStatusIcon, StepStatusIcon } from "@/components/StatusBadge";
 import { ApiError, describeError } from "@/api/client";
 import {
@@ -18,8 +19,6 @@ import {
 import {
   RunTrigger,
   StepStatus,
-  describeRunProgress,
-  formatSeconds,
   isTerminal,
   languageLabel,
   registryLabel,
@@ -27,6 +26,7 @@ import {
   stepKindLabel,
   stepStatusLabel,
 } from "@/api/types";
+import { describeRunProgress, formatElapsed, formatRunDuration, formatSeconds } from "@/lib/format";
 import { toast } from "sonner";
 import { LanguageDot } from "@/components/LanguageDot";
 import { RelativeTime } from "@/components/RelativeTime";
@@ -132,25 +132,13 @@ export function RunPage() {
                       <span aria-hidden>·</span>
                       {/* Queued, waited, ran: "slow" and "sat in the queue" look identical
                           without the middle number. */}
-                      <span>
-                        waited{" "}
-                        {formatSeconds(
-                          (new Date(run.data.startedAt).getTime() -
-                            new Date(run.data.queuedAt).getTime()) / 1000,
-                        )}
-                      </span>
+                      <span>waited {formatElapsed(run.data.queuedAt, run.data.startedAt)}</span>
                     </>
                   )}
                   {run.data.startedAt && run.data.completedAt && (
                     <>
                       <span aria-hidden>·</span>
-                      <span>
-                        ran{" "}
-                        {formatSeconds(
-                          (new Date(run.data.completedAt).getTime() -
-                            new Date(run.data.startedAt).getTime()) / 1000,
-                        )}
-                      </span>
+                      <span>ran {formatRunDuration(run.data)}</span>
                     </>
                   )}
                 </div>
@@ -224,116 +212,114 @@ export function RunPage() {
       >
         {run.data && (
           <>
-            <Card className="py-0">
-              {/* The SDK targets table, header and one row, rendered exactly as it is
-                  there — same columns, same two-line SDK cell, same registry badge, same
-                  publishing pair, same label-over-address. Someone arriving from that tab
-                  should not have to re-learn how to read the same five facts.
+            {/* One row in the SDK targets table's vocabulary — the language dot, the
+                credential's label over its address — so someone arriving from that tab reads
+                the same facts the same way.
 
-                  Read off the run, not the target: the target may since have been renamed,
-                  repointed, switched between automatic and manual, or deleted, and a page
-                  describing history has to keep saying what happened. */}
-              <CardContent className="p-0">
-                {/* table-fixed: the columns divide the width evenly instead of being
-                    measured from their contents, which for one row meant four narrow
-                    cells and one enormous one. */}
-                <Table className="table-fixed">
-                  <TableHeader>
-                    <TableRow>
-                      {/* Ahead of the SDK: the project is what someone landing here from a
-                          list of runs needs first, and it was in eleven-pixel grey beside a
-                          guid. */}
-                      <TableHead>Project</TableHead>
-                      {/* Beside the project, ahead of the target's own columns: both are
-                          facts about this run, and what follows describes the target. */}
-                      <TableHead>Started</TableHead>
-                      <TableHead>Language</TableHead>
-                      <TableHead>Registry</TableHead>
-                      <TableHead>Publishing</TableHead>
-                      {/* Only for a run that published. A destination shown for one that did
-                          not is a URL in evidence beside a package that never reached it —
-                          the exact misreading the Publishing cell was just fixed to avoid. */}
-                      {run.data.publishRequested && <TableHead>Publishes to</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {/* Nothing to click here — one row describing the run, not a list
-                        to pick from. The primitive lifts a row on hover because rows
-                        are usually targets; this one is a fact. */}
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell>
-                        <Link
-                          to={`/orgs/${orgSlug}/projects/${run.data.projectSlug}/targets`}
-                          className="font-medium underline-offset-4 hover:underline"
-                        >
-                          {run.data.projectName ?? "—"}
-                        </Link>
-                      </TableCell>
+                Read off the run, not the target: the target may since have been renamed,
+                repointed, switched between automatic and manual, or deleted, and a page
+                describing history has to keep saying what happened. */}
+            <TableCard>
+              {/* table-fixed: the columns divide the width evenly instead of being
+                  measured from their contents, which for one row meant four narrow
+                  cells and one enormous one. */}
+              <Table className="table-fixed">
+                <TableHeader>
+                  <TableRow>
+                    {/* Ahead of the SDK: the project is what someone landing here from a
+                        list of runs needs first, and it was in eleven-pixel grey beside a
+                        guid. */}
+                    <TableHead>Project</TableHead>
+                    {/* Beside the project, ahead of the target's own columns: both are
+                        facts about this run, and what follows describes the target. */}
+                    <TableHead>Started</TableHead>
+                    <TableHead>Language</TableHead>
+                    <TableHead>Registry</TableHead>
+                    <TableHead>Publishing</TableHead>
+                    {/* Only for a run that published. A destination shown for one that did
+                        not is a URL in evidence beside a package that never reached it —
+                        the exact misreading the Publishing cell was just fixed to avoid. */}
+                    {run.data.publishRequested && <TableHead>Publishes to</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Nothing to click here — one row describing the run, not a list
+                      to pick from. The primitive lifts a row on hover because rows
+                      are usually targets; this one is a fact. */}
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell>
+                      <Link
+                        to={`/orgs/${orgSlug}/projects/${run.data.projectSlug}/targets`}
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {run.data.projectName ?? "—"}
+                      </Link>
+                    </TableCell>
 
-                      <TableCell>
-                        {/* Named in full rather than "Manual"/"Automatic": those two words
-                            already answer a different question one column to the right, and
-                            a reader meeting both would have to work out which axis each was
-                            on. */}
-                        {run.data.trigger === RunTrigger.SpecUpload ? (
-                          <span className="flex items-center gap-1.5 text-xs">
-                            <FileUp className="size-3.5 text-[var(--code-warning)]" aria-hidden />
-                            By a spec upload
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-xs">
-                            <MousePointerClick className="size-3.5 text-muted-foreground" aria-hidden />
-                            By hand
-                          </span>
-                        )}
-                      </TableCell>
-
-                      <TableCell>
-                        {/* The dot, not the 40px mark: the same colour identifying the same
-                            language, at a weight that belongs beside four other cells rather
-                            than dominating them. */}
-                        <span className="flex items-center gap-2">
-                          <LanguageDot language={run.data.targetLanguage} />
-                          <span className="truncate font-medium">
-                            {languageLabel[run.data.targetLanguage] ?? "Unknown"}
-                          </span>
+                    <TableCell>
+                      {/* Named in full rather than "Manual"/"Automatic": those two words
+                          already answer a different question one column to the right, and
+                          a reader meeting both would have to work out which axis each was
+                          on. */}
+                      {run.data.trigger === RunTrigger.SpecUpload ? (
+                        <span className="flex items-center gap-1.5 text-xs">
+                          <FileUp className="size-3.5 text-[var(--code-warning)]" aria-hidden />
+                          By a spec upload
                         </span>
-                      </TableCell>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-xs">
+                          <MousePointerClick className="size-3.5 text-muted-foreground" aria-hidden />
+                          By hand
+                        </span>
+                      )}
+                    </TableCell>
 
-                      <TableCell className="font-mono text-xs">
-                        {/* Plain, not a badge: on the SDK targets table the pill separates
-                            one registry from the next down a column of them. There is one
-                            row here, so it was a pill around a fact with nothing to be told
-                            apart from. */}
-                        {registryLabel[run.data.targetRegistry] ?? "—"}
-                      </TableCell>
+                    <TableCell>
+                      {/* The dot, not the 40px mark: the same colour identifying the same
+                          language, at a weight that belongs beside four other cells rather
+                          than dominating them. */}
+                      <span className="flex items-center gap-2">
+                        <LanguageDot language={run.data.targetLanguage} />
+                        <span className="truncate font-medium">
+                          {languageLabel[run.data.targetLanguage] ?? "Unknown"}
+                        </span>
+                      </span>
+                    </TableCell>
 
-                      <TableCell>
-                        {/* This run first, the target underneath. Borrowed from the SDK
-                            targets table, the cell led with the target's mode and corrected
-                            itself below — backwards on a page about one run, and it asked
-                            the reader to know that the first line was not about it.
+                    <TableCell className="font-mono text-xs">
+                      {/* Plain, not a badge: on the SDK targets table the pill separates
+                          one registry from the next down a column of them. There is one
+                          row here, so it was a pill around a fact with nothing to be told
+                          apart from. */}
+                      {registryLabel[run.data.targetRegistry] ?? "—"}
+                    </TableCell>
 
-                            "on"/"off" rather than "published": whether it went out is what
-                            the Publish step says, and this says what the run was asked to
-                            do, which is the thing the target can disagree with. */}
-                        <div className="flex flex-col gap-0.5">
-                          <span className="flex items-center gap-1.5 text-xs">
-                            {run.data.publishRequested ? (
-                              <Zap className="size-3.5 text-[var(--code-warning)]" aria-hidden />
-                            ) : (
-                              <Hand className="size-3.5 text-[var(--success)]" aria-hidden />
-                            )}
-                            Publishing {run.data.publishRequested ? "on" : "off"}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">
-                            Target publishes{" "}
-                            {run.data.targetAutoPublish ? "automatically" : "manually"}
-                          </span>
-                        </div>
-                      </TableCell>
+                    <TableCell>
+                      {/* This run first, the target underneath. Borrowed from the SDK
+                          targets table, the cell led with the target's mode and corrected
+                          itself below — backwards on a page about one run, and it asked
+                          the reader to know that the first line was not about it.
 
-                      {run.data.publishRequested && (
+                          "on"/"off" rather than "published": whether it went out is what
+                          the Publish step says, and this says what the run was asked to
+                          do, which is the thing the target can disagree with. */}
+                      <div className="flex flex-col gap-0.5">
+                        <span className="flex items-center gap-1.5 text-xs">
+                          {run.data.publishRequested ? (
+                            <Zap className="size-3.5 text-[var(--code-warning)]" aria-hidden />
+                          ) : (
+                            <Hand className="size-3.5 text-[var(--success)]" aria-hidden />
+                          )}
+                          Publishing {run.data.publishRequested ? "on" : "off"}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          Target publishes{" "}
+                          {run.data.targetAutoPublish ? "automatically" : "manually"}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {run.data.publishRequested && (
                       <TableCell>
                         {run.data.targetRegistryUrl ? (
                           <div className="min-w-0">
@@ -355,12 +341,11 @@ export function RunPage() {
                           <span className="text-muted-foreground">Nowhere — no credential</span>
                         )}
                       </TableCell>
-                      )}
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                    )}
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableCard>
 
             <Card>
               <CardHeader>
