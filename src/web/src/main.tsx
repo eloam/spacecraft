@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorFallback } from "@/components/ErrorFallback";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { ApiError } from "@/api/client";
 import App from "./App";
 import "./index.css";
@@ -39,18 +40,20 @@ createRoot(document.getElementById("root")!).render(
         the whole tree and leaves a blank page. The shell has a closer one around its outlet,
         so a page's failure keeps the navigation; this one catches what happens outside it. */}
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          {/* Tooltips carry what truncation removes — a full registry URL, a timestamp behind
-              "3 days ago" — so they are read, not glanced at. A short delay keeps them from
-              firing while the pointer crosses a table on its way somewhere else; the provider
-              then groups them, so moving between neighbouring cells skips the wait. */}
-          <TooltipProvider delay={350}>
-            <App />
-          </TooltipProvider>
-          <Toaster richColors position="top-right" />
-        </BrowserRouter>
-      </QueryClientProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            {/* Tooltips carry what truncation removes — a full registry URL, a timestamp behind
+                "3 days ago" — so they are read, not glanced at. A short delay keeps them from
+                firing while the pointer crosses a table on its way somewhere else; the provider
+                then groups them, so moving between neighbouring cells skips the wait. */}
+            <TooltipProvider delay={350}>
+              <App />
+            </TooltipProvider>
+            <Toaster richColors position="top-right" />
+          </BrowserRouter>
+        </QueryClientProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,
 );
