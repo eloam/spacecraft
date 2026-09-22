@@ -1,4 +1,4 @@
-import { test, expect, signIn } from "./fixtures";
+import { test, expect } from "./fixtures";
 import { createOrganization, joinByInvitation } from "./workspace";
 
 /**
@@ -9,10 +9,10 @@ import { createOrganization, joinByInvitation } from "./workspace";
  * answer were "nothing here", is a different failure from a 403.
  */
 test("a member is refused the credentials page, and told why", async ({
-  page,
+  owner,
   api,
   account,
-  browser,
+  pageAs,
 }) => {
   const organization = await createOrganization(api, account);
 
@@ -20,10 +20,7 @@ test("a member is refused the credentials page, and told why", async ({
   // and a token here is a key to somebody else's registry.
   const member = await joinByInvitation(api, account, organization.id);
 
-  const context = await browser.newContext();
-  const theirs = await context.newPage();
-  await signIn(theirs, member);
-
+  const theirs = await pageAs(member);
   await theirs.goto(`/orgs/${organization.slug}/credentials`);
 
   // Named, not counted: the page also carries an informational alert about npm tokens, and
@@ -31,12 +28,12 @@ test("a member is refused the credentials page, and told why", async ({
   const refusal = theirs.getByRole("alert").filter({ hasText: "Forbidden" });
   await expect(refusal).toContainText(/requires the Admin role/i);
 
-  // And the owner, on the same page, is not refused.
-  await signIn(page, account);
-  await page.goto(`/orgs/${organization.slug}/credentials`);
-  await expect(page.getByRole("alert").filter({ hasText: "Forbidden" })).toHaveCount(0);
-
-  await context.close();
+  // And the owner, on the same page, is not refused. The empty state comes first: it is what
+  // the query renders once it has answered, and "no refusal" on a page still showing its
+  // skeleton would have passed before the answer arrived.
+  await owner.goto(`/orgs/${organization.slug}/credentials`);
+  await expect(owner.getByText("No credentials")).toBeVisible();
+  await expect(owner.getByRole("alert").filter({ hasText: "Forbidden" })).toHaveCount(0);
 });
 
 test("a role you cannot change is shown rather than offered", async ({ owner, api, account }) => {

@@ -6,6 +6,10 @@ import { test, expect, anEmail, register, PASSWORD_FOR_TESTS } from "./fixtures"
  * Everything else in this suite is handed a session, because paying for a sign-in per test
  * buys nothing once this file has proved it works.
  */
+// Signed out, on purpose: every page in this file starts at a form that a session would
+// redirect away from.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test("creating an account signs you in and lands you on your organizations", async ({ page }) => {
   const email = anEmail("signup");
 

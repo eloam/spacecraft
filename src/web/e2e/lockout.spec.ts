@@ -9,7 +9,15 @@ import { test, expect, register, PASSWORD_FOR_TESTS } from "./fixtures";
  * test — but nobody had ever read what the tenth attempt puts in front of somebody who is, by
  * then, already worried.
  */
+
+/**
+ * Mirrors `options.Lockout.MaxFailedAccessAttempts` in SpaceCraft.Infrastructure's
+ * DependencyInjection, the same way the LockoutTests integration test does.
+ */
 const MAX_ATTEMPTS = 10;
+
+// Signed out, on purpose: the page under test is the sign-in form.
+test.use({ storageState: { cookies: [], origins: [] } });
 
 test("too many wrong passwords lock the account, and the right one no longer opens it", async ({
   page,
@@ -23,7 +31,12 @@ test("too many wrong passwords lock the account, and the right one no longer ope
       data: { email: account.email, password: "not-the-password" },
     });
 
-    expect(refused.ok()).toBeFalsy();
+    // 401 and nothing else: a lockout answers 423, and a server that locks sooner than this
+    // constant says would otherwise pass as "refused" and leave the mismatch unnoticed.
+    expect(
+      refused.status(),
+      `attempt ${attempt + 1} is refused as a wrong password, not as a lockout`,
+    ).toBe(401);
   }
 
   await page.goto("/login");

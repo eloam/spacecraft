@@ -1,4 +1,4 @@
-import { test, expect, as, signIn } from "./fixtures";
+import { test, expect, as } from "./fixtures";
 import { createOrganization, joinByInvitation, queuedRun, waitForRunToFinish } from "./workspace";
 
 /**
@@ -50,25 +50,26 @@ test("clearing asks before it loses something unread", async ({ owner, api, acco
 test("being removed reaches the person it happened to, who is no longer a member", async ({
   api,
   account,
-  browser,
+  pageAs,
 }) => {
   const organization = await createOrganization(api, account);
   const member = await joinByInvitation(api, account, organization.id);
 
-  const context = await browser.newContext();
-  const theirs = await context.newPage();
-  await signIn(theirs, member);
+  const theirs = await pageAs(member);
 
   const removed = await api.delete(
     `/api/v1/organizations/${organization.id}/members/${member.user.id}`,
     as(account),
   );
 
-  expect(removed.ok(), `removing a member: ${removed.status()}`).toBeTruthy();
+  await expect(removed, "removing a member").toBeOK();
 
   await theirs.goto("/");
 
-  // Gone from their organizations, which is the point of the removal...
+  // Gone from their organizations, which is the point of the removal. That one was the only
+  // organization they had, so what the list renders once it has loaded is its empty state —
+  // and only then does a missing link mean anything, since a list still loading has none.
+  await expect(theirs.getByText("No organizations yet")).toBeVisible();
   await expect(theirs.getByRole("link", { name: organization.name })).toHaveCount(0);
 
   // ...and told anyway, which is the point of the notification: every other item in this list
@@ -80,6 +81,4 @@ test("being removed reaches the person it happened to, who is no longer a member
 
   // Naming the account that did it, not only the name it goes by.
   await expect(theirs.getByText(account.email, { exact: false })).toBeVisible();
-
-  await context.close();
 });
