@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { ArrowRight, Ban, KeyRound, MoreHorizontal, Package, Plus, RotateCcw, Trash2 } from "lucide-react";
@@ -126,7 +126,7 @@ const REGISTRIES = [
 const DEFAULT_REGISTRY = REGISTRIES[0];
 
 export function CredentialsPage() {
-  const { orgId: orgSlug = "" } = useParams();
+  const { orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const { data, isLoading, error } = useCredentials(orgId);
@@ -552,7 +552,7 @@ function AddCredentialForm({
     { label?: string; token?: string; registryUrl?: string; form?: string }>({});
   const create = useCreateCredential(orgId);
 
-  function submit(event: React.FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
     setErrors({});
 

@@ -53,7 +53,7 @@ const schema = z.object({
 });
 
 export function MembersPage() {
-  const { orgId: orgSlug = "" } = useParams();
+  const { orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const navigate = useNavigate();
@@ -512,10 +512,8 @@ function InviteForm({
       <DialogHeader>
         <DialogTitle>Invite someone</DialogTitle>
         <DialogDescription>
-          {/* The comment this replaces said there was no invitation flow yet, and that
-              the person had to have an account already. Both are now false, and the
-              second was the security problem: an address nobody had verified decided who
-              got the membership. */}
+          {/* Membership waits for the link to be opened, even when an account already uses
+              this address: an address nobody has verified never decides who joins. */}
           A link goes to this address. They join when they open it, whether or not they
           have an account yet — and nothing changes until they do.
         </DialogDescription>

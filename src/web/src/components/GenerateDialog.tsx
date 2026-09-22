@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProjectId } from "@/hooks/useRouteIdentity";
 import { Check, CircleAlert, Minus } from "lucide-react";
@@ -141,8 +140,7 @@ function GenerateForm({
         ?.refusal ?? null)
     : null;
 
-  // Slug or id: the route carries the slug, but links minted before that still carry the id.
-  const role = organizations.data?.find((o) => o.slug === orgId || o.id === orgId)?.role;
+  const role = organizations.data?.find((o) => o.id === orgId)?.role;
 
   /**
    * Why this run cannot publish, said before it is queued rather than after.
@@ -181,7 +179,7 @@ function GenerateForm({
     .map((kind) => (stepKindLabel[kind] ?? "Unknown").toLowerCase())
     .join(" → ");
 
-  function submit(event: React.FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
     createRun.mutate(
       { specVersionId: selectedSpec, sdkTargetId: selectedTarget, publish: willPublish },

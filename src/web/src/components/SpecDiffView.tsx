@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView } from "@codemirror/view";
 import { MergeView } from "@codemirror/merge";
@@ -26,19 +26,20 @@ const currentChunkHighlight = EditorView.decorations.compute([currentChunk, "doc
   const chunk = state.field(currentChunk);
   if (!chunk) return Decoration.none;
 
+  // A change that only removes lines has none on this side, and `from` equals `to`: the line
+  // below the gap takes the mark, so stepping to it still shows where it is.
+  const { doc } = state;
   const ranges = [];
-  const last = state.doc.lineAt(Math.max(chunk.from, Math.min(chunk.to, state.doc.length) - 1));
+  const last = doc.lineAt(chunk.to).number;
 
-  for (let line = state.doc.lineAt(chunk.from); ; line = state.doc.line(line.number + 1)) {
-    ranges.push(Decoration.line({ class: "sc-current-chunk" }).range(line.from));
-    if (line.number >= last.number || line.number >= state.doc.lines) break;
+  for (let line = doc.lineAt(chunk.from).number; line <= last; line++) {
+    ranges.push(Decoration.line({ class: "sc-current-chunk" }).range(doc.line(line).from));
   }
 
   return Decoration.set(ranges);
 });
 
 const theme = EditorView.theme({
-  ".cm-merge-revert": { display: "none" },
   // Tinted from the app's own tokens rather than the addon's defaults, which are fixed greens
   // and reds that ignore the theme.
   ".cm-changedLine": { backgroundColor: "color-mix(in oklch, var(--code-warning) 14%, transparent)" },
@@ -50,11 +51,11 @@ const theme = EditorView.theme({
 /**
  * Two spec versions side by side, with what changed between them.
  *
- * The reason a version history exists is to answer "what changed" — and until now the only
- * way to ask was to read both documents and hold them in your head.
+ * The reason a version history exists is to answer "what changed" — and without a diff the
+ * only way to ask is to read both documents and hold them in your head.
  *
- * Read-only on both sides: these are immutable snapshots, and the merge view's revert arrows
- * would offer to write one into the other.
+ * Read-only on both sides, and built without the merge view's revert controls: these are
+ * immutable snapshots, and a revert would write one into the other.
  */
 export function SpecDiffView({
   before,
@@ -76,6 +77,9 @@ export function SpecDiffView({
 }) {
   const host = useRef<HTMLDivElement>(null);
   const merge = useRef<MergeView | null>(null);
+  // Read through an Effect Event, so a caller passing a new function every render does not tear
+  // the merge view down and rebuild it.
+  const reportChunkCount = useEffectEvent(onChunkCount);
 
   useEffect(() => {
     if (!host.current) return;
@@ -95,13 +99,13 @@ export function SpecDiffView({
     });
 
     merge.current = view;
-    onChunkCount(view.chunks.length);
+    reportChunkCount(view.chunks.length);
 
     return () => {
       view.destroy();
       merge.current = null;
     };
-  }, [before, after, format, onChunkCount]);
+  }, [before, after, format]);
 
   useEffect(() => {
     const view = merge.current;
@@ -110,11 +114,12 @@ export function SpecDiffView({
     const chunk = view.chunks[scrollTo.index];
     if (!chunk) return;
 
-    // fromB/toB: the right-hand document is the newer one, and a change is read as what the
-    // new version says.
+    // The B side: the right-hand document is the newer one, and a change is read as what the
+    // new version says. `endB` rather than `toB`, which is one past the chunk's last line and
+    // can fall outside the document.
     view.b.dispatch({
       effects: [
-        setCurrentChunk.of({ from: chunk.fromB, to: chunk.toB }),
+        setCurrentChunk.of({ from: chunk.fromB, to: chunk.endB }),
         EditorView.scrollIntoView(chunk.fromB, { y: "center" }),
       ],
     });

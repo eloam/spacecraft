@@ -11,7 +11,7 @@ import { registryLabel } from "@/api/types";
 import { formatDateTime } from "@/lib/format";
 
 export function PublicationsPage() {
-  const { orgId: orgSlug = "" } = useParams();
+  const { orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const publications = usePublications(orgId);

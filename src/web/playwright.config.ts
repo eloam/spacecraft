@@ -66,6 +66,6 @@ export default defineConfig({
     url: WEB_URL,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { VITE_API_TARGET: API_URL },
+    env: { API_TARGET: API_URL },
   },
 });

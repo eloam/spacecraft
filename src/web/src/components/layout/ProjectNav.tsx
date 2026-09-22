@@ -10,7 +10,7 @@ import { SectionNav } from "@/components/layout/SectionNav";
  * the others instead of being a lone link among tabs that behave differently.
  */
 export function ProjectNav() {
-  const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
+  const { orgSlug = "", projectSlug = "" } = useParams();
   const base = `/orgs/${orgSlug}/projects/${projectSlug}`;
 
   return (

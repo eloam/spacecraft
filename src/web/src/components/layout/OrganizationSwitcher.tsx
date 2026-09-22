@@ -18,6 +18,12 @@ import { useOrganizations } from "@/api/queries";
 import { roleLabel } from "@/api/types";
 
 /**
+ * Above this many, the list stops being scannable and a filter earns its place. Below it,
+ * a search box is a control to skip past on the way to a name already on screen.
+ */
+const SEARCH_THRESHOLD = 7;
+
+/**
  * The current organization, beside the product name, with a way to change it.
  *
  * Putting it in the top bar means the answer to "which organization am I in?" is in the same
@@ -27,25 +33,18 @@ import { roleLabel } from "@/api/types";
  * section you are in may not apply — a project page has no counterpart elsewhere — and
  * silently redirecting somewhere unrelated is worse than starting at the top.
  */
-/**
- * Above this many, the list stops being scannable and a filter earns its place. Below it,
- * a search box is a control to skip past on the way to a name already on screen.
- */
-const SEARCH_THRESHOLD = 7;
-
 export function OrganizationSwitcher() {
-  const { orgId = "" } = useParams();
+  const { orgSlug = "" } = useParams();
   const organizations = useOrganizations();
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
 
   const all = organizations.data ?? [];
 
-  // Slug or id. The route param normally carries the slug, but the id is a valid address
-  // too — the API accepts either, and a link minted from a stored record carries the id on
-  // purpose, so that renaming an organization cannot break it. Matching only one of the two
-  // printed a guid where the organization's name belongs.
-  const current = all.find((o) => o.slug === orgId || o.id === orgId);
+  // Slug or id: a link minted from a stored record carries the id on purpose, so that
+  // renaming an organization cannot break it. The shell rewrites that address to the slug,
+  // but only after rendering it once, and the button names the organization either way.
+  const current = all.find((o) => o.slug === orgSlug || o.id === orgSlug);
 
   const needle = query.trim().toLowerCase();
   const matches = needle
@@ -71,13 +70,13 @@ export function OrganizationSwitcher() {
               className="min-w-0 gap-1.5 px-2.5 font-semibold"
             >
               <Building2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <span className="truncate">{current?.name ?? orgId}</span>
+              <span className="truncate">{current?.name ?? orgSlug}</span>
               <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
             </Button>
           }
           // The visible name stays in the accessible name (WCAG 2.5.3): a label that only said
           // what the button does left "click Ledger" with nothing to match.
-          aria-label={`Switch organization, ${current?.name ?? orgId}`}
+          aria-label={`Switch organization, ${current?.name ?? orgSlug}`}
         />
         <DropdownMenuContent align="start" className="w-64">
           {all.length > SEARCH_THRESHOLD && (

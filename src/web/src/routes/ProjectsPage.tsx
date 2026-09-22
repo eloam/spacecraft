@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { FolderGit2, Plus } from "lucide-react";
@@ -36,7 +36,7 @@ import { describeError } from "@/api/client";
 import { toast } from "sonner";
 
 export function ProjectsPage() {
-  const { orgId: orgSlug = "" } = useParams();
+  const { orgSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const organization = useOrganizations().data?.find((o) => o.id === orgId);
   const { data, isLoading, error } = useProjects(orgId);
@@ -156,7 +156,7 @@ function CreateProjectForm({
   // Only once something has been typed: an untouched field is not yet wrong.
   const nameInvalid = Boolean(name.trim()) && !isValidResourceName(name);
 
-  function submit(event: React.FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
     create.mutate(
       { name, strictValidation },

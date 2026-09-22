@@ -65,7 +65,7 @@ const filters: Record<
 
 /** One SDK per language and registry, and what each has published. */
 export function ProjectTargetsPage() {
-  const { orgId: orgSlug = "", projectId: projectSlug = "" } = useParams();
+  const { orgSlug = "", projectSlug = "" } = useParams();
   const orgId = useOrganizationId(orgSlug);
   const projectId = useProjectId(orgId, projectSlug);
   const project = useProject(orgId, projectId);

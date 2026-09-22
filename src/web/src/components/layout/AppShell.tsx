@@ -28,7 +28,7 @@ export function AppShell() {
   // a copy in the session store.
   const account = useAccount();
   const logout = useLogout();
-  const { orgId } = useParams();
+  const { orgSlug } = useParams();
   const location = useLocation();
 
   // Here rather than on each page: every route that names an organization or a project passes
@@ -49,8 +49,8 @@ export function AppShell() {
   // guid for a name and the section nav around each page's own refusal. So both forms wait
   // for the list, and both are looked for in it.
   const organizations = useOrganizations();
-  const resolvingOrganization = Boolean(orgId) && organizations.isPending;
-  const known = organizations.data?.some((o) => o.slug === orgId || o.id === orgId) ?? false;
+  const resolvingOrganization = Boolean(orgSlug) && organizations.isPending;
+  const known = organizations.data?.some((o) => o.slug === orgSlug || o.id === orgSlug) ?? false;
 
   // The list arrived and this address is not in it. Before the pages asked by id, the slug
   // went straight to the API, which answered 404 and the page said so; now their queries are
@@ -63,7 +63,7 @@ export function AppShell() {
   //
   // Worded like the API's own refusal, which does not distinguish "no such organization" from
   // "not yours" — telling those apart would confirm which ids are real to anyone who asks.
-  const unknownOrganization = Boolean(orgId) && organizations.isSuccess && !known;
+  const unknownOrganization = Boolean(orgSlug) && organizations.isSuccess && !known;
 
   return (
     <div className="min-h-screen">
@@ -73,7 +73,7 @@ export function AppShell() {
       <header
         className={cn(
           "sticky top-0 z-30 bg-topbar",
-          !orgId && "border-b",
+          !orgSlug && "border-b",
         )}
       >
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
@@ -91,7 +91,7 @@ export function AppShell() {
               the wordmark by more than the bar's own gap: they are two different things —
               the product, and where you are inside it — and at a glance they should not
               read as one title. */}
-          {orgId && (
+          {orgSlug && (
             <div className="ml-3 flex min-w-0 items-center">
               <OrganizationSwitcher />
             </div>
@@ -139,7 +139,7 @@ export function AppShell() {
 
       {/* Organization sections live under the organization's name rather than in the bar
           above, so which organization they act on is never in question. */}
-      {orgId && !unknownOrganization && <OrganizationNav />}
+      {orgSlug && !unknownOrganization && <OrganizationNav />}
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         {resolvingOrganization ? (
@@ -153,7 +153,7 @@ export function AppShell() {
              boundary lets through. */
           <QueryBoundary
             isLoading={false}
-            error={orgId ? organizations.error : null}
+            error={orgSlug ? organizations.error : null}
             hasData={organizations.data !== undefined}
           >
             {unknownOrganization ? (
