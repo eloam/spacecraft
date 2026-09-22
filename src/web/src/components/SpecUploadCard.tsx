@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { plural } from "@/lib/format";
 import { useUploadSpec } from "@/api/queries";
 import { ApiError, describeError } from "@/api/client";
 import { toast } from "sonner";
@@ -51,7 +52,7 @@ export function SpecUploadCard({
         const triggered = result.triggeredRunIds?.length ?? 0;
         toast.success(
           `Uploaded spec #${result.specVersion.sequence}` +
-            (triggered ? ` — queued ${triggered} run${triggered === 1 ? "" : "s"}` : ""),
+            (triggered ? ` — queued ${plural(triggered, "run")}` : ""),
         );
       },
       onError: (err) => {
@@ -138,9 +139,7 @@ export function SpecUploadCard({
         {findingCount > 0 && (
           <Alert>
             <TriangleAlert className="size-4" aria-hidden />
-            <AlertTitle>
-              {findingCount} {findingCount === 1 ? "finding" : "findings"}
-            </AlertTitle>
+            <AlertTitle>{plural(findingCount, "finding")}</AlertTitle>
             <AlertDescription className="space-y-3">
               <p>
                 {/* This used to list the first eight and say "…and 718 more", with nothing

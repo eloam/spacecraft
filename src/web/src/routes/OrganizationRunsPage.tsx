@@ -2,10 +2,9 @@ import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
 import { Play, X } from "lucide-react";
-import { GenerateDialog } from "@/routes/project/GenerateDialog";
+import { GenerateDialog } from "@/components/GenerateDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -15,10 +14,11 @@ import {
 } from "@/components/ui/select";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
+import { TableCard } from "@/components/TableCard";
 import { RunStatusBadge } from "@/components/StatusBadge";
 import { useOrganizations, useProjects, useRuns, useSpecs } from "@/api/queries";
-import { describeRunProgress, formatRunDuration, isTerminal, runStatusLabel } from "@/api/types";
-import { formatDateTime } from "@/lib/format";
+import { isTerminal, runStatusLabel } from "@/api/types";
+import { describeRunProgress, formatDateTime, formatRunDuration } from "@/lib/format";
 
 /** The value the Select carries when no project is chosen; "" would read as unset. */
 const ALL = "all";
@@ -155,61 +155,58 @@ export function OrganizationRunsPage() {
           useRuns). */}
       <QueryBoundary isLoading={runs.isPending} error={runs.error} hasData={runs.data !== undefined}>
         {visible.length ? (
-          // Framed like the specs, targets, credentials and publications tables.
-          <Card className="py-0">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Status</TableHead>
-                    {/* Named on every row, not only when several projects are in view: a run
-                        is read one line at a time, and "which project was that" is the first
-                        thing asked of a list that spans them. */}
-                    <TableHead>Project</TableHead>
-                    <TableHead>Version</TableHead>
-                    <TableHead>Progress</TableHead>
-                    <TableHead className="text-right">Queued</TableHead>
+          <TableCard>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Status</TableHead>
+                  {/* Named on every row, not only when several projects are in view: a run
+                      is read one line at a time, and "which project was that" is the first
+                      thing asked of a list that spans them. */}
+                  <TableHead>Project</TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Progress</TableHead>
+                  <TableHead className="text-right">Queued</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.map((run) => (
+                  // relative, so the link below can stretch over the whole row. The row
+                  // used to navigate from its own onClick, which meant the click on the
+                  // badge pushed the same URL twice (Back then needed two presses), a
+                  // Cmd-click on it opened a tab *and* moved this one, and everywhere
+                  // else on the row there was no hover target and no middle-click.
+                  <TableRow key={run.id} className="relative">
+                    <TableCell>
+                      <Link
+                        to={`/orgs/${orgSlug}/runs/${run.id}`}
+                        className="after:absolute after:inset-0 after:content-['']"
+                        // Without this every row announced just "Succeeded", leaving
+                        // three identical links with nothing to choose between them.
+                        aria-label={`Run ${run.resolvedVersion ?? "without a version"} of ${run.projectName ?? "an unnamed project"}, ${runStatusLabel[run.status]}, queued ${formatDateTime(run.queuedAt)}`}
+                      >
+                        <RunStatusBadge status={run.status} />
+                      </Link>
+                    </TableCell>
+                    <TableCell className="max-w-[14rem] truncate">
+                      {run.projectName ?? "—"}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs tabular-nums">
+                      {run.resolvedVersion ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {isTerminal(run.status)
+                        ? formatRunDuration(run)
+                        : describeRunProgress(run)}
+                    </TableCell>
+                    <TableCell className="text-right text-xs whitespace-nowrap text-muted-foreground">
+                      <time dateTime={run.queuedAt}>{formatDateTime(run.queuedAt)}</time>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visible.map((run) => (
-                    // relative, so the link below can stretch over the whole row. The row
-                    // used to navigate from its own onClick, which meant the click on the
-                    // badge pushed the same URL twice (Back then needed two presses), a
-                    // Cmd-click on it opened a tab *and* moved this one, and everywhere
-                    // else on the row there was no hover target and no middle-click.
-                    <TableRow key={run.id} className="relative">
-                      <TableCell>
-                        <Link
-                          to={`/orgs/${orgSlug}/runs/${run.id}`}
-                          className="after:absolute after:inset-0 after:content-['']"
-                          // Without this every row announced just "Succeeded", leaving
-                          // three identical links with nothing to choose between them.
-                          aria-label={`Run ${run.resolvedVersion ?? "without a version"} of ${run.projectName ?? "an unnamed project"}, ${runStatusLabel[run.status]}, queued ${formatDateTime(run.queuedAt)}`}
-                        >
-                          <RunStatusBadge status={run.status} />
-                        </Link>
-                      </TableCell>
-                      <TableCell className="max-w-[14rem] truncate">
-                        {run.projectName ?? "—"}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs tabular-nums">
-                        {run.resolvedVersion ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {isTerminal(run.status)
-                          ? formatRunDuration(run)
-                          : describeRunProgress(run)}
-                      </TableCell>
-                      <TableCell className="text-right text-xs whitespace-nowrap text-muted-foreground">
-                        <time dateTime={run.queuedAt}>{formatDateTime(run.queuedAt)}</time>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                ))}
+              </TableBody>
+            </Table>
+          </TableCard>
         ) : specFilter ? (
           // Distinguished from an empty organization: nothing ran from *this* version, which
           // is an answer rather than an absence.

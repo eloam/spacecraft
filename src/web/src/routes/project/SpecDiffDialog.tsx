@@ -1,10 +1,12 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeftRight, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Suspense, lazy, useCallback, useRef, useState } from "react";
+import { ArrowLeftRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogTitle } from "@/components/ui/dialog";
+import { SourceDialogContent, StepButtons } from "@/components/SourceDialog";
+import { useStepShortcut } from "@/hooks/useStepShortcut";
+import { plural } from "@/lib/format";
+import { wrapStep } from "@/lib/step";
 import { useSpecContent } from "@/api/queries";
 import type { SpecVersion } from "@/api/types";
 
@@ -59,33 +61,16 @@ export function SpecDiffDialog({
     setScrollTo(null);
   }, []);
 
-  const step = useCallback(
-    (by: 1 | -1) => {
-      if (chunkCount === 0) return;
+  function step(by: 1 | -1) {
+    const next = wrapStep(at, by, chunkCount);
+    if (next === null) return;
 
-      // Wrapping both ways, and starting at either end when nothing is selected — the same
-      // stepping the findings dialog uses, because it is the same gesture.
-      const next = at < 0 ? (by === 1 ? 0 : chunkCount - 1) : (at + by + chunkCount) % chunkCount;
+    setAt(next);
+    nonce.current += 1;
+    setScrollTo({ index: next, nonce: nonce.current });
+  }
 
-      setAt(next);
-      nonce.current += 1;
-      setScrollTo({ index: next, nonce: nonce.current });
-    },
-    [at, chunkCount],
-  );
-
-  useEffect(() => {
-    if (pair === null) return;
-
-    function onKey(event: KeyboardEvent) {
-      if (event.key !== "F8") return;
-      event.preventDefault();
-      step(event.shiftKey ? -1 : 1);
-    }
-
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [pair, step]);
+  useStepShortcut(pair !== null, step);
 
   const ready = before.data && after.data;
   const identical = ready && before.data.content === after.data.content;
@@ -97,10 +82,7 @@ export function SpecDiffDialog({
 
   return (
     <Dialog open={pair !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        className="flex h-[92vh] w-[min(1600px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
-        showCloseButton={false}
-      >
+      <SourceDialogContent>
         <div className="flex flex-wrap items-center gap-3 border-b bg-topbar px-3 py-2">
           <DialogTitle className="text-sm font-semibold">Compare</DialogTitle>
 
@@ -122,54 +104,10 @@ export function SpecDiffDialog({
               {chunkCount === 0
                 ? "No change"
                 : at < 0
-                  ? `${chunkCount} change${chunkCount === 1 ? "" : "s"}`
+                  ? plural(chunkCount, "change")
                   : `${at + 1} / ${chunkCount}`}
             </span>
-            {/* The shortcut hint rides on the app's tooltip, which opens on focus as well as
-                hover; a native title= never reaches a keyboard. `disabled` sits on the
-                rendered Button, which is where Base UI says it goes. */}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label="Previous change"
-                    disabled={chunkCount === 0}
-                    onClick={() => step(-1)}
-                  />
-                }
-              >
-                <ChevronUp className="size-4" aria-hidden />
-              </TooltipTrigger>
-              <TooltipContent>
-                Previous change
-                <KbdGroup>
-                  <Kbd>Shift</Kbd>
-                  <span>+</span>
-                  <Kbd>F8</Kbd>
-                </KbdGroup>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label="Next change"
-                    disabled={chunkCount === 0}
-                    onClick={() => step(1)}
-                  />
-                }
-              >
-                <ChevronDown className="size-4" aria-hidden />
-              </TooltipTrigger>
-              <TooltipContent>
-                Next change
-                <Kbd>F8</Kbd>
-              </TooltipContent>
-            </Tooltip>
+            <StepButtons noun="change" disabled={chunkCount === 0} onStep={step} />
 
             {/* An icon, like the one every other dialog closes with: the word sat in a row
                 of icon buttons and read as one more tool rather than the way out. */}
@@ -204,7 +142,7 @@ export function SpecDiffDialog({
             </Suspense>
           )}
         </div>
-      </DialogContent>
+      </SourceDialogContent>
     </Dialog>
   );
 }

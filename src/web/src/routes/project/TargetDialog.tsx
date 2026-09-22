@@ -12,7 +12,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogClose, DialogContent, DialogDescription,
+  DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { ApiError, describeError } from "@/api/client";
 import { useAddTarget, useCredentials, useUpdateTarget } from "@/api/queries";
@@ -71,7 +72,7 @@ function TargetForm({
   orgId: string;
   projectId: string;
   target?: SdkTarget;
-  /** Closes the dialog, after a save or on Cancel. */
+  /** Closes the dialog after a save. */
   onDone: () => void;
 }) {
   const [packageName, setPackageName] = useState(target?.packageName ?? "");
@@ -296,9 +297,7 @@ function TargetForm({
       </FieldGroup>
 
       <DialogFooter>
-        <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
-        </Button>
+        <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
         <Button type="submit" disabled={!packageName.trim() || pending}>
           {pending
             ? target ? "Saving…" : "Adding…"

@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle,
 } from "@/components/ui/item";
@@ -32,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
+import { TableCard } from "@/components/TableCard";
 import { Panel, PanelLabel } from "@/components/Panel";
 import {
   useCreateCredential,
@@ -42,6 +42,7 @@ import {
   useRevokeCredential,
 } from "@/api/queries";
 import { RelativeTime } from "@/components/RelativeTime";
+import { plural } from "@/lib/format";
 // Credential is named explicitly: the DOM has its own, and the global would win.
 import { RegistryKind, languageLabel, registryLabel, type Credential } from "@/api/types";
 import { ApiError, describeError } from "@/api/client";
@@ -134,7 +135,6 @@ export function CredentialsPage() {
   const remove = useDeleteCredential(orgId);
   const [deleting, setDeleting] = useState<Credential | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<Credential | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -180,148 +180,143 @@ export function CredentialsPage() {
 
       <QueryBoundary isLoading={isLoading} error={error} hasData={data !== undefined}>
         {data?.length ? (
-          // Framed like the specs and targets tables: one card, one banded header.
-          <Card className="py-0">
-            <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Kind</TableHead>
-                <TableHead>Label</TableHead>
-                {/* "Registry", the name the field that sets it already uses. "Publishes to"
-                    named a destination choice on the targets table and a URL here. */}
-                <TableHead>Registry</TableHead>
-                <TableHead>Token</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last used</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((credential) => (
-                <TableRow key={credential.id}>
-                  <TableCell>{registryLabel[credential.registry]}</TableCell>
-                  <TableCell>{credential.label}</TableCell>
-                  {/* The destination is a property of the token, so it belongs beside it: two
-                      npm credentials in one organization can point at different registries.
-                      Capped and truncated: a registry path can be arbitrarily long, and one
-                      of them widened the table until every other column needed scrolling. */}
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    <Tooltip>
-                      {/* The trigger is a button, not a span: Base UI's tooltip opens on
-                          focus as well as hover, but a span takes no focus, so the truncated
-                          half of the URL was reachable with a mouse and by no other means. */}
-                      <TooltipTrigger className="block max-w-[14rem] truncate rounded-sm text-left focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none xl:max-w-[24rem]">
-                        {credential.registryUrl}
-                      </TooltipTrigger>
-                      {/* break-all, because the tooltip exists to show the whole URL: a
-                          registry address has no spaces to wrap at, so max-w-xs would clip it
-                          at a third of its length and quietly claim that was all of it. */}
-                      <TooltipContent className="break-all">
-                        {credential.registryUrl}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    ••••{credential.lastFour}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col items-start gap-1">
-                      <Badge variant={credential.isRevoked ? "destructive" : "outline"}>
-                        {credential.isRevoked ? "Revoked" : "Active"}
-                      </Badge>
-                      {/* A revoked credential its targets still name is the expensive state:
-                          every run reaches the publish step and fails there, and nothing
-                          says so outside each project's own runs. Counted here because this
-                          is the page where the revoking happened. */}
-                      {credential.usedBy.length > 0 && (
-                        <span
-                          className={
-                            credential.isRevoked
-                              ? "text-xs text-[var(--code-warning)]"
-                              : "text-xs text-muted-foreground"
-                          }
-                        >
-                          {credential.usedBy.length} target
-                          {credential.usedBy.length === 1 ? "" : "s"}
-                          {credential.isRevoked ? " blocked" : ""}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  {/* Relative, like the specs table: this column is scanned for recency, and
-                      a full timestamp on every row cost more width than it was worth. */}
-                  <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
-                    {credential.lastUsedAt ? <RelativeTime iso={credential.lastUsedAt} /> : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={<Button size="icon-sm" variant="ghost" />}
-                        aria-label={`Actions for ${credential.label}`}
-                      >
-                        <MoreHorizontal className="size-4" aria-hidden />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        {credential.isRevoked ? (
-                          // Revoking never destroyed the token, so undoing it is honest.
-                          <DropdownMenuItem
-                            onClick={() =>
-                              restore.mutate(credential.id, {
-                                onSuccess: () => toast.success("Credential restored"),
-                                onError: (error) =>
-                                  toast.error(
-                                    describeError(error, "Could not restore the credential."),
-                                  ),
-                              })
+          <TableCard>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kind</TableHead>
+                  <TableHead>Label</TableHead>
+                  {/* "Registry", the name the field that sets it already uses. "Publishes to"
+                      named a destination choice on the targets table and a URL here. */}
+                  <TableHead>Registry</TableHead>
+                  <TableHead>Token</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last used</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((credential) => (
+                  <TableRow key={credential.id}>
+                    <TableCell>{registryLabel[credential.registry]}</TableCell>
+                    <TableCell>{credential.label}</TableCell>
+                    {/* The destination is a property of the token, so it belongs beside it: two
+                        npm credentials in one organization can point at different registries.
+                        Capped and truncated: a registry path can be arbitrarily long, and one
+                        of them widened the table until every other column needed scrolling. */}
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      <Tooltip>
+                        {/* The trigger is a button, not a span: Base UI's tooltip opens on
+                            focus as well as hover, but a span takes no focus, so the truncated
+                            half of the URL was reachable with a mouse and by no other means. */}
+                        <TooltipTrigger className="block max-w-[14rem] truncate rounded-sm text-left focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none xl:max-w-[24rem]">
+                          {credential.registryUrl}
+                        </TooltipTrigger>
+                        {/* break-all, because the tooltip exists to show the whole URL: a
+                            registry address has no spaces to wrap at, so max-w-xs would clip it
+                            at a third of its length and quietly claim that was all of it. */}
+                        <TooltipContent className="break-all">
+                          {credential.registryUrl}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      ••••{credential.lastFour}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant={credential.isRevoked ? "destructive" : "outline"}>
+                          {credential.isRevoked ? "Revoked" : "Active"}
+                        </Badge>
+                        {/* A revoked credential its targets still name is the expensive state:
+                            every run reaches the publish step and fails there, and nothing
+                            says so outside each project's own runs. Counted here because this
+                            is the page where the revoking happened. */}
+                        {credential.usedBy.length > 0 && (
+                          <span
+                            className={
+                              credential.isRevoked
+                                ? "text-xs text-[var(--code-warning)]"
+                                : "text-xs text-muted-foreground"
                             }
                           >
-                            <RotateCcw className="size-4" aria-hidden />
-                            Restore
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              // Asked about only when something is bound to the token:
-                              // revoking is the action that takes effect immediately, and
-                              // every target publishing with it starts failing at its publish
-                              // step. With nothing bound there is nothing to warn about.
-                              if (credential.usedBy.length > 0) {
-                                setRevoking(credential);
-                                return;
+                            {plural(credential.usedBy.length, "target")}
+                            {credential.isRevoked ? " blocked" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    {/* Relative, like the specs table: this column is scanned for recency, and
+                        a full timestamp on every row cost more width than it was worth. */}
+                    <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
+                      {credential.lastUsedAt ? <RelativeTime iso={credential.lastUsedAt} /> : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={<Button size="icon-sm" variant="ghost" />}
+                          aria-label={`Actions for ${credential.label}`}
+                        >
+                          <MoreHorizontal className="size-4" aria-hidden />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          {credential.isRevoked ? (
+                            // Revoking never destroyed the token, so undoing it is honest.
+                            <DropdownMenuItem
+                              onClick={() =>
+                                restore.mutate(credential.id, {
+                                  onSuccess: () => toast.success("Credential restored"),
+                                  onError: (error) =>
+                                    toast.error(
+                                      describeError(error, "Could not restore the credential."),
+                                    ),
+                                })
                               }
-                              revokeNow(credential);
+                            >
+                              <RotateCcw className="size-4" aria-hidden />
+                              Restore
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                // Asked about only when something is bound to the token:
+                                // revoking is the action that takes effect immediately, and
+                                // every target publishing with it starts failing at its publish
+                                // step. With nothing bound there is nothing to warn about.
+                                if (credential.usedBy.length > 0) {
+                                  setRevoking(credential);
+                                  return;
+                                }
+                                revokeNow(credential);
+                              }}
+                            >
+                              <Ban className="size-4" aria-hidden />
+                              Revoke
+                            </DropdownMenuItem>
+                          )}
+
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => {
+                              setDeleting(credential);
+                              setDeleteOpen(true);
                             }}
                           >
-                            <Ban className="size-4" aria-hidden />
-                            Revoke
+                            <Trash2 className="size-4" aria-hidden />
+                            Delete permanently
                           </DropdownMenuItem>
-                        )}
-
-                        <DropdownMenuSeparator />
-
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => {
-                            setDeleteError(null);
-                            setDeleting(credential);
-                            setDeleteOpen(true);
-                          }}
-                        >
-                          <Trash2 className="size-4" aria-hidden />
-                          Delete permanently
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-            </CardContent>
-          </Card>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableCard>
         ) : (
           <EmptyState
             icon={<KeyRound aria-hidden />}
@@ -345,7 +340,7 @@ export function CredentialsPage() {
         onOpenChangeComplete={(next) => {
           if (!next) {
             setDeleting(null);
-            setDeleteError(null);
+            remove.reset();
           }
         }}
         title="Delete this credential?"
@@ -379,7 +374,7 @@ export function CredentialsPage() {
           ) : null
         }
         isPending={remove.isPending}
-        error={deleteError}
+        error={remove.error}
         onConfirm={() =>
           deleting &&
           remove.mutate(deleting.id, {
@@ -387,8 +382,6 @@ export function CredentialsPage() {
               toast.success("Credential deleted");
               setDeleteOpen(false);
             },
-            onError: (error) =>
-              setDeleteError(describeError(error, "Could not delete the credential.")),
           })
         }
       />
@@ -542,7 +535,7 @@ function AddCredentialForm({
   onDone,
 }: {
   orgId: string;
-  /** Closes the dialog, after a save or on Cancel. */
+  /** Closes the dialog once the credential is stored. */
   onDone: () => void;
 }) {
   const [label, setLabel] = useState("");
@@ -751,9 +744,7 @@ function AddCredentialForm({
       </Tabs>
 
       <DialogFooter>
-        <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
-        </Button>
+        <DialogClose render={<Button type="button" variant="outline">Cancel</Button>} />
         <Button
           type="submit"
           disabled={

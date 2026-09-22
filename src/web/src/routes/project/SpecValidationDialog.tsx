@@ -1,7 +1,7 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronDown, ChevronUp, CircleAlert, Info, List, RefreshCw, ShieldCheck, ShieldOff,
-  SquareCode, TriangleAlert, X,
+  ChevronDown, CircleAlert, List, RefreshCw, ShieldCheck, ShieldOff, SquareCode, TriangleAlert,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,10 +10,9 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle,
 } from "@/components/ui/item";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +21,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FilterToggleGroup } from "@/components/FilterToggleGroup";
+import { SourceDialogContent, StepButtons } from "@/components/SourceDialog";
+import { SEVERITY_ORDER, severities, severityOf } from "@/components/severity";
+import { useStepShortcut } from "@/hooks/useStepShortcut";
+import { plural } from "@/lib/format";
+import { wrapStep } from "@/lib/step";
 import { cn } from "@/lib/utils";
 import { describeError } from "@/api/client";
 import { useProject, useRevalidateSpec, useSpecContent, useSpecDiagnostics } from "@/api/queries";
@@ -42,53 +47,6 @@ const SpecSourceView = lazy(() =>
  * addresses nothing it contains.
  */
 type Finding = IdentifiedDiagnostic & { severity: DiagnosticSeverity; line: number | null };
-
-function isSeverity(value: number): value is DiagnosticSeverity {
-  return Object.values<number>(DiagnosticSeverity).includes(value);
-}
-
-/**
- * The API types a severity as a bare number, so one added on the server before the front end
- * learns it can arrive. It still renders, and still counts, as a note.
- */
-function severityOf(value: number): DiagnosticSeverity {
-  return isSeverity(value) ? value : DiagnosticSeverity.Information;
-}
-
-const ORDER = [DiagnosticSeverity.Error, DiagnosticSeverity.Warning, DiagnosticSeverity.Information];
-
-/**
- * "Information" has no plural in English, so it cannot take the same "+ s" as the others.
- * "Note" can, it is what the badge on the specs table already says, and it is shorter.
- */
-const nouns: Record<DiagnosticSeverity, string> = {
-  [DiagnosticSeverity.Error]: "error",
-  [DiagnosticSeverity.Warning]: "warning",
-  [DiagnosticSeverity.Information]: "note",
-};
-
-function count(n: number, noun: string) {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
-}
-
-/** Title case and plural, matching the filter set on the specs table this opens from. */
-const labels: Record<DiagnosticSeverity, string> = {
-  [DiagnosticSeverity.Error]: "Errors",
-  [DiagnosticSeverity.Warning]: "Warnings",
-  [DiagnosticSeverity.Information]: "Notes",
-};
-
-const icons: Record<DiagnosticSeverity, typeof Info> = {
-  [DiagnosticSeverity.Error]: CircleAlert,
-  [DiagnosticSeverity.Warning]: TriangleAlert,
-  [DiagnosticSeverity.Information]: Info,
-};
-
-const tones: Record<DiagnosticSeverity, string> = {
-  [DiagnosticSeverity.Error]: "text-destructive",
-  [DiagnosticSeverity.Warning]: "text-[var(--code-warning)]",
-  [DiagnosticSeverity.Information]: "text-muted-foreground",
-};
 
 /**
  * Resolves every finding's pointer to a line in a worker, once per document.
@@ -200,29 +158,26 @@ export function SpecValidationDialog({
    * Replays validation over the stored document. Without an argument it runs the project's
    * own mode; the menu passes the other one for a single run.
    */
-  const run = useCallback(
-    (override?: boolean) => {
-      if (specId === null) return;
+  function run(override?: boolean) {
+    if (specId === null) return;
 
-      revalidate.mutate(
-        { specId, strict: override },
-        {
-          onSuccess: (result) => {
-            setCurrentId(null);
-            // The mode the server reports, not the one that was asked for: an override the
-            // API does not honour would otherwise be announced as though it had been.
-            toast.success(
-              `${count(result.diagnostics.length, "finding")}, revalidated `
-              + `${result.strict ? "in strict mode" : "without strict mode"}.`,
-            );
-          },
-          onError: (error) =>
-            toast.error(describeError(error, "The document could not be revalidated.")),
+    revalidate.mutate(
+      { specId, strict: override },
+      {
+        onSuccess: (result) => {
+          setCurrentId(null);
+          // The mode the server reports, not the one that was asked for: an override the
+          // API does not honour would otherwise be announced as though it had been.
+          toast.success(
+            `${plural(result.diagnostics.length, "finding")}, revalidated `
+            + `${result.strict ? "in strict mode" : "without strict mode"}.`,
+          );
         },
-      );
-    },
-    [specId, revalidate],
-  );
+        onError: (error) =>
+          toast.error(describeError(error, "The document could not be revalidated.")),
+      },
+    );
+  }
 
   const pointers = useMemo(
     () => (diagnostics.data ?? []).map((d) => d.jsonPointer),
@@ -281,7 +236,7 @@ export function SpecValidationDialog({
 
   const position = visible.findIndex((f) => f.id === currentId);
 
-  const go = useCallback((to: number) => {
+  function go(to: number) {
     const next = visible[to];
     if (!next) return;
 
@@ -289,20 +244,14 @@ export function SpecValidationDialog({
     nonce.current += 1;
     // null means it is in the block above the first line, which the view reaches as line 0.
     setScrollTo({ line: next.line ?? 0, nonce: nonce.current });
-  }, [visible]);
+  }
 
-  const step = useCallback((by: 1 | -1) => {
-    if (visible.length === 0) return;
+  function step(by: 1 | -1) {
+    const next = wrapStep(position, by, visible.length);
+    if (next === null) return;
 
-    const from = visible.findIndex((f) => f.id === currentId);
-    // Nothing selected yet: forwards means the first finding, backwards the last, rather
-    // than an index counted from a position that does not exist.
-    if (from < 0) return go(by === 1 ? 0 : visible.length - 1);
-
-    // Wrapping both ways, so stepping past either end continues instead of stopping on a
-    // button that silently does nothing.
-    go((from + by + visible.length) % visible.length);
-  }, [visible, currentId, go]);
+    go(next);
+  }
 
   function openInSource(finding: Finding) {
     setMode("source");
@@ -311,18 +260,7 @@ export function SpecValidationDialog({
     setScrollTo({ line: finding.line ?? 0, nonce: nonce.current });
   }
 
-  useEffect(() => {
-    if (specId === null) return;
-
-    function onKey(event: KeyboardEvent) {
-      if (event.key !== "F8") return;
-      event.preventDefault();
-      step(event.shiftKey ? -1 : 1);
-    }
-
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [specId, step]);
+  useStepShortcut(specId !== null, step);
 
   // Switching to the list from finding 250 of 413 would otherwise land at the top, leaving
   // the reader to find again what they were just looking at.
@@ -356,7 +294,7 @@ export function SpecValidationDialog({
     if (visible.length === 0) return "No findings";
     // The total until one is picked: "0 / 413" would claim a position in a list nobody has
     // stepped into yet.
-    if (position < 0) return count(visible.length, "finding");
+    if (position < 0) return plural(visible.length, "finding");
     return `${position + 1} / ${visible.length}`;
   }
 
@@ -384,10 +322,7 @@ export function SpecValidationDialog({
 
   return (
     <Dialog open={specId !== null} onOpenChange={(open) => !open && close()}>
-      <DialogContent
-        className="@container flex h-[92vh] w-[min(1600px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
-        showCloseButton={false}
-      >
+      <SourceDialogContent className="@container">
         {/* Three columns once the bar is wide enough, so the filters sit in its middle rather
             than wherever the title happens to end — which moves with the document's name.
             Below 64rem it wraps instead: centring needs both side columns as wide as the
@@ -405,130 +340,67 @@ export function SpecValidationDialog({
             <span className="truncate">{spec?.title ?? "Untitled"}</span>
           </DialogTitle>
 
-          {/* One bordered set rather than three loose buttons, the way the specs table
-              filters this dialog opens from. They toggle independently, so each carries its
-              own aria-pressed — the frame groups them, it does not make them exclusive. */}
-          <div className="flex items-center rounded-lg border bg-card p-0.5">
-          {ORDER.map((severity) => {
-            const Icon = icons[severity];
+          {/* With no list fetched there is nothing to filter, so the toggles give way to the
+              specs row's own totals — greyed, because they are the last thing recorded about
+              this document rather than a reading of it. What must never appear here is
+              "0 errors" for a list that never arrived. */}
+          {findingsUnknown ? (
+            <div className="flex items-center rounded-lg border bg-card p-0.5">
+              {SEVERITY_ORDER.map((severity) => {
+                const { Icon, noun } = severities[severity];
+                const figure = recorded ? plural(recorded[severity], noun) : `— ${noun}s`;
+                const figureClass =
+                  "flex items-center gap-1.5 rounded-[calc(var(--radius)-2px)] px-2.5 py-1 text-xs font-medium text-muted-foreground opacity-70";
 
-            // With no list fetched there is nothing to filter, so the toggles give way to
-            // the specs row's own totals — greyed, because they are the last thing recorded
-            // about this document rather than a reading of it. What must never appear here
-            // is "0 errors" for a list that never arrived.
-            if (findingsUnknown) {
-              const figure = recorded
-                ? count(recorded[severity], nouns[severity])
-                : `— ${nouns[severity]}s`;
-              const figureClass =
-                "flex items-center gap-1.5 rounded-[calc(var(--radius)-2px)] px-2.5 py-1 text-xs font-medium text-muted-foreground opacity-70";
-
-              // Worth a word only once the load has failed; while it is in flight the
-              // greyed figures are simply what is known so far.
-              if (!diagnostics.isError) {
-                return (
-                  <span key={severity} className={figureClass}>
-                    <Icon className="size-3.5" aria-hidden />
-                    {figure}
-                  </span>
-                );
-              }
-
-              // The trigger is a button rather than a span, for the reason RelativeTime's
-              // is: the tooltip opens on focus as well as hover, and a span takes no focus.
-              return (
-                <Tooltip key={severity}>
-                  <TooltipTrigger className={figureClass}>
-                    <Icon className="size-3.5" aria-hidden />
-                    {figure}
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Recorded on the specs table. The findings themselves could not be loaded.
-                  </TooltipContent>
-                </Tooltip>
-              );
-            }
-
-            const off = hidden.includes(severity);
-
-            return (
-              <button
-                key={severity}
-                type="button"
-                aria-pressed={!off}
-                onClick={() =>
-                  setHidden((prev) =>
-                    prev.includes(severity)
-                      ? prev.filter((s) => s !== severity)
-                      : [...prev, severity],
-                  )
+                // Worth a word only once the load has failed; while it is in flight the
+                // greyed figures are simply what is known so far.
+                if (!diagnostics.isError) {
+                  return (
+                    <span key={severity} className={figureClass}>
+                      <Icon className="size-3.5" aria-hidden />
+                      {figure}
+                    </span>
+                  );
                 }
-                className={cn(
-                  // font-medium whether on or off: a weight that changes on click is a width
-                  // that changes on click, and each toggle nudged the two beside it.
-                  "flex cursor-pointer items-center gap-1.5 rounded-[calc(var(--radius)-2px)] px-2.5 py-1 text-xs font-medium transition-colors",
-                  off
-                    ? "text-muted-foreground hover:text-foreground"
-                    : "bg-secondary text-secondary-foreground",
-                )}
-              >
-                <Icon className={cn("size-3.5", !off && tones[severity])} aria-hidden />
-                {labels[severity]}
-                <span className="tabular-nums opacity-60">{counts[severity]}</span>
-              </button>
-            );
-          })}
-          </div>
+
+                // The trigger is a button rather than a span, for the reason RelativeTime's
+                // is: the tooltip opens on focus as well as hover, and a span takes no focus.
+                return (
+                  <Tooltip key={severity}>
+                    <TooltipTrigger className={figureClass}>
+                      <Icon className="size-3.5" aria-hidden />
+                      {figure}
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Recorded on the specs table. The findings themselves could not be loaded.
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          ) : (
+            // Independent toggles, unlike the exclusive set on the specs table this opens
+            // from: hiding the notes must not bring the warnings back. Toggle values are
+            // strings, so the enum member's digits stand in and are read back the same way.
+            <FilterToggleGroup
+              multiple
+              aria-label="Filter findings by severity"
+              items={SEVERITY_ORDER.map((severity) => {
+                const { label, Icon, tone } = severities[severity];
+                return { value: String(severity), label, Icon, tone, count: counts[severity] };
+              })}
+              value={SEVERITY_ORDER.filter((s) => !hidden.includes(s)).map(String)}
+              onValueChange={(shown) =>
+                setHidden(SEVERITY_ORDER.filter((s) => !shown.includes(String(s))))
+              }
+            />
+          )}
 
           <div className="ml-auto flex items-center gap-1 @5xl:ml-0 @5xl:justify-end">
             <span className="mr-1 text-xs whitespace-nowrap tabular-nums text-muted-foreground">
               {counter()}
             </span>
-            {/* The shortcut hint rides on the app's tooltip, which opens on focus as well as
-                hover; a native title= never reaches a keyboard. `disabled` sits on the
-                rendered Button, which is where Base UI says it goes. */}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label="Previous finding"
-                    disabled={visible.length === 0}
-                    onClick={() => step(-1)}
-                  />
-                }
-              >
-                <ChevronUp className="size-4" aria-hidden />
-              </TooltipTrigger>
-              <TooltipContent>
-                Previous finding
-                <KbdGroup>
-                  <Kbd>Shift</Kbd>
-                  <span>+</span>
-                  <Kbd>F8</Kbd>
-                </KbdGroup>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label="Next finding"
-                    disabled={visible.length === 0}
-                    onClick={() => step(1)}
-                  />
-                }
-              >
-                <ChevronDown className="size-4" aria-hidden />
-              </TooltipTrigger>
-              <TooltipContent>
-                Next finding
-                <Kbd>F8</Kbd>
-              </TooltipContent>
-            </Tooltip>
+            <StepButtons noun="finding" disabled={visible.length === 0} onStep={step} />
 
             <Button
               size="xs"
@@ -697,7 +569,7 @@ export function SpecValidationDialog({
             ) : (
               <ul ref={list} className="h-full overflow-y-auto">
                 {visible.map((finding) => {
-                  const Icon = icons[finding.severity];
+                  const { Icon, tone } = severities[finding.severity];
 
                   return (
                     <Item
@@ -714,7 +586,7 @@ export function SpecValidationDialog({
                       )}
                     >
                       <ItemMedia variant="icon">
-                        <Icon className={tones[finding.severity]} aria-hidden />
+                        <Icon className={tone} aria-hidden />
                       </ItemMedia>
                       <ItemContent className="min-w-0">
                         {/* A finding is read, not scanned: the message keeps the weight it had
@@ -755,7 +627,7 @@ export function SpecValidationDialog({
             )}
           </div>
         </div>
-      </DialogContent>
+      </SourceDialogContent>
     </Dialog>
   );
 }

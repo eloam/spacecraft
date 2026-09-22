@@ -1,28 +1,8 @@
 import { useEffect, useRef } from "react";
-import { EditorState, StateEffect, StateField } from "@codemirror/state";
-import { Decoration, EditorView, lineNumbers } from "@codemirror/view";
+import { StateEffect, StateField } from "@codemirror/state";
+import { Decoration, EditorView } from "@codemirror/view";
 import { MergeView } from "@codemirror/merge";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { json } from "@codemirror/lang-json";
-import { yaml } from "@codemirror/lang-yaml";
-import { tags } from "@lezer/highlight";
-
-/**
- * Two spec versions side by side, with what changed between them.
- *
- * The reason a version history exists is to answer "what changed" — and until now the only
- * way to ask was to read both documents and hold them in your head.
- *
- * Read-only on both sides: these are immutable snapshots, and the merge view's revert arrows
- * would offer to write one into the other.
- */
-const highlight = HighlightStyle.define([
-  { tag: [tags.propertyName, tags.definition(tags.propertyName)], color: "var(--code-key)", fontWeight: "500" },
-  { tag: [tags.string, tags.special(tags.string)], color: "var(--code-string)" },
-  { tag: [tags.number, tags.bool, tags.null, tags.keyword], color: "var(--code-atom)" },
-  { tag: tags.comment, color: "var(--muted-foreground)", fontStyle: "italic" },
-  { tag: [tags.punctuation, tags.separator], color: "var(--muted-foreground)" },
-]);
+import { specExtensions } from "@/lib/codemirror";
 
 /**
  * Which change is being looked at, held in the right-hand editor's state.
@@ -58,13 +38,6 @@ const currentChunkHighlight = EditorView.decorations.compute([currentChunk, "doc
 });
 
 const theme = EditorView.theme({
-  "&": { backgroundColor: "transparent", color: "var(--foreground)" },
-  ".cm-scroller": { fontFamily: "var(--font-mono, ui-monospace, monospace)", fontSize: "12px", lineHeight: "1.6" },
-  ".cm-gutters": {
-    backgroundColor: "transparent",
-    borderRight: "1px solid var(--border)",
-    color: "var(--muted-foreground)",
-  },
   ".cm-merge-revert": { display: "none" },
   // Tinted from the app's own tokens rather than the addon's defaults, which are fixed greens
   // and reds that ignore the theme.
@@ -74,18 +47,15 @@ const theme = EditorView.theme({
   ".sc-current-chunk": { boxShadow: "inset 2px 0 0 0 var(--foreground)" },
 });
 
-function extensions(format: string) {
-  return [
-    lineNumbers(),
-    format === "json" ? json() : yaml(),
-    syntaxHighlighting(highlight),
-    theme,
-    EditorState.readOnly.of(true),
-    EditorView.editable.of(false),
-    EditorView.lineWrapping,
-  ];
-}
-
+/**
+ * Two spec versions side by side, with what changed between them.
+ *
+ * The reason a version history exists is to answer "what changed" — and until now the only
+ * way to ask was to read both documents and hold them in your head.
+ *
+ * Read-only on both sides: these are immutable snapshots, and the merge view's revert arrows
+ * would offer to write one into the other.
+ */
 export function SpecDiffView({
   before,
   after,
@@ -111,8 +81,11 @@ export function SpecDiffView({
     if (!host.current) return;
 
     const view = new MergeView({
-      a: { doc: before, extensions: extensions(format) },
-      b: { doc: after, extensions: [...extensions(format), currentChunk, currentChunkHighlight] },
+      a: { doc: before, extensions: [...specExtensions(format), theme] },
+      b: {
+        doc: after,
+        extensions: [...specExtensions(format), theme, currentChunk, currentChunkHighlight],
+      },
       parent: host.current,
       // Collapsing the untouched stretches is what makes a 400 KB document comparable at all:
       // without it, two near-identical specs are 11,000 lines of agreement to scroll past.

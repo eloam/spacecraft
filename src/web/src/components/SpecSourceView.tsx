@@ -1,11 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { EditorState, StateEffect, StateField, type Range } from "@codemirror/state";
-import { Decoration, EditorView, WidgetType, gutter, GutterMarker, lineNumbers } from "@codemirror/view";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { json } from "@codemirror/lang-json";
-import { yaml } from "@codemirror/lang-yaml";
-import { tags } from "@lezer/highlight";
+import { Decoration, EditorView, WidgetType, gutter, GutterMarker } from "@codemirror/view";
 import { DiagnosticSeverity, type IdentifiedDiagnostic } from "@/api/types";
+import { specExtensions } from "@/lib/codemirror";
 
 export type LocatedFinding = IdentifiedDiagnostic & { line: number };
 
@@ -186,25 +183,10 @@ const severityGutter = gutter({
   lineMarkerChange: (update) => update.transactions.some((tr) => tr.effects.some((e) => e.is(setViewState))),
 });
 
-/**
- * Deliberately close to the app's greyscale: weight and a little tone carry the structure,
- * so a spec reads as part of SpaceCraft rather than as an editor dropped into it.
- */
-const highlight = HighlightStyle.define([
-  { tag: [tags.propertyName, tags.definition(tags.propertyName)], color: "var(--code-key)", fontWeight: "500" },
-  { tag: [tags.string, tags.special(tags.string)], color: "var(--code-string)" },
-  { tag: [tags.number, tags.bool, tags.null, tags.keyword], color: "var(--code-atom)" },
-  { tag: tags.comment, color: "var(--muted-foreground)", fontStyle: "italic" },
-  { tag: [tags.punctuation, tags.separator], color: "var(--muted-foreground)" },
-]);
-
 const theme = EditorView.theme({
-  "&": { height: "100%", backgroundColor: "transparent", color: "var(--foreground)" },
-  ".cm-scroller": { fontFamily: "var(--font-mono, ui-monospace, monospace)", fontSize: "12px", lineHeight: "1.6" },
-  ".cm-gutters": { backgroundColor: "transparent", borderRight: "1px solid var(--border)", color: "var(--muted-foreground)" },
-  ".cm-activeLineGutter": { backgroundColor: "transparent" },
-  ".cm-content": { caretColor: "transparent" },
-  ".cm-cursor": { display: "none" },
+  // Fills the host and scrolls inside it; the diff view instead lets the merge addon size its
+  // editors to their content and scrolls the host.
+  "&": { height: "100%" },
   ".sc-gutter": { width: "14px" },
   ".sc-dot": { width: "6px", height: "6px", borderRadius: "9999px", margin: "7px auto", backgroundColor: "currentColor" },
   ".sc-error": { color: "var(--destructive)" },
@@ -255,6 +237,11 @@ export function SpecSourceView({
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
 
+  // What the editor opens with. An Effect Event rather than a dependency: the editor is
+  // rebuilt for a new document, and depending on the findings would rebuild it on every step
+  // as well — the very thing findingState exists to avoid.
+  const initialViewState = useEffectEvent((): ViewState => ({ findings, unlocated, currentId }));
+
   useEffect(() => {
     if (!host.current) return;
 
@@ -262,16 +249,13 @@ export function SpecSourceView({
       state: EditorState.create({
         doc: content,
         extensions: [
-          lineNumbers(),
-          format === "json" ? json() : yaml(),
-          syntaxHighlighting(highlight),
-          findingState,
+          ...specExtensions(format),
+          // Seeded at creation, since the effect below only dispatches when the findings
+          // change: an editor rebuilt for a new document would otherwise open without them.
+          findingState.init(() => initialViewState()),
           decorations,
           severityGutter,
           theme,
-          EditorState.readOnly.of(true),
-          EditorView.editable.of(false),
-          EditorView.lineWrapping,
         ],
       }),
       parent: host.current,

@@ -197,6 +197,15 @@ export const roleLabel: Record<number, string> = {
   4: "Owner",
 } satisfies Record<OrganizationRole, string>;
 
+/**
+ * Whether a run can be started from this document: anything validation did not refuse. The
+ * specs table's filter, the generate dialog's list and the layout's "nothing to generate"
+ * state all ask this, and used to spell the comparison out each for themselves.
+ */
+export function isGeneratable(spec: { validationStatus: number }): boolean {
+  return spec.validationStatus !== SpecValidationStatus.Invalid;
+}
+
 /** A run in one of these states will not change again; stop polling it. */
 export function isTerminal(status: number): boolean {
   return status === RunStatus.Succeeded || status === RunStatus.Failed || status === RunStatus.Cancelled;
@@ -215,10 +224,6 @@ export function isStepSettled(status: number): boolean {
     || status === StepStatus.Skipped;
 }
 
-/**
- * How long a finished run took, as prose. Once a run is over, "4/4 steps" tells the reader
- * nothing they cannot see from its status — the time it took is the useful number.
- */
 /** Mirrors SpaceCraft.Domain.Pipelines.RunTrigger. */
 export const RunTrigger = {
   Manual: 1,
@@ -226,48 +231,3 @@ export const RunTrigger = {
   SpecUpload: 3,
 } as const;
 export type RunTrigger = MemberOf<typeof RunTrigger>;
-
-/** Shared, so two places measuring the same thing cannot word it two ways. */
-export function formatSeconds(seconds: number): string {
-  const whole = Math.max(0, Math.round(seconds));
-
-  if (whole < 60) {
-    return `${whole}s`;
-  }
-
-  const minutes = Math.floor(whole / 60);
-  const rest = whole % 60;
-  return rest === 0 ? `${minutes}m` : `${minutes}m ${rest}s`;
-}
-
-export function formatRunDuration(run: {
-  startedAt: string | null;
-  completedAt: string | null;
-}): string {
-  if (!run.startedAt || !run.completedAt) {
-    return "—";
-  }
-
-  return formatSeconds(
-    (new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()) / 1000,
-  );
-}
-
-/**
- * What a run is doing right now, as a phrase.
- *
- * "3/4 steps" says how far along a run is but not what it is waiting on, and the steps are
- * not comparable: on a large spec, generating takes seconds while building takes minutes.
- * Naming the running step is what tells someone whether to wait.
- */
-export function describeRunProgress(run: {
-  steps: { kind: number; status: number }[];
-}): string {
-  const running = run.steps.find((s) => s.status === StepStatus.Running);
-  const settled = run.steps.filter((s) => isStepSettled(s.status)).length;
-
-  return running
-    ? `${stepKindLabel[running.kind]}… ${settled}/${run.steps.length}`
-    : `${settled}/${run.steps.length} steps`;
-}
-
