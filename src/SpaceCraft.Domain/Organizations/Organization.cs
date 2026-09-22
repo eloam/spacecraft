@@ -17,7 +17,7 @@ public sealed class Organization : Entity
     /// <summary>
     /// The name is held to <see cref="ResourceName"/> from the start, not only on rename: a
     /// name that would not slug predictably is refused wherever it arrives, so the aggregate
-    /// never holds one whose address it could not derive. The slug is accepted as given,
+    /// never holds one whose slug it could not derive. The slug is accepted as given,
     /// valid, because a caller may choose one; see <see cref="Rename"/> for how long it lasts.
     /// </summary>
     public Organization(string name, string slug, Guid createdByUserId)
@@ -49,7 +49,7 @@ public sealed class Organization : Entity
     /// That includes a slug chosen explicitly at creation: the first rename replaces it with
     /// the derived one. One rule rather than two — the settings page shows the slug as
     /// derived from the name and warns that renaming moves it, without a case for a slug
-    /// somebody once typed — and a caller who wants the address to survive a rename does not
+    /// somebody once typed — and a caller who wants the slug to survive a rename does not
     /// rename.
     /// </para>
     /// </summary>
@@ -75,7 +75,7 @@ public sealed class Organization : Entity
         if (_projects.Any(p => p.Id != projectId && p.Slug == slug))
         {
             throw new InvalidOperationException(
-                $"Another project already uses the address '{slug}'.");
+                $"Another project already uses the slug '{slug}'.");
         }
 
         project.Rename(name);
