@@ -8,12 +8,11 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { AuthCard } from "@/components/AuthCard";
 import { useResetPassword } from "@/api/queries";
 import { describeError } from "@/api/client";
+import { newPasswordField } from "@/lib/fields";
 
 const schema = z
   .object({
-    // Mirrors the server's policy so the common mistake is caught before a round trip;
-    // the server remains the authority and its message wins when they disagree.
-    newPassword: z.string().min(12, "Use at least 12 characters."),
+    newPassword: newPasswordField,
     confirmPassword: z.string(),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {

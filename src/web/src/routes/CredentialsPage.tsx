@@ -663,11 +663,8 @@ function AddCredentialForm({
                   }}
                   placeholder="npm automation token (acme)"
                   aria-invalid={Boolean(errors.label)}
-                  aria-describedby={errors.label ? "label-error" : undefined}
                 />
-                {/* The id is what `aria-describedby` above points at, so it stays on the
-                    error itself: `FieldError` renders nothing while there is no message. */}
-                <FieldError id="label-error">{errors.label}</FieldError>
+                <FieldError>{errors.label}</FieldError>
               </Field>
 
               <Field data-invalid={Boolean(errors.token)}>
@@ -685,10 +682,10 @@ function AddCredentialForm({
                   }}
                   placeholder={entry.secretPlaceholder}
                   aria-invalid={Boolean(errors.token)}
-                  aria-describedby={errors.token ? "token-error" : undefined}
-                  autoComplete="off"
+                  // Not "off": browsers ignore it on a password field, and managers then offer the login.
+                  autoComplete="new-password"
                 />
-                <FieldError id="token-error">{errors.token}</FieldError>
+                <FieldError>{errors.token}</FieldError>
               </Field>
 
               <Field orientation="horizontal" className="justify-between gap-6">
@@ -728,14 +725,13 @@ function AddCredentialForm({
                     }}
                     placeholder="https://npm.acme.internal"
                     aria-invalid={Boolean(errors.registryUrl)}
-                    aria-describedby={errors.registryUrl ? "registry-url-error" : undefined}
                     autoComplete="off"
                     autoFocus
                   />
                   {/* Still one or the other: the hint explains what the field is for, and
                       once a value has been rejected the reason is the more useful line. */}
                   {errors.registryUrl ? (
-                    <FieldError id="registry-url-error">{errors.registryUrl}</FieldError>
+                    <FieldError>{errors.registryUrl}</FieldError>
                   ) : (
                     <FieldDescription>
                       Where packages using this token are published, instead of the public

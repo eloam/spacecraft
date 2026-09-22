@@ -21,6 +21,28 @@ export function CreateOrganizationDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <CreateOrganizationForm onDone={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * The form is a child of the content, which Base UI unmounts once the dialog has closed, so
+ * the name typed into it goes with the rest of the state on every close — Cancel and Escape
+ * included — and each opening starts blank. Held by the dialog component instead, the name
+ * was only cleared after a creation went through, and a cancelled attempt came back
+ * pre-filled the next time it opened.
+ */
+function CreateOrganizationForm({
+  onDone,
+}: {
+  /** Closes the dialog, after a creation or on Cancel. */
+  onDone: () => void;
+}) {
   const [name, setName] = useState("");
   const navigate = useNavigate();
   const create = useCreateOrganization();
@@ -34,8 +56,7 @@ export function CreateOrganizationDialog({
       {
         onSuccess: (org) => {
           toast.success(`Created ${org.name}`);
-          setName("");
-          onOpenChange(false);
+          onDone();
           // Straight into it: creating one is only ever a step towards using it, and the
           // switcher can be opened from anywhere, so returning to the list would be wrong.
           navigate(`/orgs/${org.slug}`);
@@ -46,59 +67,55 @@ export function CreateOrganizationDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={submit}>
-          <DialogHeader>
-            <DialogTitle>New organization</DialogTitle>
-            <DialogDescription>
-              The address is derived from the name and must be unique across SpaceCraft.
-            </DialogDescription>
-          </DialogHeader>
+    <form onSubmit={submit}>
+      <DialogHeader>
+        <DialogTitle>New organization</DialogTitle>
+        <DialogDescription>
+          The address is derived from the name and must be unique across SpaceCraft.
+        </DialogDescription>
+      </DialogHeader>
 
-          <FieldGroup className="py-4">
-            <Field data-invalid={nameInvalid}>
-              <FieldLabel htmlFor="org-name">Name</FieldLabel>
-              <Input
-                id="org-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Acme Corp"
-                autoFocus
-                aria-invalid={nameInvalid}
-              />
-              <FieldError errors={nameInvalid ? [{ message: NAME_RULE }] : undefined} />
-            </Field>
+      <FieldGroup className="py-4">
+        <Field data-invalid={nameInvalid}>
+          <FieldLabel htmlFor="org-name">Name</FieldLabel>
+          <Input
+            id="org-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Acme Corp"
+            autoFocus
+            aria-invalid={nameInvalid}
+          />
+          <FieldError errors={nameInvalid ? [{ message: NAME_RULE }] : undefined} />
+        </Field>
 
-            <Field>
-              <FieldLabel htmlFor="org-slug">Address</FieldLabel>
-              {/* Shown while typing rather than after creating: the address is what ends up
-                  in every link to this organization, and seeing it is the only way to know
-                  whether the name gives the one you wanted. */}
-              <Input
-                id="org-slug"
-                value={slugPreview(name)}
-                readOnly
-                disabled
-                placeholder="acme-corp"
-                className="font-mono text-sm"
-              />
-              <FieldDescription>
-                Derived from the name. It can be changed later by renaming.
-              </FieldDescription>
-            </Field>
-          </FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="org-slug">Address</FieldLabel>
+          {/* Shown while typing rather than after creating: the address is what ends up
+              in every link to this organization, and seeing it is the only way to know
+              whether the name gives the one you wanted. */}
+          <Input
+            id="org-slug"
+            value={slugPreview(name)}
+            readOnly
+            disabled
+            placeholder="acme-corp"
+            className="font-mono text-sm"
+          />
+          <FieldDescription>
+            Derived from the name. It can be changed later by renaming.
+          </FieldDescription>
+        </Field>
+      </FieldGroup>
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!isValidResourceName(name) || create.isPending}>
-              {create.isPending ? "Creating…" : "Create"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={!isValidResourceName(name) || create.isPending}>
+          {create.isPending ? "Creating…" : "Create"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

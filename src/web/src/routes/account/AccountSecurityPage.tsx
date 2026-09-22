@@ -14,11 +14,12 @@ import { SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { ApiError, describeError } from "@/api/client";
 import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from "@/api/queries";
+import { newPasswordField } from "@/lib/fields";
 
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, "Enter your current password."),
-    newPassword: z.string().min(12, "Use at least 12 characters."),
+    newPassword: newPasswordField,
     confirmPassword: z.string(),
   })
   .refine((v) => v.newPassword === v.confirmPassword, {
@@ -45,14 +46,12 @@ function PasswordCard() {
           // The server distinguishes a wrong current password from a weak new one; putting
           // the message on the right field is the difference between useful and baffling.
           let onAField = false;
-          if (error instanceof ApiError && error.errors) {
-            for (const [field, messages] of Object.entries(error.errors)) {
-              const key = field.charAt(0).toLowerCase() + field.slice(1);
-              if (key === "currentPassword" || key === "newPassword") {
-                form.setError(key, { message: messages.join(" ") });
-                onAField = true;
-              }
-            }
+          if (error instanceof ApiError) {
+            const current = error.fieldError("currentPassword");
+            const next = error.fieldError("newPassword");
+            if (current) form.setError("currentPassword", { message: current });
+            if (next) form.setError("newPassword", { message: next });
+            onAField = Boolean(current || next);
           }
           // This endpoint is rate limited, so a refusal often arrives with no field errors at
           // all. Without this the button would flip back to "Change password" and say nothing,

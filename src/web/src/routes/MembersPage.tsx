@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useOrganizationId } from "@/hooks/useRouteIdentity";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,6 +31,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { timeAgo } from "@/lib/format";
+import { emailField } from "@/lib/fields";
 import { ApiError, describeError } from "@/api/client";
 import {
   keys, useChangeMemberRole, useInvitations, useInviteMember, useMembers, useRemoveMember,
@@ -46,7 +47,7 @@ const roleHelp: Record<number, string> = {
 } satisfies Record<OrganizationRole, string>;
 
 const schema = z.object({
-  email: z.string().email("Enter a valid email address."),
+  email: emailField,
   role: z.number(),
 });
 
@@ -455,13 +456,35 @@ function InviteDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <InviteForm orgId={orgId} onDone={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * The form is a child of the content, which Base UI unmounts once the dialog has closed, so
+ * the address typed into it and any rejection against it go on every close — Cancel and
+ * Escape included — and each opening starts blank. Held by the dialog component instead, the
+ * form was only reset after an invitation went out, and a cancelled one came back the next
+ * time with the address and the error it had been closed on.
+ */
+function InviteForm({
+  orgId,
+  onDone,
+}: {
+  orgId: string;
+  /** Closes the dialog once the invitation is sent. */
+  onDone: () => void;
+}) {
   const invite = useInviteMember(orgId);
   const form = useForm<z.input<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", role: OrganizationRole.Member },
   });
-
-  const selectedRole = useWatch({ control: form.control, name: "role" });
 
   const onSubmit = form.handleSubmit((values) =>
     invite.mutate(
@@ -471,12 +494,12 @@ function InviteDialog({
           // Sent, not added. Saying "member added" would describe something that has not
           // happened: the invitation is an offer, and the address has to answer it.
           toast.success(`Invitation sent to ${values.email}.`);
-          form.reset();
-          onOpenChange(false);
+          onDone();
         },
-        onError: (error: unknown) => {
-          if (error instanceof ApiError && error.errors?.Email) {
-            form.setError("email", { message: error.errors.Email.join(" ") });
+        onError: (error) => {
+          const emailError = error instanceof ApiError ? error.fieldError("email") : undefined;
+          if (emailError) {
+            form.setError("email", { message: emailError });
             return;
           }
           toast.error(describeError(error, "Could not send the invitation."));
@@ -486,72 +509,74 @@ function InviteDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={onSubmit} noValidate>
-          <DialogHeader>
-            <DialogTitle>Invite someone</DialogTitle>
-            <DialogDescription>
-              {/* The comment this replaces said there was no invitation flow yet, and that
-                  the person had to have an account already. Both are now false, and the
-                  second was the security problem: an address nobody had verified decided who
-                  got the membership. */}
-              A link goes to this address. They join when they open it, whether or not they
-              have an account yet — and nothing changes until they do.
-            </DialogDescription>
-          </DialogHeader>
+    <form onSubmit={onSubmit} noValidate>
+      <DialogHeader>
+        <DialogTitle>Invite someone</DialogTitle>
+        <DialogDescription>
+          {/* The comment this replaces said there was no invitation flow yet, and that
+              the person had to have an account already. Both are now false, and the
+              second was the security problem: an address nobody had verified decided who
+              got the membership. */}
+          A link goes to this address. They join when they open it, whether or not they
+          have an account yet — and nothing changes until they do.
+        </DialogDescription>
+      </DialogHeader>
 
-          <FieldGroup className="py-2">
-            <Field data-invalid={!!form.formState.errors.email}>
-              <FieldLabel htmlFor="member-email">Email</FieldLabel>
-              <Input
-                id="member-email"
-                type="email"
-                autoComplete="off"
-                aria-invalid={!!form.formState.errors.email}
-                aria-describedby={form.formState.errors.email ? "member-email-error" : undefined}
-                {...form.register("email")}
-              />
-              {/* The id is what `aria-describedby` above points at, so it stays on the error
-                  itself: `FieldError` renders nothing at all while there is no message. */}
-              <FieldError id="member-email-error" errors={[form.formState.errors.email]} />
-            </Field>
+      <FieldGroup className="py-2">
+        <Field data-invalid={!!form.formState.errors.email}>
+          <FieldLabel htmlFor="member-email">Email</FieldLabel>
+          <Input
+            id="member-email"
+            type="email"
+            autoComplete="off"
+            aria-invalid={!!form.formState.errors.email}
+            {...form.register("email")}
+          />
+          <FieldError errors={[form.formState.errors.email]} />
+        </Field>
 
-            <Field>
-              <FieldLabel htmlFor="member-role">Role</FieldLabel>
-              {/* Not registered like an input: Base UI's Select is not a native `<select>`,
-                  so the form holds the value and the component reports the choice back. */}
-              <Select
-                value={selectedRole}
-                onValueChange={(role) => {
-                  // The same `null` as the table's select: the form holds a role, never no role.
-                  if (role === null) return;
-                  form.setValue("role", role, { shouldDirty: true });
-                }}
-              >
-                <SelectTrigger id="member-role" className="w-full">
-                  {roleLabel[selectedRole]}
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(roleLabel).map(([value, label]) => (
-                    <SelectItem key={value} value={Number(value)}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldDescription>{roleHelp[selectedRole]}</FieldDescription>
-            </Field>
-          </FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="member-role">Role</FieldLabel>
+          {/* Through a Controller rather than `register`: Base UI's Select is not a native
+              `<select>`, so the form hands it the value and takes the choice back. */}
+          <Controller
+            control={form.control}
+            name="role"
+            render={({ field }) => (
+              <>
+                <Select
+                  value={field.value}
+                  onValueChange={(role) => {
+                    // The same `null` as the table's select: the form holds a role, never
+                    // no role.
+                    if (role === null) return;
+                    field.onChange(role);
+                  }}
+                >
+                  <SelectTrigger id="member-role" className="w-full">
+                    {roleLabel[field.value]}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(roleLabel).map(([value, label]) => (
+                      <SelectItem key={value} value={Number(value)}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>{roleHelp[field.value]}</FieldDescription>
+              </>
+            )}
+          />
+        </Field>
+      </FieldGroup>
 
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" type="button">Cancel</Button>} />
-            <Button type="submit" disabled={invite.isPending}>
-              {invite.isPending ? "Sending…" : "Send invitation"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <DialogFooter>
+        <DialogClose render={<Button variant="outline" type="button">Cancel</Button>} />
+        <Button type="submit" disabled={invite.isPending}>
+          {invite.isPending ? "Sending…" : "Send invitation"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

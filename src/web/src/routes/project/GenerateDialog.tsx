@@ -47,15 +47,49 @@ export function GenerateDialog({
    * chooses its initial value, it does not hide it.
    *
    * Callers key this component on it. The project route swaps its params without replacing
-   * the layout that holds this dialog, so a selection made on one project once survived onto
-   * the next: opening it from a second project offered — and would have queued — a run for
-   * the first, with a spec and a target that belong to neither the page nor the picker. A
-   * `key` remounts it with fresh state instead, which is React's way of resetting state when
-   * a prop changes.
+   * the layout that holds this dialog, so a project that changes while it is open would leave
+   * the picks pointing at rows of another project — and an auto-publishing target makes that
+   * an irreversible push to a registry. A `key` remounts it with fresh state, which is React's
+   * way of resetting state when a prop changes. Between openings the form's state goes with
+   * the popup (see `GenerateForm`).
    */
   projectSlug?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <GenerateForm
+          orgId={orgId}
+          orgSlug={orgSlug}
+          projectSlug={projectSlug}
+          onDone={() => onOpenChange(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * The form is a child of the content, which Base UI unmounts once the dialog has closed, so
+ * the picks and the publish override go with the rest of the state on every close — Cancel
+ * and Escape included — and each opening starts from the page's project and the target's own
+ * setting. Held by the dialog component instead, which its layout mounts for good, a project
+ * picked and then cancelled came back preselected, and a publish switch flipped for one run
+ * was still flipped for the next.
+ */
+function GenerateForm({
+  orgId,
+  orgSlug,
+  projectSlug,
+  onDone,
+}: {
+  orgId: string;
+  orgSlug: string;
+  projectSlug?: string;
+  /** Closes the dialog, after a run is queued, on Cancel, or before a link leaves the page. */
+  onDone: () => void;
 }) {
   const navigate = useNavigate();
 
@@ -85,7 +119,6 @@ export function GenerateDialog({
 
   const usableSpecs = specs.data?.items.filter((s) => s.validationStatus !== SpecValidationStatus.Invalid) ?? [];
   const targets = project.data?.targets ?? [];
-
 
   const selectedSpec = specId || usableSpecs[0]?.id || "";
   const selectedTarget = targetId || targets[0]?.id || "";
@@ -153,7 +186,7 @@ export function GenerateDialog({
       { specVersionId: selectedSpec, sdkTargetId: selectedTarget, publish: willPublish },
       {
         onSuccess: (run) => {
-          onOpenChange(false);
+          onDone();
           // Queuing a run is the point of this dialog; leaving the user on the tab they
           // started from means the thing they asked for happens somewhere they cannot see.
           navigate(`/orgs/${orgSlug}/runs/${run.id}`);
@@ -164,260 +197,249 @@ export function GenerateDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={submit}>
-          <DialogHeader>
-            <DialogTitle>Generate an SDK</DialogTitle>
-            <DialogDescription>Runs {steps}.</DialogDescription>
-          </DialogHeader>
+    <form onSubmit={submit}>
+      <DialogHeader>
+        <DialogTitle>Generate an SDK</DialogTitle>
+        <DialogDescription>Runs {steps}.</DialogDescription>
+      </DialogHeader>
 
-          <FieldGroup className="py-4">
-            {/* Every SelectValue carries its own children. Base UI falls back to the raw
-                value when it cannot resolve the selected item — a guid, in two of these
-                three — and it cannot resolve one whose children are not a plain string. */}
-            {/* Always shown, even when the caller names one: a filter that silently becomes
-                the subject of a dialog is a decision the reader cannot see, and cannot
-                change without closing it. Preselected, not hidden. */}
-            <Field>
-                <FieldLabel htmlFor="project">Project</FieldLabel>
-                <Select
-                  value={activeProject}
-                  onValueChange={(value) => {
-                    // null is Base UI's "cleared". No select in this dialog offers that, and
-                    // coerced to a string it named a project called "null".
-                    if (value === null) return;
-                    setPickedProject(value);
-                    // A spec and a target both belong to a project. Carried across, they
-                    // would name rows the newly chosen one does not own.
-                    setSpecId("");
-                    setTargetId("");
-                  }}
-                >
-                  <SelectTrigger id="project" className="w-full">
-                    <SelectValue>
-                      {(projects.data ?? []).find((p) => p.slug === activeProject)?.name ??
-                        "Choose a project…"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(projects.data ?? []).map((p) => (
-                      <SelectItem key={p.id} value={p.slug}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-            </Field>
+      <FieldGroup className="py-4">
+        {/* Every SelectValue carries its own children. Base UI falls back to the raw
+            value when it cannot resolve the selected item — a guid, in two of these
+            three — and it cannot resolve one whose children are not a plain string. */}
+        {/* Always shown, even when the caller names one: a filter that silently becomes
+            the subject of a dialog is a decision the reader cannot see, and cannot
+            change without closing it. Preselected, not hidden. */}
+        <Field>
+          <FieldLabel htmlFor="project">Project</FieldLabel>
+          <Select
+            value={activeProject}
+            onValueChange={(value) => {
+              // null is Base UI's "cleared". No select in this dialog offers that, and
+              // coerced to a string it named a project called "null".
+              if (value === null) return;
+              setPickedProject(value);
+              // A spec and a target both belong to a project. Carried across, they
+              // would name rows the newly chosen one does not own.
+              setSpecId("");
+              setTargetId("");
+            }}
+          >
+            <SelectTrigger id="project" className="w-full">
+              <SelectValue>
+                {(projects.data ?? []).find((p) => p.slug === activeProject)?.name ??
+                  "Choose a project…"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {(projects.data ?? []).map((p) => (
+                <SelectItem key={p.id} value={p.slug}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
 
-            {/* The two fields below are the chosen project's, so they wait for it the way a
-                page waits for its query, and a refusal says so where the empty lists would
-                otherwise stand unexplained. isPending rather than isLoading: both queries are
-                disabled until the slug resolves to an id, and in that window nothing is
-                fetching yet either. With no project chosen there is nothing to load, so the
-                fields stay as they are — disabled — rather than pretending to arrive. The
-                projects query is in the chain because the slug resolves through it, and the
-                skeleton waits on that list rather than on the id: a refused list never
-                yields one, and two queries disabled for good would hold the skeleton up with
-                the refusal never shown. A list that answers without the slug — a project it
-                does not contain — leaves the fields disabled, not loading. */}
-            <QueryBoundary
-              isLoading={
-                Boolean(activeProject)
-                && (projects.isPending
-                  || (Boolean(activeProjectId) && (project.isPending || specs.isPending)))
-              }
-              error={project.error ?? specs.error ?? projects.error}
-              rows={2}
+        {/* The two fields below are the chosen project's, so they wait for it the way a
+            page waits for its query, and a refusal says so where the empty lists would
+            otherwise stand unexplained. isPending rather than isLoading: both queries are
+            disabled until the slug resolves to an id, and in that window nothing is
+            fetching yet either. With no project chosen there is nothing to load, so the
+            fields stay as they are — disabled — rather than pretending to arrive. The
+            projects query is in the chain because the slug resolves through it, and the
+            skeleton waits on that list rather than on the id: a refused list never
+            yields one, and two queries disabled for good would hold the skeleton up with
+            the refusal never shown. A list that answers without the slug — a project it
+            does not contain — leaves the fields disabled, not loading. */}
+        <QueryBoundary
+          isLoading={
+            Boolean(activeProject)
+            && (projects.isPending
+              || (Boolean(activeProjectId) && (project.isPending || specs.isPending)))
+          }
+          error={project.error ?? specs.error ?? projects.error}
+          rows={2}
+        >
+          <Field data-disabled={!activeProject || undefined}>
+            <FieldLabel htmlFor="spec">Spec version</FieldLabel>
+            <Select
+              value={selectedSpec}
+              disabled={!activeProject}
+              onValueChange={(value) => {
+                if (value === null) return;
+                setSpecId(value);
+              }}
             >
-              <Field data-disabled={!activeProject || undefined}>
-                <FieldLabel htmlFor="spec">Spec version</FieldLabel>
-                <Select
-                  value={selectedSpec}
-                  disabled={!activeProject}
-                  onValueChange={(value) => {
-                    if (value === null) return;
-                    setSpecId(value);
-                  }}
-                >
-                  <SelectTrigger id="spec" className="w-full">
-                    <SelectValue>{specLabel(usableSpecs.find((s) => s.id === selectedSpec))}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {usableSpecs.map((spec) => (
-                      <SelectItem key={spec.id} value={spec.id}>
-                        {specLabel(spec)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+              <SelectTrigger id="spec" className="w-full">
+                <SelectValue>{specLabel(usableSpecs.find((s) => s.id === selectedSpec))}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {usableSpecs.map((spec) => (
+                  <SelectItem key={spec.id} value={spec.id}>
+                    {specLabel(spec)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
 
-              <Field data-disabled={!activeProject || undefined}>
-                <FieldLabel htmlFor="target">Target</FieldLabel>
-                <Select
-                  value={selectedTarget}
-                  disabled={!activeProject}
-                  onValueChange={(value) => {
-                    if (value === null) return;
-                    setTargetId(value);
-                    // Back to following the new target: an override belongs to the target it
-                    // was set against, not to the dialog.
-                    setPublish(null);
-                  }}
-                >
-                  <SelectTrigger id="target" className="w-full">
-                    <SelectValue>
-                      {target
-                        ? `${languageLabel[target.language]} — ${target.packageName} · ${target.autoPublish ? "Automatic" : "Manual"}`
-                        : ""}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {targets.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span className="truncate">
-                            {languageLabel[t.language]} — {t.packageName}
-                          </span>
-                          {/* How this target publishes, where it is chosen: it decides what
-                              the switch below arrives set to, and picking blind then finding
-                              the switch already on reads as the dialog deciding for you. */}
-                          <Badge variant="outline" className="shrink-0 text-[10px]">
-                            {t.autoPublish ? "Automatic" : "Manual"}
-                          </Badge>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </QueryBoundary>
-
-            {/* What the run will do, in the shape the delete dialogs use for what a delete
-                costs. The steps were only ever named in one line of prose at the top, and
-                the one that cannot be undone read the same as the three that can. */}
-            {/* Beside the ledger rather than instead of it, and it does not stop the run.
-                The pipeline's first step is validation, and this is exactly what it exists to
-                judge: the run is queued, fails there, and leaves a record saying why. A
-                refusal here would be quieter — no run, no history, nothing for anyone waiting
-                on a publish to find. */}
-            {versionRefusal && (
-              <div className="space-y-1.5 rounded-2xl border border-destructive/40 bg-destructive/5 p-3.5 text-sm">
-                <p className="text-xs font-medium tracking-wider text-destructive uppercase">
-                  This run cannot start
-                </p>
-                <p className="text-muted-foreground">{versionRefusal}</p>
-              </div>
-            )}
-
-            {target && (
-              <Panel>
-                <PanelSection label="This run">
-                  <PanelLine icon={Check}>
-                    Validates the document, generates {target.packageName} and builds it
-                  </PanelLine>
-
-                  {willPublish ? (
-                    <PanelLine icon={CircleAlert} tone="destructive">
-                      Publishes to {registryLabel[target.registry]} — a version accepted by a
-                      registry cannot be taken back
-                    </PanelLine>
-                  ) : (
-                    <PanelLine icon={Minus} muted>
-                      Publishes nothing. The build stays here, downloadable from the run.
-                    </PanelLine>
-                  )}
-                </PanelSection>
-              </Panel>
-            )}
-
-            {/* A switch, like the auto-publish toggle on the SDK target it names: both answer
-                "does this go to a registry", and answering it two different ways on two
-                screens made them look like different questions. Content first and the
-                control last, the way that row reads.
-
-                data-disabled as well as a disabled switch, because Field dims its own label
-                from it — the control greying out alone left the sentence beside it reading
-                as an available choice. */}
-            {/* With the ledger, not before it: with no target chosen, publishBlocked reads
-                "no-credential" from an undefined target, and the row announced that "this
-                target publishes nowhere" about a target nobody had picked. */}
-            {target && (
-              <Field
-                orientation="horizontal"
-                className="justify-between gap-6"
-                data-disabled={Boolean(publishBlocked) || undefined}
-              >
-              <FieldContent>
-                <FieldLabel htmlFor="publish">
-                  {/* The destination, not the abstraction: "the registry" gave no way to tell
-                      what this run would push, or where. */}
+          <Field data-disabled={!activeProject || undefined}>
+            <FieldLabel htmlFor="target">Target</FieldLabel>
+            <Select
+              value={selectedTarget}
+              disabled={!activeProject}
+              onValueChange={(value) => {
+                if (value === null) return;
+                setTargetId(value);
+                // Back to following the new target: an override belongs to the target it
+                // was set against, not to the dialog.
+                setPublish(null);
+              }}
+            >
+              <SelectTrigger id="target" className="w-full">
+                <SelectValue>
                   {target
-                    ? `Publish ${target.packageName} to ${registryLabel[target.registry]} after a successful build`
-                    : "Publish to the registry after a successful build"}
-                </FieldLabel>
-                <FieldDescription>
-                  {publishBlocked === "no-credential" ? (
-                    <>
-                      This target publishes nowhere. Choose a credential under Publish with on
-                      the{" "}
-                      <Link
-                        to={`/orgs/${orgSlug}/projects/${activeProject}/targets`}
-                        onClick={() => onOpenChange(false)}
-                      >
-                        SDK targets tab
-                      </Link>
-                      .
-                    </>
-                  ) : publishBlocked === "not-admin" ? (
-                    "Publishing to a registry cannot be undone, so it takes an admin. This run generates and builds only."
-                  ) : overridden ? (
-                    // The override is the point of the switch, so it says which way it went
-                    // rather than repeating the warning the ledger above already carries.
-                    target?.autoPublish
-                      ? "Overriding this target: it publishes automatically, and this one run will not."
-                      : "Overriding this target: it publishes manually, and this one run will."
-                  ) : target?.autoPublish ? (
-                    "Following this target, which publishes automatically. Turn it off to generate and build only."
-                  ) : (
-                    "Following this target, which publishes manually. Turn it on to publish this one run."
-                  )}
-                </FieldDescription>
-              </FieldContent>
-              <Switch
-                id="publish"
-                checked={willPublish}
-                disabled={Boolean(publishBlocked)}
-                onCheckedChange={(checked) => setPublish(checked)}
-              />
-              </Field>
-            )}
-          </FieldGroup>
+                    ? `${languageLabel[target.language]} — ${target.packageName} · ${target.autoPublish ? "Automatic" : "Manual"}`
+                    : ""}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {targets.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate">
+                        {languageLabel[t.language]} — {t.packageName}
+                      </span>
+                      {/* How this target publishes, where it is chosen: it decides what
+                          the switch below arrives set to, and picking blind then finding
+                          the switch already on reads as the dialog deciding for you. */}
+                      <Badge variant="outline" className="shrink-0 text-[10px]">
+                        {t.autoPublish ? "Automatic" : "Manual"}
+                      </Badge>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </QueryBoundary>
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            {/* The irreversible variant says so on the button: ticking a box eight lines up
-                should not leave the two runs looking like the same click. */}
-            <Button type="submit" disabled={!selectedSpec || !selectedTarget || createRun.isPending}>
-              {createRun.isPending
-                ? "Queueing…"
-                : willPublish
-                  ? "Queue run and publish"
-                  : "Queue run"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        {/* What the run will do, in the shape the delete dialogs use for what a delete
+            costs. The steps were only ever named in one line of prose at the top, and
+            the one that cannot be undone read the same as the three that can. */}
+        {/* Beside the ledger rather than instead of it, and it does not stop the run.
+            The pipeline's first step is validation, and this is exactly what it exists to
+            judge: the run is queued, fails there, and leaves a record saying why. A
+            refusal here would be quieter — no run, no history, nothing for anyone waiting
+            on a publish to find. */}
+        {versionRefusal && (
+          <div className="space-y-1.5 rounded-2xl border border-destructive/40 bg-destructive/5 p-3.5 text-sm">
+            <p className="text-xs font-medium tracking-wider text-destructive uppercase">
+              This run cannot start
+            </p>
+            <p className="text-muted-foreground">{versionRefusal}</p>
+          </div>
+        )}
+
+        {target && (
+          <Panel>
+            <PanelSection label="This run">
+              <PanelLine icon={Check}>
+                Validates the document, generates {target.packageName} and builds it
+              </PanelLine>
+
+              {willPublish ? (
+                <PanelLine icon={CircleAlert} tone="destructive">
+                  Publishes to {registryLabel[target.registry]} — a version accepted by a
+                  registry cannot be taken back
+                </PanelLine>
+              ) : (
+                <PanelLine icon={Minus} muted>
+                  Publishes nothing. The build stays here, downloadable from the run.
+                </PanelLine>
+              )}
+            </PanelSection>
+          </Panel>
+        )}
+
+        {/* A switch, like the auto-publish toggle on the SDK target it names: both answer
+            "does this go to a registry", and answering it two different ways on two
+            screens made them look like different questions. Content first and the
+            control last, the way that row reads.
+
+            data-disabled as well as a disabled switch, because Field dims its own label
+            from it — the control greying out alone left the sentence beside it reading
+            as an available choice. */}
+        {/* With the ledger, not before it: with no target chosen, publishBlocked reads
+            "no-credential" from an undefined target, and the row announced that "this
+            target publishes nowhere" about a target nobody had picked. */}
+        {target && (
+          <Field
+            orientation="horizontal"
+            className="justify-between gap-6"
+            data-disabled={Boolean(publishBlocked) || undefined}
+          >
+            <FieldContent>
+              <FieldLabel htmlFor="publish">
+                {/* The destination, not the abstraction: "the registry" gave no way to tell
+                    what this run would push, or where. */}
+                {target
+                  ? `Publish ${target.packageName} to ${registryLabel[target.registry]} after a successful build`
+                  : "Publish to the registry after a successful build"}
+              </FieldLabel>
+              <FieldDescription>
+                {publishBlocked === "no-credential" ? (
+                  <>
+                    This target publishes nowhere. Choose a credential under Publish with on
+                    the{" "}
+                    <Link
+                      to={`/orgs/${orgSlug}/projects/${activeProject}/targets`}
+                      onClick={onDone}
+                    >
+                      SDK targets tab
+                    </Link>
+                    .
+                  </>
+                ) : publishBlocked === "not-admin" ? (
+                  "Publishing to a registry cannot be undone, so it takes an admin. This run generates and builds only."
+                ) : overridden ? (
+                  // The override is the point of the switch, so it says which way it went
+                  // rather than repeating the warning the ledger above already carries.
+                  target?.autoPublish
+                    ? "Overriding this target: it publishes automatically, and this one run will not."
+                    : "Overriding this target: it publishes manually, and this one run will."
+                ) : target?.autoPublish ? (
+                  "Following this target, which publishes automatically. Turn it off to generate and build only."
+                ) : (
+                  "Following this target, which publishes manually. Turn it on to publish this one run."
+                )}
+              </FieldDescription>
+            </FieldContent>
+            <Switch
+              id="publish"
+              checked={willPublish}
+              disabled={Boolean(publishBlocked)}
+              onCheckedChange={(checked) => setPublish(checked)}
+            />
+          </Field>
+        )}
+      </FieldGroup>
+
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+        {/* The irreversible variant says so on the button: ticking a box eight lines up
+            should not leave the two runs looking like the same click. */}
+        <Button type="submit" disabled={!selectedSpec || !selectedTarget || createRun.isPending}>
+          {createRun.isPending
+            ? "Queueing…"
+            : willPublish
+              ? "Queue run and publish"
+              : "Queue run"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
-
-/**
- * The findings behind a spec's warning count.
- *
- * A large document produces a lot of them — the Keycloak Admin API yields 413 — so the list
- * is virtualised by nothing more than a scroll container, and only fetched once opened.
- */

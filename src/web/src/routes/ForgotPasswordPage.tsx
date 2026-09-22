@@ -8,9 +8,10 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { AuthCard } from "@/components/AuthCard";
 import { useForgotPassword } from "@/api/queries";
 import { describeError } from "@/api/client";
+import { emailField } from "@/lib/fields";
 
 const schema = z.object({
-  email: z.string().email("Enter a valid email address."),
+  email: emailField,
 });
 
 type FormValues = z.infer<typeof schema>;

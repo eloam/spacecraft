@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useOrganizationId, useProjectId } from "@/hooks/useRouteIdentity";
 import { useForm, useWatch } from "react-hook-form";
@@ -24,6 +24,7 @@ import {
 const schema = z.object({
   name: z
     .string()
+    .trim()
     .max(NAME_MAX_LENGTH, `Use ${NAME_MAX_LENGTH} characters or fewer.`)
     .refine(isValidResourceName, NAME_RULE),
 });
@@ -44,13 +45,11 @@ export function ProjectSettingsPage() {
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { name: "" },
+    // The name arrives after the first render: `values` re-syncs it into the form without an
+    // effect, and keepDirtyValues keeps a name being typed from being overwritten by a refetch.
+    values: project.data ? { name: project.data.name } : undefined,
+    resetOptions: { keepDirtyValues: true },
   });
-
-  useEffect(() => {
-    if (project.data) {
-      form.reset({ name: project.data.name });
-    }
-  }, [project.data, form]);
 
   const name = useWatch({ control: form.control, name: "name" });
   const currentSlug = project.data?.slug ?? "";
@@ -60,8 +59,16 @@ export function ProjectSettingsPage() {
   const onSubmit = form.handleSubmit((values) =>
     rename.mutate(values.name, {
       onSuccess: (updated) => {
+        // The saved name is the new baseline, so isDirty is judged against what the server
+        // holds. `reset` merges resetOptions and the field just saved is the dirty one, so
+        // keepDirtyValues is switched off here: the saved value replaces what was typed and
+        // the field is clean again for the next server sync.
+        form.reset({ name: updated.name }, { keepDirtyValues: false });
         toast.success("Project renamed.");
-        if (updated.slug !== projectId) {
+        // The slug moved with the name, so the address bar is now pointing at a slug that
+        // no longer resolves. Replace rather than push: the old URL is not somewhere to
+        // go back to.
+        if (updated.slug !== projectSlug) {
           navigate(`/orgs/${orgSlug}/projects/${updated.slug}/settings`, { replace: true });
         }
       },

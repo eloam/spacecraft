@@ -9,9 +9,10 @@ import { AuthCard } from "@/components/AuthCard";
 import { useLogin } from "@/api/queries";
 import { useReturnQuery } from "@/lib/returnTo";
 import { describeError } from "@/api/client";
+import { emailField } from "@/lib/fields";
 
 const schema = z.object({
-  email: z.string().email("Enter a valid email address."),
+  email: emailField,
   password: z.string().min(1, "Enter your password."),
 });
 

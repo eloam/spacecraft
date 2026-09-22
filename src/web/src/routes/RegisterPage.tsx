@@ -9,12 +9,12 @@ import { AuthCard } from "@/components/AuthCard";
 import { useRegister } from "@/api/queries";
 import { useReturnQuery } from "@/lib/returnTo";
 import { ApiError, describeError } from "@/api/client";
+import { displayNameField, emailField, newPasswordField } from "@/lib/fields";
 
 const schema = z.object({
-  displayName: z.string().trim().max(80, "Use 80 characters or fewer.").optional(),
-  email: z.string().email("Enter a valid email address."),
-  // Mirrors the API's Identity policy: length only, no composition rules.
-  password: z.string().min(12, "Use at least 12 characters."),
+  displayName: displayNameField.optional(),
+  email: emailField,
+  password: newPasswordField,
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -28,14 +28,31 @@ export function RegisterPage() {
   });
 
   const onSubmit = form.handleSubmit((values) =>
-    register.mutate({ ...values, displayName: values.displayName || undefined }),
+    register.mutate(
+      { ...values, displayName: values.displayName || undefined },
+      {
+        onError: (error) => {
+          // On the field, in the form's own state, so retyping the address clears the
+          // complaint. Derived from the mutation's error at render time instead, the field
+          // stayed red until the next submit whatever was typed into it.
+          if (error instanceof ApiError) {
+            const email = error.fieldError("email");
+            const password = error.fieldError("password");
+            if (email) form.setError("email", { message: email });
+            if (password) form.setError("password", { message: password });
+            if (email || password) return;
+          }
+          // Only the two field-mapped complaints reach a Field. A 409, a 500, a dropped
+          // connection or a validation error keyed to anything else would otherwise land
+          // nowhere and leave the button flicking back to "Create account" as the only sign
+          // the submit happened.
+          form.setError("root", {
+            message: describeError(error, "Something went wrong. Try again."),
+          });
+        },
+      },
+    ),
   );
-
-  const apiError = register.error instanceof ApiError ? register.error : undefined;
-  // Client-side validation wins over the server's copy of the same complaint.
-  const emailError = form.formState.errors.email?.message ?? apiError?.fieldError("email");
-  const passwordError =
-    form.formState.errors.password?.message ?? apiError?.fieldError("password");
 
   return (
     <AuthCard
@@ -69,38 +86,34 @@ export function RegisterPage() {
             <FieldError errors={[form.formState.errors.displayName]} />
           </Field>
 
-          <Field data-invalid={!!emailError}>
+          <Field data-invalid={!!form.formState.errors.email}>
             <FieldLabel htmlFor="email">Email</FieldLabel>
             <Input
               id="email"
               type="email"
               autoComplete="email"
-              aria-invalid={!!emailError}
+              aria-invalid={!!form.formState.errors.email}
               {...form.register("email")}
             />
-            <FieldError>{emailError}</FieldError>
+            <FieldError errors={[form.formState.errors.email]} />
           </Field>
 
-          <Field data-invalid={!!passwordError}>
+          <Field data-invalid={!!form.formState.errors.password}>
             <FieldLabel htmlFor="password">Password</FieldLabel>
             <Input
               id="password"
               type="password"
               autoComplete="new-password"
-              aria-invalid={!!passwordError}
+              aria-invalid={!!form.formState.errors.password}
               {...form.register("password")}
             />
-            <FieldError>{passwordError}</FieldError>
+            <FieldError errors={[form.formState.errors.password]} />
           </Field>
         </FieldGroup>
 
-        {/* Only the two field-mapped complaints reach a Field. A 409, a 500, a dropped
-            connection or a validation error keyed to anything else would otherwise land
-            nowhere and leave the button flicking back to "Create account" as the only sign
-            the submit happened. */}
-        {register.error && !emailError && !passwordError && (
+        {form.formState.errors.root && (
           <p className="text-sm text-destructive" role="alert">
-            {describeError(register.error, "Something went wrong. Try again.")}
+            {form.formState.errors.root.message}
           </p>
         )}
 

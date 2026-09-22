@@ -67,9 +67,6 @@ export function ProjectTargetsPage() {
 
   const [targetOpen, setTargetOpen] = useState(false);
   const [editing, setEditing] = useState<SdkTarget | undefined>(undefined);
-  // Bumped on every opening and used as the dialog's key: the form takes its values from the
-  // row it was opened on, and a remount is what makes it read them again.
-  const [opening, setOpening] = useState(0);
   // The row itself rather than its id: looked up in `targets` on each render, it vanished
   // as soon as the delete succeeded and the project refetched, and the package name the
   // dialog asks to type flipped to nothing while it was still fading out. Kept until
@@ -112,7 +109,6 @@ export function ProjectTargetsPage() {
 
   function openDialog(target?: SdkTarget) {
     setEditing(target);
-    setOpening((n) => n + 1);
     setTargetOpen(true);
   }
 
@@ -430,7 +426,6 @@ export function ProjectTargetsPage() {
       </QueryBoundary>
 
       <TargetDialog
-        key={opening}
         orgId={orgId}
         projectId={projectId}
         target={editing}

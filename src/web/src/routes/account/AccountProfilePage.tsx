@@ -11,9 +11,10 @@ import { SettingsSection } from "@/components/SettingsSections";
 import { QueryBoundary } from "@/components/QueryBoundary";
 import { describeError } from "@/api/client";
 import { useAccount, useUpdateProfile } from "@/api/queries";
+import { displayNameField } from "@/lib/fields";
 
 const profileSchema = z.object({
-  displayName: z.string().max(100, "Use 100 characters or fewer."),
+  displayName: displayNameField,
 });
 
 function ProfileCard({
@@ -32,9 +33,15 @@ function ProfileCard({
 
   const onSubmit = form.handleSubmit((values) =>
     update.mutate(
-      { displayName: values.displayName.trim() || null },
+      { displayName: values.displayName || null },
       {
-        onSuccess: () => toast.success("Profile updated."),
+        onSuccess: (account) => {
+          // The saved name is the new baseline. Judged against the value the form opened
+          // with, Save stayed enabled after a save went through, and typing the original
+          // name back was never dirty, so it could not be restored without a reload.
+          form.reset({ displayName: account.displayName ?? "" });
+          toast.success("Profile updated.");
+        },
         // The field keeps the typed name whether the save worked or not, so without this a
         // failure looks exactly like a success.
         onError: (error) => toast.error(describeError(error, "Could not save your profile.")),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useOrganizationId } from "@/hooks/useRouteIdentity";
 import { useForm, useWatch } from "react-hook-form";
@@ -21,6 +21,7 @@ import {
 const schema = z.object({
   name: z
     .string()
+    .trim()
     .max(NAME_MAX_LENGTH, `Use ${NAME_MAX_LENGTH} characters or fewer.`)
     .refine(isValidResourceName, NAME_RULE),
 });
@@ -40,15 +41,11 @@ export function OrganizationSettingsPage() {
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { name: "" },
+    // The name arrives after the first render: `values` re-syncs it into the form without an
+    // effect, and keepDirtyValues keeps a name being typed from being overwritten by a refetch.
+    values: organization.data ? { name: organization.data.name } : undefined,
+    resetOptions: { keepDirtyValues: true },
   });
-
-  // The name arrives after the first render, so seed the field once it does rather than
-  // leaving the form permanently empty.
-  useEffect(() => {
-    if (organization.data) {
-      form.reset({ name: organization.data.name });
-    }
-  }, [organization.data, form]);
 
   const name = useWatch({ control: form.control, name: "name" });
   const currentSlug = organization.data?.slug ?? "";
@@ -58,11 +55,16 @@ export function OrganizationSettingsPage() {
   const onSubmit = form.handleSubmit((values) =>
     rename.mutate(values.name, {
       onSuccess: (updated) => {
+        // The saved name is the new baseline, so isDirty is judged against what the server
+        // holds. `reset` merges resetOptions and the field just saved is the dirty one, so
+        // keepDirtyValues is switched off here: the saved value replaces what was typed and
+        // the field is clean again for the next server sync.
+        form.reset({ name: updated.name }, { keepDirtyValues: false });
         toast.success("Organization renamed.");
         // The slug moved with the name, so the address bar is now pointing at a slug that
         // no longer resolves. Replace rather than push: the old URL is not somewhere to
         // go back to.
-        if (updated.slug !== orgId) {
+        if (updated.slug !== orgSlug) {
           navigate(`/orgs/${updated.slug}/settings`, { replace: true });
         }
       },

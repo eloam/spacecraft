@@ -129,6 +129,30 @@ function CreateProjectDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <CreateProjectForm orgId={orgId} onDone={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * The form is a child of the content, which Base UI unmounts once the dialog has closed, so
+ * the name and the switch go with the rest of the state on every close — Cancel and Escape
+ * included — and each opening starts from the defaults. Held by the dialog component
+ * instead, they were only put back after a creation went through, and a cancelled attempt
+ * came back pre-filled the next time it opened.
+ */
+function CreateProjectForm({
+  orgId,
+  onDone,
+}: {
+  orgId: string;
+  /** Closes the dialog, after a creation or on Cancel. */
+  onDone: () => void;
+}) {
   const [name, setName] = useState("");
   // Offered here rather than only in settings: it decides what the first upload is told, and
   // the first upload usually happens before anyone opens the settings page.
@@ -144,9 +168,7 @@ function CreateProjectDialog({
       {
         onSuccess: (project) => {
           toast.success(`Created ${project.name}`);
-          setName("");
-          setStrictValidation(true);
-          onOpenChange(false);
+          onDone();
         },
         onError: (err) => toast.error(describeError(err, "Could not create the project.")),
       },
@@ -154,72 +176,68 @@ function CreateProjectDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={submit}>
-          <DialogHeader>
-            <DialogTitle>New project</DialogTitle>
-            <DialogDescription>Name it after the API it describes.</DialogDescription>
-          </DialogHeader>
+    <form onSubmit={submit}>
+      <DialogHeader>
+        <DialogTitle>New project</DialogTitle>
+        <DialogDescription>Name it after the API it describes.</DialogDescription>
+      </DialogHeader>
 
-          <FieldGroup className="py-4">
-            <Field data-invalid={nameInvalid}>
-              <FieldLabel htmlFor="project-name">Name</FieldLabel>
-              <Input
-                id="project-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Billing API"
-                autoFocus
-                aria-invalid={nameInvalid}
-              />
-              <FieldError errors={nameInvalid ? [{ message: NAME_RULE }] : undefined} />
-            </Field>
+      <FieldGroup className="py-4">
+        <Field data-invalid={nameInvalid}>
+          <FieldLabel htmlFor="project-name">Name</FieldLabel>
+          <Input
+            id="project-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Billing API"
+            autoFocus
+            aria-invalid={nameInvalid}
+          />
+          <FieldError errors={nameInvalid ? [{ message: NAME_RULE }] : undefined} />
+        </Field>
 
-            <Field>
-              <FieldLabel htmlFor="project-slug">Address</FieldLabel>
-              <Input
-                id="project-slug"
-                value={slugPreview(name)}
-                readOnly
-                disabled
-                placeholder="billing-api"
-                className="font-mono text-sm"
-              />
-              <FieldDescription>
-                Derived from the name, and unique within this organization.
-              </FieldDescription>
-            </Field>
+        <Field>
+          <FieldLabel htmlFor="project-slug">Address</FieldLabel>
+          <Input
+            id="project-slug"
+            value={slugPreview(name)}
+            readOnly
+            disabled
+            placeholder="billing-api"
+            className="font-mono text-sm"
+          />
+          <FieldDescription>
+            Derived from the name, and unique within this organization.
+          </FieldDescription>
+        </Field>
 
-            <Field orientation="horizontal" className="rounded-lg border p-3">
-              <FieldContent>
-                <FieldLabel htmlFor="project-strict">Strict validation</FieldLabel>
-                <FieldDescription>
-                  Check that a usable SDK can come out of an uploaded document — a base URL to
-                  call, method names that can be spelled, described responses — and refuse the
-                  ones that would produce a broken client. Turn it off for a specification you
-                  consume but do not own.
-                </FieldDescription>
-              </FieldContent>
+        <Field orientation="horizontal" className="rounded-lg border p-3">
+          <FieldContent>
+            <FieldLabel htmlFor="project-strict">Strict validation</FieldLabel>
+            <FieldDescription>
+              Check that a usable SDK can come out of an uploaded document — a base URL to
+              call, method names that can be spelled, described responses — and refuse the
+              ones that would produce a broken client. Turn it off for a specification you
+              consume but do not own.
+            </FieldDescription>
+          </FieldContent>
 
-              <Switch
-                id="project-strict"
-                checked={strictValidation}
-                onCheckedChange={setStrictValidation}
-              />
-            </Field>
-          </FieldGroup>
+          <Switch
+            id="project-strict"
+            checked={strictValidation}
+            onCheckedChange={setStrictValidation}
+          />
+        </Field>
+      </FieldGroup>
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!isValidResourceName(name) || create.isPending}>
-              {create.isPending ? "Creating…" : "Create"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={!isValidResourceName(name) || create.isPending}>
+          {create.isPending ? "Creating…" : "Create"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

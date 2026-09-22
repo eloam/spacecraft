@@ -2,7 +2,7 @@ import { useState } from "react";
 import { CircleAlert, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { DangerSection } from "@/components/SettingsSections";
 import { Panel, PanelLine, PanelSection } from "@/components/Panel";
 import { QueryBoundary } from "@/components/QueryBoundary";
@@ -94,21 +94,23 @@ function DeleteAccountForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const onDelete = () =>
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
     remove.mutate(
       { password },
       {
         onError: (e) =>
           setError(
             e instanceof ApiError
-              ? e.errors?.Password?.join(" ") ?? e.detail
+              ? e.fieldError("password") ?? e.detail
               : "Could not delete the account.",
           ),
       },
     );
+  }
 
   return (
-    <>
+    <form onSubmit={submit} noValidate>
       <DialogHeader>
         <DialogTitle>Delete your account?</DialogTitle>
         <DialogDescription>
@@ -116,29 +118,31 @@ function DeleteAccountForm() {
         </DialogDescription>
       </DialogHeader>
 
-      <Field data-invalid={!!error}>
-        <FieldLabel htmlFor="confirm-password">Password</FieldLabel>
-        <Input
-          id="confirm-password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          aria-invalid={!!error}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            setError(null);
-          }}
-        />
-        <FieldError>{error}</FieldError>
-      </Field>
+      <FieldGroup className="py-4">
+        <Field data-invalid={!!error}>
+          <FieldLabel htmlFor="confirm-password">Password</FieldLabel>
+          <Input
+            id="confirm-password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            aria-invalid={!!error}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setError(null);
+            }}
+          />
+          <FieldError>{error}</FieldError>
+        </Field>
+      </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline">Cancel</Button>} />
-        <Button variant="destructive" onClick={onDelete} disabled={!password || remove.isPending}>
+        <DialogClose render={<Button variant="outline" type="button">Cancel</Button>} />
+        <Button type="submit" variant="destructive" disabled={!password || remove.isPending}>
           {remove.isPending ? "Deleting…" : "Delete permanently"}
         </Button>
       </DialogFooter>
-    </>
+    </form>
   );
 }
 
