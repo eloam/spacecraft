@@ -350,10 +350,9 @@ export function MembersPage() {
               setRemoveOpen(false);
               if (left) {
                 // Every query on this page answers 403 from here on, so go somewhere that
-                // still loads. `exact`: the keys under this one belong to the organization
-                // just left, and refetching them would only collect rejections on the way
-                // out — but the list itself would otherwise still offer it for 30 seconds.
-                queryClient.invalidateQueries({ queryKey: keys.organizations, exact: true });
+                // still loads — and the list would otherwise go on offering the organization
+                // just left for another 30 seconds.
+                queryClient.invalidateQueries({ queryKey: keys.organizations });
                 navigate("/");
               }
             },

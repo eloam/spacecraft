@@ -85,137 +85,153 @@ export function ProjectSettingsPage() {
         hasData={project.data !== undefined}
         rows={3}
       >
-        <SettingsSection
-          icon={<FolderGit2 />}
-          title="General"
-          description="How this project is named."
-        >
-          <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
-            <FieldGroup>
-              <Field data-invalid={!!form.formState.errors.name}>
-                <FieldLabel htmlFor="name">Name</FieldLabel>
-                <Input
-                  id="name"
-                  aria-invalid={!!form.formState.errors.name}
-                  {...form.register("name")}
+        {project.data && (
+          <>
+            <SettingsSection
+              icon={<FolderGit2 />}
+              title="General"
+              description="How this project is named."
+            >
+              <form onSubmit={onSubmit} className="max-w-md space-y-4" noValidate>
+                <FieldGroup>
+                  <Field data-invalid={!!form.formState.errors.name}>
+                    <FieldLabel htmlFor="name">Name</FieldLabel>
+                    <Input
+                      id="name"
+                      aria-invalid={!!form.formState.errors.name}
+                      {...form.register("name")}
+                    />
+                    <FieldError errors={[form.formState.errors.name]} />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="slug">Slug</FieldLabel>
+                    <Input
+                      id="slug"
+                      value={nextSlug}
+                      readOnly
+                      disabled
+                      className="font-mono text-sm"
+                    />
+                    {slugWillChange ? (
+                      // Renaming moves the slug, and the slug is the URL. Saying so before the
+                      // click is the difference between a rename and a broken link someone
+                      // discovers later.
+                      <FieldDescription className="text-xs text-destructive">
+                        Renaming changes the slug. Existing links to{" "}
+                        <code className="font-mono">{currentSlug}</code> will stop working.
+                      </FieldDescription>
+                    ) : (
+                      <FieldDescription className="text-xs">
+                        Derived from the name, and used in this project&apos;s URL.
+                      </FieldDescription>
+                    )}
+                  </Field>
+                </FieldGroup>
+
+                <Button type="submit" disabled={rename.isPending || !form.formState.isDirty}>
+                  {rename.isPending ? "Saving…" : "Save changes"}
+                </Button>
+              </form>
+            </SettingsSection>
+
+            <SettingsSection
+              icon={<ShieldCheck />}
+              title="Validation"
+              description="What an uploaded document has to satisfy before an SDK is generated from it."
+            >
+              <Field orientation="horizontal" className="justify-between gap-6">
+                {/* Content first, switch last: the row reads label-then-state, the way it did
+                    when a justify-between div held the two apart. */}
+                <FieldContent className="max-w-lg">
+                  <FieldLabel htmlFor="strict">
+                    Strict mode
+                  </FieldLabel>
+                  <FieldDescription>
+                    Beyond &ldquo;is this valid OpenAPI&rdquo;, check whether a usable SDK can
+                    come out of it: a base URL to call, method names that can be spelled,
+                    described responses, publishable metadata. A document that would produce a
+                    broken client is rejected instead of being built.
+                  </FieldDescription>
+                  <FieldDescription>
+                    Turn it off for a specification you consume but do not own, where the
+                    findings are noise standing between you and a client that works.
+                  </FieldDescription>
+                </FieldContent>
+
+                {/* While the change is in flight the switch shows what was asked for; once it
+                    lands, the hook writes the response to the cache. Bound to the cache
+                    alone, the switch snapped back the moment it was flipped. */}
+                <Switch
+                  id="strict"
+                  checked={strict.isPending ? strict.variables : project.data.strictValidation}
+                  disabled={strict.isPending}
+                  onCheckedChange={(enabled) =>
+                    strict.mutate(enabled, {
+                      // Existing versions keep the findings they were given at upload, so the
+                      // change is not visible until each is revalidated. Saying so here beats
+                      // letting it be discovered as an inconsistency.
+                      onSuccess: () =>
+                        toast.success(
+                          enabled
+                            ? "Strict mode on. Revalidate a spec to apply it to what is already uploaded."
+                            : "Strict mode off. Revalidate a spec to apply it to what is already uploaded.",
+                        ),
+                      onError: (error) =>
+                        toast.error(describeError(error, "Could not change the setting.")),
+                    })
+                  }
                 />
-                <FieldError errors={[form.formState.errors.name]} />
               </Field>
+            </SettingsSection>
 
-              <Field>
-                <FieldLabel htmlFor="slug">Slug</FieldLabel>
-                <Input id="slug" value={nextSlug} readOnly disabled className="font-mono text-sm" />
-                {slugWillChange ? (
-                  // Renaming moves the slug, and the slug is the URL. Saying so before the
-                  // click is the difference between a rename and a broken link someone
-                  // discovers later.
-                  <FieldDescription className="text-xs text-destructive">
-                    Renaming changes the slug. Existing links to{" "}
-                    <code className="font-mono">{currentSlug}</code> will stop working.
-                  </FieldDescription>
-                ) : (
-                  <FieldDescription className="text-xs">
-                    Derived from the name, and used in this project&apos;s URL.
-                  </FieldDescription>
-                )}
-              </Field>
-            </FieldGroup>
+            <DangerSection
+              icon={<Trash2 />}
+              title="Delete project"
+              description="Removes the project and everything recorded under it."
+            >
+              {/* self-start: CardContent is a flex column, which stretches its children,
+                  and a delete button as wide as the card reads as the section itself. */}
+              <Button
+                variant="destructive"
+                className="self-start"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="size-4" aria-hidden />
+                Delete project
+              </Button>
+            </DangerSection>
 
-            <Button type="submit" disabled={rename.isPending || !form.formState.isDirty}>
-              {rename.isPending ? "Saving…" : "Save changes"}
-            </Button>
-          </form>
-        </SettingsSection>
-
-        <SettingsSection
-          icon={<ShieldCheck />}
-          title="Validation"
-          description="What an uploaded document has to satisfy before an SDK is generated from it."
-        >
-          <Field orientation="horizontal" className="justify-between gap-6">
-            {/* Content first, switch last: the row reads label-then-state, the way it did
-                when a justify-between div held the two apart. */}
-            <FieldContent className="max-w-lg">
-              <FieldLabel htmlFor="strict">
-                Strict mode
-              </FieldLabel>
-              <FieldDescription>
-                Beyond &ldquo;is this valid OpenAPI&rdquo;, check whether a usable SDK can
-                come out of it: a base URL to call, method names that can be spelled,
-                described responses, publishable metadata. A document that would produce a
-                broken client is rejected instead of being built.
-              </FieldDescription>
-              <FieldDescription>
-                Turn it off for a specification you consume but do not own, where the
-                findings are noise standing between you and a client that works.
-              </FieldDescription>
-            </FieldContent>
-
-            <Switch
-              id="strict"
-              checked={project.data?.strictValidation ?? true}
-              disabled={strict.isPending}
-              onCheckedChange={(enabled) =>
-                strict.mutate(enabled, {
-                  // Existing versions keep the findings they were given at upload, so the
-                  // change is not visible until each is revalidated. Saying so here beats
-                  // letting it be discovered as an inconsistency.
-                  onSuccess: () =>
-                    toast.success(
-                      enabled
-                        ? "Strict mode on. Revalidate a spec to apply it to what is already uploaded."
-                        : "Strict mode off. Revalidate a spec to apply it to what is already uploaded.",
-                    ),
+            <ConfirmDeleteDialog
+              open={deleteOpen}
+              onOpenChange={setDeleteOpen}
+              onOpenChangeComplete={(open) => {
+                if (!open) setDeleteError(null);
+              }}
+              title={`Delete ${project.data.name}?`}
+              description="This removes the project and everything recorded under it."
+              confirmText={project.data.name}
+              consequences={[
+                `${project.data.specVersionCount} uploaded spec version(s)`,
+                `${project.data.targets.length} SDK target(s)`,
+                "Its entire run history, with artifacts and logs",
+              ]}
+              reassurances={["Packages already published stay in their registries"]}
+              isPending={remove.isPending}
+              error={deleteError}
+              onConfirm={() =>
+                remove.mutate({ projectId, name: project.data.name }, {
+                  onSuccess: () => {
+                    toast.success("Project deleted.");
+                    navigate(`/orgs/${orgSlug}`);
+                  },
                   onError: (error) =>
-                    toast.error(describeError(error, "Could not change the setting.")),
+                    setDeleteError(describeError(error, "Could not delete the project.")),
                 })
               }
             />
-          </Field>
-        </SettingsSection>
-
-        <DangerSection
-          icon={<Trash2 />}
-          title="Delete project"
-          description="Removes the project and everything recorded under it."
-        >
-          {/* self-start: CardContent is a flex column, which stretches its children,
-              and a delete button as wide as the card reads as the section itself. */}
-          <Button variant="destructive" className="self-start" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="size-4" aria-hidden />
-            Delete project
-          </Button>
-        </DangerSection>
-
-        <ConfirmDeleteDialog
-          open={deleteOpen}
-          onOpenChange={setDeleteOpen}
-          onOpenChangeComplete={(open) => {
-            if (!open) setDeleteError(null);
-          }}
-          title={`Delete ${project.data?.name ?? "this project"}?`}
-          description="This removes the project and everything recorded under it."
-          confirmText={project.data?.name}
-          consequences={[
-            `${project.data?.specVersionCount ?? 0} uploaded spec version(s)`,
-            `${project.data?.targets.length ?? 0} SDK target(s)`,
-            "Its entire run history, with artifacts and logs",
-          ]}
-          reassurances={["Packages already published stay in their registries"]}
-          isPending={remove.isPending}
-          error={deleteError}
-          onConfirm={() =>
-            project.data &&
-            remove.mutate({ projectId, name: project.data.name }, {
-              onSuccess: () => {
-                toast.success("Project deleted.");
-                navigate(`/orgs/${orgSlug}`);
-              },
-              onError: (error) =>
-                setDeleteError(describeError(error, "Could not delete the project.")),
-            })
-          }
-        />
+          </>
+        )}
       </QueryBoundary>
     </div>
   );

@@ -71,9 +71,8 @@ export function sessionOf(account: Account): StorageState {
               state: {
                 accessToken: account.accessToken,
                 refreshToken: account.refreshToken,
-                user: account.user,
               },
-              version: 0,
+              version: 1,
             }),
           },
         ],

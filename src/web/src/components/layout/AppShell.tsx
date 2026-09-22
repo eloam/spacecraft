@@ -3,8 +3,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { LogOut, Orbit, SearchX, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/stores/auth";
-import { useLogout, useOrganizations } from "@/api/queries";
+import { useAccount, useLogout, useOrganizations } from "@/api/queries";
 import { useCanonicalRoute } from "@/hooks/useRouteIdentity";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/EmptyState";
@@ -24,7 +23,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function AppShell() {
-  const user = useAuthStore((s) => s.user);
+  // Who is signed in is server state: the account query, as the account pages read it — not
+  // a copy in the session store.
+  const account = useAccount();
   const logout = useLogout();
   const { orgId } = useParams();
   const location = useLocation();
@@ -103,11 +104,14 @@ export function AppShell() {
               <DropdownMenuTrigger
                 render={
                   <Button variant="ghost" size="sm">
-                    <AccountAvatar displayName={user?.displayName} email={user?.email} />
+                    <AccountAvatar
+                      displayName={account.data?.displayName}
+                      email={account.data?.email}
+                    />
                     {/* The name is the label on wider screens; on a phone the icon alone
                         carries it, so the accessible name comes from aria-label. */}
                     <span className="hidden max-w-40 truncate sm:inline">
-                      {user?.displayName || user?.email}
+                      {account.data?.displayName || account.data?.email}
                     </span>
                   </Button>
                 }

@@ -53,7 +53,9 @@ export function OrganizationRunsPage() {
   // What the API is asked with. It takes a Guid: sending it a slug filtered nothing, which
   // is why choosing a project used to widen the list instead of narrowing it.
   const projectFilterId = useProjectId(orgId, projectFilter ?? "");
-  const runs = useRuns(orgId, projectFilterId || undefined);
+  // No filter asks for every run; a filter whose id is still "" asks for nothing yet, rather
+  // than for every run while the slug resolves.
+  const runs = useRuns(orgId, projectFilter ? projectFilterId : undefined);
 
   // ?spec=<id> is how the specs table hands over: "the runs of this version". Filtered here,
   // since the API has no spec parameter and a project's runs are already in hand.
@@ -139,9 +141,13 @@ export function OrganizationRunsPage() {
         </div>
       )}
 
-      {/* This list polls every two seconds while a run is in flight, so a single dropped
-          poll must not take the table with it. */}
-      <QueryBoundary isLoading={runs.isLoading} error={runs.error} hasData={runs.data !== undefined}>
+      {/* hasData: this list polls every two seconds while a run is in flight, so a single
+          dropped poll must not take the table with it. isPending rather than isLoading: the
+          query waits, disabled, for a project filter's id, and isLoading is `isPending &&
+          isFetching`, false while disabled, so a cold load under a filter showed "No runs in
+          this project" before the skeleton. A filter change keeps the last list up (see
+          useRuns). */}
+      <QueryBoundary isLoading={runs.isPending} error={runs.error} hasData={runs.data !== undefined}>
         {visible.length ? (
           // Framed like the specs, targets, credentials and publications tables.
           <Card className="py-0">
