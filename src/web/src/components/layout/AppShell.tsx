@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Link, Outlet, useLocation, useParams } from "react-router-dom";
 import { ErrorBoundary } from "react-error-boundary";
 import { LogOut, Orbit, SearchX, Settings } from "lucide-react";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAccount, useLogout, useOrganizations } from "@/api/queries";
 import { useCanonicalRoute } from "@/hooks/useRouteIdentity";
-import { Spinner } from "@/components/ui/spinner";
+import { PageSpinner } from "@/components/PageSpinner";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorFallback } from "@/components/ErrorFallback";
 import { QueryBoundary } from "@/components/QueryBoundary";
@@ -142,9 +143,7 @@ export function AppShell() {
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         {resolvingOrganization ? (
-          <div className="flex justify-center py-16">
-            <Spinner className="size-5" />
-          </div>
+          <PageSpinner />
         ) : (
           /* The list never loaded: the alert every page shows for a failed query, in the
              page's place, since both forms of the address wait for that list before a page
@@ -168,7 +167,9 @@ export function AppShell() {
                  sections stay, so there is still somewhere to go, and the next address
                  renders afresh instead of inheriting the fallback from the last one. */
               <ErrorBoundary FallbackComponent={ErrorFallback} resetKeys={[location.pathname]}>
-                <Outlet />
+                <Suspense fallback={<PageSpinner />}>
+                  <Outlet />
+                </Suspense>
               </ErrorBoundary>
             )}
           </QueryBoundary>
